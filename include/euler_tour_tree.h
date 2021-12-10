@@ -1,13 +1,13 @@
 
 class EulerTourTree {
-	private:
+    private:
 
-	public:
-		EulerTourTree();
-		~EulerTourTree();
+    public:
+        EulerTourTree();
+        ~EulerTourTree();
 
-		void link();
-		void cut();
+        void link();
+        void cut();
 
-		void aggregate();
+        void aggregate();
 };
