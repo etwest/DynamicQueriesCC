@@ -1,4 +1,4 @@
-# Graph Streaming Connected Components with Dynamic Queries
+# Streaming Connected Components with Dynamic Queries
 Using our previous [implementation](https://github.com/GraphStreamingProject/GraphStreamingCC) we can efficiently process a stream of edge insertions and deletions and then return the connected components of the graph. In this repo we will attempt to build an implementation that can efficiently answer queries interspersed with the stream.
 
 # Based Upon
