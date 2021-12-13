@@ -1,9 +1,15 @@
+struct NodeData {
+    EulerTourTree *ett_ptrs[2]; // pointers to ETT aux tree (first and last)
+    Supernode agg_sketch;       // aggregate sketches
+}
 
 class EulerTourTree {
     private:
+        // Tree representation splay tree, bbst, or skip-list
+        SplayTree aux_tree; // each node of tree points to a NodeData
 
     public:
-        EulerTourTree();
+        EulerTourTree(NodeData to_store);
         ~EulerTourTree();
 
         void link();
