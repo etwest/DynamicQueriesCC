@@ -18,6 +18,7 @@ In the context of graph streaming, Linear Sketching data-structures represent a 
 We use our linear sketch `CubeSketch` that we describe and implement in `paper reference here` and in our previous implementation. The paper by Kapron, King, Mountjoy utilizes a different version of linear sketching. The performance of our sketching technique is a log faster in the average case.
 
 # Implementation TODOs
+0. Need a Splay Tree, Balanced Binary Tree, or Skip-List Implementation
 1. Euler Tour Tree implementation that supports
     1. sketch aggregates
     2. tracking new relevent edges
