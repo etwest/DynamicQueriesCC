@@ -1,6 +1,8 @@
+#include <Supernode.h>
+
 struct NodeData {
     EulerTourTree *ett_ptrs[2]; // pointers to ETT aux tree (first and last)
-    Supernode agg_sketch;       // aggregate sketches
+    Supernode agg_sketch;       // aggregate sketch
 }
 
 class EulerTourTree {
@@ -15,5 +17,5 @@ class EulerTourTree {
         void link();
         void cut();
 
-        void aggregate();
+        void aggregate() { return aux_tree->root->agg_sketch; };
 };
