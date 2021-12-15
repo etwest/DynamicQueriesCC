@@ -1,15 +1,7 @@
-EulerTourTree::EulerTourTree() {
+EulerTourTree::EulerTourTree() {}
 
-}
+EulerTourTree::~EulerTourTree() {}
 
-EulerTourTree::~EulerTourTree() {
+EulerTourTree::link() {}
 
-}
-
-EulerTourTree::link() {
-
-}
-
-EulerTourTree::split() {
-
-}
+EulerTourTree::split() {}
