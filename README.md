@@ -30,3 +30,16 @@ We use our linear sketch `CubeSketch` that we describe and implement in `paper r
     2. Delete
     3. Refresh
     4. Query
+
+## ETT Resources
+* https://codeforces.com/blog/entry/18369
+* https://codeforces.com/blog/entry/53265
+* http://web.stanford.edu/class/archive/cs/cs166/cs166.1166/lectures/17/Small17.pdf
+* Original Paper: https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.192.8615&rep=rep1&type=pdf
+
+## Current Work Distribution
+- Daniel: Splay Tree Implementation
+- Kenny: ETT Skeleton
+- Evan: Cmake improvements and some basic tests
+
+
