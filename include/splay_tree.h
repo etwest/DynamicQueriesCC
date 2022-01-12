@@ -1,21 +1,32 @@
-#include <Supernode.h>
+#pragma once
+#include <sketch.h>
+#include <cassert>
 
+// General idea: information is not stored in the leaves and brought up
+// but may exist anywhere. Therefore, we need to store both the aggregate
+// and the information this node adds, if any
+// The only aggregate we care about is the root's aggregate
 class SplayTreeNode{
   private:
     using Sptr = std::shared_ptr<SplayTreeNode>;
-    Supernode sketch_agg;
+    using Wptr = std::weak_ptr<SplayTreeNode>;
     Sptr left;
     Sptr right;
-    Sptr parent;
-    void zig(bool left);
-    void zigzig(bool left);
-    void zigzag(bool left);
+    Wptr parent;
+    void zig(bool leftm);
+    void zigzig(bool leftm);
+    void zigzag(bool leftm);
     void rebuild_agg();
+    Sptr get_parent() {assert(!parent.expired()); return parent.lock();}
   public:
     void splay();
+    Sketch* sketch = nullptr;
     SplayTreeNode() = default;
-    SplayTreeNode(Supernode& sketch) : sketch_agg(sketch){};
-}
+    SplayTreeNode(Sketch* sketch) : sketch(sketch)
+    {
+      rebuild_agg();
+    };
+};
 
 class SplayTree {
  private:
@@ -29,8 +40,8 @@ class SplayTree {
 
   void join(SplayTree& other);
   void split(SplayTree& left, SplayTree& right);
-  void insert(Supernode& node);
-  void remove(Supernode& node);
+  void insert(Sketch* node);
+  void remove(Sketch* node);
 
-  Supernode* aggregate() { if (head) return head->sketch_agg; return nullptr; };
+  Sketch* aggregate() { if (head) return head->sketch; return nullptr; };
 };

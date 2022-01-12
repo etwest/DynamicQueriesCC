@@ -8,17 +8,17 @@
 
 void SplayTreeNode::splay()
 {
-  if (!parent)
+  if (parent.expired())
     return;
   //Are we left of the parent?
-  bool leftp = (this == parent->left);
+  bool leftp = (this == get_parent()->left.get());
   
-  Sptr gp = parent->parent;
+  Sptr gp = get_parent()->get_parent();
   if (!gp)
     return zig(leftp);
 
   //Is our parent left of the grandparent?
-  bool leftgp = (parent == gp->left);
+  bool leftgp = (get_parent() == gp->left);
 
   //Same direction-- zig zig
   if (leftgp == leftp)
@@ -29,14 +29,14 @@ void SplayTreeNode::splay()
 
 // This is a single rotation to move the node to the root
 // Does not touch the old grandparent node, but does point to them 
-void SplayTreeNode::zig(bool left)
+void SplayTreeNode::zig(bool leftm)
 {
-  auto oldparent = std::move(parent);
-  auto newparent = std::move(oldparent->parent);
-  if (left)
+  auto oldparent = std::move(get_parent());
+  auto newparent = std::move(oldparent->get_parent());
+  if (leftm)
   {
     // We are left of the parent
-    auto thisnode = std:move(parent->left);
+    auto thisnode = std::move(get_parent()->left);
 
     // Replace us with our right
     // This is the 'zig' step
@@ -49,12 +49,12 @@ void SplayTreeNode::zig(bool left)
     right->parent = thisnode;
 
     // Set our parent pointer properly.
-    parent = newparant;
+    parent = newparent;
   }
   else
   {
     // We are right of the parent
-    auto thisnode = std:move(parent->right);
+    auto thisnode = std::move(get_parent()->right);
 
     // Replace us with our left
     // This is the 'zig' step
@@ -67,7 +67,7 @@ void SplayTreeNode::zig(bool left)
     left->parent = thisnode;
 
     // Set our parent pointer properly.
-    parent = newparant;
+    parent = newparent;
   }
 
   // Rebuild sketches in order
@@ -78,15 +78,17 @@ void SplayTreeNode::zig(bool left)
 }
 
 //Left defines GP direction. Whether or not its mirrored
-void SplayTreeNode::zigzig(bool left)
+void SplayTreeNode::zigzig(bool leftm)
 {
-  auto oldparent = std::move(parent);
-  auto oldgp = std::move(oldparent->parent);
-  auto oldggp = std::move(oldgp->parent);
+  auto oldparent = std::move(get_parent());
+  auto oldgp = std::move(oldparent->get_parent());
+  auto oldggp = std::move(oldgp->get_parent());
   bool gpleft = (oldggp->left == oldgp);
-  if (left)
+
+  Sptr thisnode;
+  if (leftm)
   {
-    auto thisnode = std:move(parent->left);
+    thisnode = std::move(get_parent()->left);
     // 'A' and 'D' do not need fixing. 
     
     //Fix 'C'
@@ -108,7 +110,7 @@ void SplayTreeNode::zigzig(bool left)
   }
   else
   {
-    auto thisnode = std:move(parent->right);
+    thisnode = std::move(get_parent()->right);
     // 'A' and 'D' do not need fixing. 
     
     //Fix 'C'
@@ -129,12 +131,13 @@ void SplayTreeNode::zigzig(bool left)
   }
   // Now, we fix the old ggp
   parent = oldggp;
-  if (parent)
+  if (!parent.expired())
+  {
     if (gpleft)
       oldggp->left = thisnode;
     else
       oldggp->right = thisnode;
-
+  }
   // Rebuild sketches in order
   oldgp->rebuild_agg();
   oldparent->rebuild_agg();
@@ -144,15 +147,16 @@ void SplayTreeNode::zigzig(bool left)
 }
 
 //Left defines GP direction. Whether or not its mirrored
-void SplayTreeNode::zigzag(bool left)
+void SplayTreeNode::zigzag(bool leftm)
 {
-  auto oldparent = std::move(parent);
-  auto oldgp = std::move(oldparent->parent);
-  auto oldggp = std::move(oldgp->parent);
+  auto oldparent = std::move(get_parent());
+  auto oldgp = std::move(oldparent->get_parent());
+  auto oldggp = std::move(oldgp->get_parent());
   bool gpleft = (oldggp->left == oldgp);
-  if (left)
+  Sptr thisnode;
+  if (leftm)
   {
-    auto thisnode = std:move(parent->left);
+    thisnode = std::move(get_parent()->left);
     // 'A' and 'D' do not need fixing. 
     
     //Fix 'C'
@@ -173,7 +177,7 @@ void SplayTreeNode::zigzag(bool left)
   }
   else
   {
-    auto thisnode = std:move(parent->left);
+    thisnode = std::move(get_parent()->left);
     // 'A' and 'D' do not need fixing. 
     
     //Fix 'C'
@@ -194,12 +198,13 @@ void SplayTreeNode::zigzag(bool left)
   }
   // Now, we fix the old ggp
   parent = oldggp;
-  if (parent)
+  if (!parent.expired())
+  {
     if (gpleft)
       oldggp->left = thisnode;
     else
       oldggp->right = thisnode;
-
+  }
   // Rebuild sketches in order
   oldgp->rebuild_agg();
   oldparent->rebuild_agg();
@@ -210,18 +215,40 @@ void SplayTreeNode::zigzag(bool left)
 
 void SplayTreeNode::rebuild_agg()
 {
-  //TODO: rebuilding doesn't work if there's no children?
-  if (!left && !right)
-    return;
-  else if (left && right)
+  /*
+  bool hasleft = left && left->sketch;
+  bool hasright = right && right->sketch;
+  // Case 1: No children. Our aggregate is just ourself
+  if (!hasleft && !hasright)
   {
-    sketch_agg = left;
-    sketch_agg.merge(right->sketch_agg);
+    has_agg = false;
   }
-  else if (left)
-      sketch_agg = left;
+  // Case 2: Both children have information.
+  else if (hasleft && hasright)
+  {
+    sketch_agg = left->sketch_agg;
+    sketch_agg.merge(right->sketch_agg);
+    has_agg = true;
+  }
+  // Case 3: Only left
+  else if (hasleft)
+  {
+    sketch_agg = left->sketch_agg;
+    has_agg = true;
+  }
+  // Case 4: Only right
   else
-      sketch_agg = right;
+  {
+    sketch_agg = right->sketch_agg;
+    has_agg = true;
+  }
+  // We've added our children's information. Now we can add our own.
+  if (sketch_ptr)
+    if (has_agg)
+      sketch_agg.merge(*sketch_ptr);
+    else
+      sketch_agg = *sketch_ptr;
+      */
 }
 
 void SplayTree::splay(Sptr node)

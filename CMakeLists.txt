@@ -112,19 +112,26 @@ ExternalProject_Add(
   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
 )
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix/include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix/include/l0_sampling)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix/include/GutterTree)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix/include/test)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix/include/GraphZeppelinCommon)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/prefix/lib)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/GraphStreamingCC/src/GraphStreamingCC-build/GutterTree/prefix/lib)
 
 add_executable(tests
   test/test_runner.cpp
   test/basic_test.cpp
-  include/euler_tour_tree.h
-  include/graph_tiers.h
-  src/euler_tour_tree.cpp
+
   src/graph_tiers.cpp
+  include/graph_tiers.h
+
+  src/euler_tour_tree.cpp
+  include/euler_tour_tree.h
+
+  src/splay_tree.cpp
+  include/splay_tree.h
 )
 add_dependencies(tests GraphStreamingCC)
 target_link_libraries(tests PRIVATE libGraphStreamingCC.a GTest::gtest xxHash::xxhash libGutterTree.a)

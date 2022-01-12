@@ -1,7 +1,11 @@
-EulerTourTree::EulerTourTree() {}
+#include <euler_tour_tree.h>
+EulerTourTree::EulerTourTree(NodeData to_store) {}
 
 EulerTourTree::~EulerTourTree() {}
 
-EulerTourTree::link() {}
+void EulerTourTree::link() {}
 
-EulerTourTree::split() {}
+void EulerTourTree::cut() {}
+
+void EulerTourTree::get_root() {}
+
