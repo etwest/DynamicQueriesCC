@@ -1,4 +1,4 @@
-#include <splay_tree.h>
+#include "splay_tree.h"
 #include <assert.h>
 
 // See https://en.wikipedia.org/wiki/Splay_tree#Operations

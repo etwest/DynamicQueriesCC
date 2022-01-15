@@ -1,6 +1,6 @@
 #pragma once
-#include <sketch.h>
-#include <splay_tree.h>
+#include "sketch.h"
+#include "splay_tree.h"
 
 class EulerTourTree;
 
