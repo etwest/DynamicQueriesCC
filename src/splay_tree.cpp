@@ -5,6 +5,10 @@
 // For images on how the zig, zigzig, and zigzag steps work.
 
 //TODO: Add validation functions 
+  
+
+SplayTree::SplayTree() {};
+SplayTree::~SplayTree() {};
 
 void SplayTreeNode::splay()
 {
