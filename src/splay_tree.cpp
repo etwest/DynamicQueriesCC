@@ -1,14 +1,10 @@
-#include "splay_tree.h"
+#include "../include/splay_tree.h"
 #include <assert.h>
 
 // See https://en.wikipedia.org/wiki/Splay_tree#Operations
 // For images on how the zig, zigzig, and zigzag steps work.
 
 //TODO: Add validation functions 
-  
-
-SplayTree::SplayTree() {};
-SplayTree::~SplayTree() {};
 
 void SplayTreeNode::splay()
 {

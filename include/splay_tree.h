@@ -35,8 +35,8 @@ class SplayTree {
   void splay(Sptr node);
 
  public:
-  SplayTree();
-  ~SplayTree();
+  SplayTree()  {};
+  ~SplayTree() {};
 
   void join(SplayTree& other);
   void split(SplayTree& left, SplayTree& right);

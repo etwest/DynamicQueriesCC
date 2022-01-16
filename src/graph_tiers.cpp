@@ -1,4 +1,4 @@
-#include "graph_tiers.h"
+#include "../include/graph_tiers.h"
 
 GraphTiers::GraphTiers(node_id_t num_nodes) {}
 
