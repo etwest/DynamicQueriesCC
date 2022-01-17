@@ -36,6 +36,7 @@ We use our linear sketch `CubeSketch` that we describe and implement in `paper r
 * https://codeforces.com/blog/entry/53265
 * http://web.stanford.edu/class/archive/cs/cs166/cs166.1166/lectures/17/Small17.pdf
 * Original Paper: https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.192.8615&rep=rep1&type=pdf
+* Batch Parallel Euler Tour Tree: https://github.com/tomtseng/parallel-euler-tour-tree (specifically, src/dynamic_trees/euler_tour_tree/)
 
 ## Current Work Distribution
 - Daniel: Splay Tree Implementation
