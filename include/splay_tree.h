@@ -12,6 +12,7 @@ public:
   SplayTree() = default;
   SplayTree(EulerTourTree& node);
   void splay();
+  void rotate_up();
   void link_left(SplayTree* other);
   void link_right(SplayTree* other);
   SplayTree* traverse_right();

@@ -1,28 +1,49 @@
+#include <cassert>
+
 #include <splay_tree.h>
 
 SplayTree::SplayTree(EulerTourTree& node) :
   left(nullptr), right(nullptr), parent(nullptr), node(&node) {
 }
 
+void SplayTree::rotate_up() {
+  assert(this->parent != nullptr);
+  SplayTree* parent = this->parent;
+  SplayTree* grandparent = parent->parent;
+
+  if (grandparent == nullptr) {
+    this->parent = nullptr;
+  } else if (grandparent->left == parent) {
+    grandparent->link_left(this);
+  } else {
+    grandparent->link_right(this);
+  }
+
+  if (parent->left == this) {
+    parent->link_left(this->right);
+    this->link_right(parent);
+  } else {
+    parent->link_right(this->left);
+    this->link_left(parent);
+  }
+}
+
 void SplayTree::splay() {
   while (this->parent != nullptr) {
-    SplayTree& other = *this->parent;
-    if (other.parent == nullptr) {
-      this->parent = nullptr;
+    SplayTree* parent = this->parent;
+    SplayTree* grandparent = parent->parent;
+    if (grandparent == nullptr) {
+      // zig
+      this->rotate_up();
+    } else if ((grandparent->left == parent && parent->left == this) ||
+        (grandparent->right == parent && parent->right == this)) {
+      // zig-zig
+      parent->rotate_up();
+      this->rotate_up();
     } else {
-      SplayTree& grandparent = *other.parent;
-      if (grandparent.left == &other) {
-        grandparent.link_left(this);
-      } else {
-        grandparent.link_right(this);
-      }
-    }
-    if (other.left == this) {
-      other.link_left(this->right);
-      this->link_right(&other);
-    } else {
-      other.link_right(this->left);
-      this->link_left(&other);
+      // zig-zag
+      this->rotate_up();
+      this->rotate_up();
     }
   }
 }
