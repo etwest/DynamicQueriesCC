@@ -37,8 +37,10 @@ bool EulerTourTree::link(EulerTourTree& other) {
   if (aux_other == nullptr) {
     // other tree was only a sentinel
     // A, construct B, construct D, BA
-    SplayTree* aux_edge_left = &this->edges.emplace(std::make_pair(&other, SplayTree(*this))).first->second;
-    SplayTree* aux_edge_right = &other.edges.emplace(std::make_pair(this, SplayTree(other))).first->second;
+    SplayTree* aux_edge_left = &this->edges.emplace(
+        std::make_pair(&other, SplayTree(*this))).first->second;
+    SplayTree* aux_edge_right = &other.edges.emplace(
+        std::make_pair(this, SplayTree(other))).first->second;
     aux_edge_left->link_left(aux_this_left);
     aux_edge_left->link_right(aux_edge_right);
     aux_edge_right->link_right(aux_this_right);
@@ -50,8 +52,10 @@ bool EulerTourTree::link(EulerTourTree& other) {
     SplayTree* aux_other_right = &other.edges.begin()->second;
     SplayTree* aux_other_left = aux_other_right->split_left();
 
-    SplayTree* aux_edge_left = &this->edges.emplace(std::make_pair(&other, SplayTree(*this))).first->second;
-    SplayTree* aux_edge_right = &other.edges.emplace(std::make_pair(this, SplayTree(other))).first->second;
+    SplayTree* aux_edge_left = &this->edges.emplace(
+        std::make_pair(&other, SplayTree(*this))).first->second;
+    SplayTree* aux_edge_right = &other.edges.emplace(
+        std::make_pair(this, SplayTree(other))).first->second;
 
     aux_edge_left->link_left(aux_this_left);
     aux_other_right->link_left(aux_edge_left);
@@ -82,7 +86,8 @@ bool EulerTourTree::cut(EulerTourTree& other) {
   if (order_is_e1e2) {
     // e1 is to the left of e2
     // e2 should be made into a sentinel
-    SplayTree* sentinel = &other.edges.emplace(std::make_pair(nullptr, SplayTree(other))).first->second;
+    SplayTree* sentinel = &other.edges.emplace(
+        std::make_pair(nullptr, SplayTree(other))).first->second;
     sentinel->link_left(frag2l);
     if (frag1l != nullptr) {
       frag1l->traverse_right()->link_right(frag2r);
@@ -90,7 +95,8 @@ bool EulerTourTree::cut(EulerTourTree& other) {
   } else {
     // e2 is to the left of e1
     // e1 should be made into a sentinel
-    SplayTree* sentinel = &this->edges.emplace(std::make_pair(nullptr, SplayTree(*this))).first->second;
+    SplayTree* sentinel = &this->edges.emplace(
+        std::make_pair(nullptr, SplayTree(*this))).first->second;
     sentinel->link_left(frag2r);
     if (frag2l != nullptr) {
       frag2l->traverse_right()->link_right(frag1r);
