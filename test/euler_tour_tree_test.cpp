@@ -1,72 +1,43 @@
 #include <algorithm>
-#include <functional>
-#include <iostream>
 
 #include <gtest/gtest.h>
 
 #include <euler_tour_tree.h>
 
-bool isvalid(const EulerTourTree& ett) {
-  for (const auto& [k, v] : ett.edges) {
-    if (!(v.node == &ett))
-      return false;
-    if (!(v.parent == nullptr || v.parent->left == &v || v.parent->right == &v))
-      return false;
-    if (!(v.left == nullptr || v.left->parent == &v))
-      return false;
-    if (!(v.right == nullptr || v.right->parent == &v))
-      return false;
+bool EulerTourTree::isvalid() const {
+  bool invalid = false;
+  for (const auto& [k, v] : this->edges) {
+    EXPECT_EQ(v.node, this) << (invalid = true, "");
+    if (invalid) return false;
+    EXPECT_TRUE(v.isvalid()) << (invalid = true, "");
+    if (invalid) return false;
     if (k == nullptr) {
-      if(!(v.right == nullptr))
-        return false;
-      const SplayTree* vnext = &v;
-      while (vnext->parent != nullptr) {
-        if (!(vnext->parent->right == vnext))
-          return false;
-        vnext = vnext->parent;
-      }
+      EXPECT_EQ(v.next(), nullptr) << (invalid = true, "");
+      if (invalid) return false;
     } else {
-      const SplayTree* vnext;
-      if (v.right == nullptr) {
-        vnext = &v;
-        if (!(vnext->parent != nullptr))
-          return false;
-        while (vnext->parent->right == vnext) {
-          vnext = vnext->parent;
-          if (!(vnext->parent != nullptr))
-            return false;
-        }
-        vnext = vnext->parent;
-      } else {
-        vnext = v.right;
-        while (vnext->left != nullptr) {
-          vnext = vnext->left;
-        }
-      }
-      if (!(vnext->node == k))
-        return false;
+      EXPECT_EQ(v.next()->node, k) << (invalid = true, "");
+      if (invalid) return false;
     }
   }
   return true;
 }
 
-void dump(const EulerTourTree& ett) {
-  std::cout << "EulerTourTree " << &ett << std::endl;
+std::ostream& operator<<(std::ostream& os, const EulerTourTree& ett) {
+  os << "EulerTourTree " << &ett << std::endl;
   for (const auto& [k, v] : ett.edges) {
-    std::cout << "to EulerTourTree " << k << " is " << &v << std::endl;
-    if (v.parent == nullptr) {
-      std::function<void(const SplayTree* ptr, int depth)> inorder_dump =
-        [&](auto ptr, int depth) {
-          if (ptr != nullptr) {
-            inorder_dump(ptr->left, depth + 1);
-            std::cout << std::string(depth, ' ') << ptr << std::endl;
-            inorder_dump(ptr->right, depth + 1);
-          }
-        };
-      inorder_dump(&v, 0);
-    }
+    os << "to EulerTourTree " << k << " is " << &v << std::endl;
+    os << v << std::endl;
   }
-  std::cout << std::endl;
+  os << std::endl;
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+    const std::vector<EulerTourTree>& nodes) {
+  for (const auto& node : nodes) {
+    os << node;
+  }
+  return os;
 }
 
 TEST(EulerTourTreeSuite, stress_test) {
@@ -82,12 +53,10 @@ TEST(EulerTourTreeSuite, stress_test) {
     } else {
       nodes[a].cut(nodes[b]);
     }
-    if (!std::all_of(nodes.begin(), nodes.end(), [](auto& node){return isvalid(node);})) {
-      std::cout << "Stress test validation failed, final state:" << std::endl;
-      for (const auto& node : nodes) {
-        dump(node);
-      }
-      ASSERT_TRUE(false);
-    }
+    ASSERT_TRUE(std::all_of(nodes.begin(), nodes.end(),
+        [](auto& node){return node.isvalid();}))
+        << "Stress test validation failed, final state:"
+        << std::endl
+        << nodes;
   }
 }

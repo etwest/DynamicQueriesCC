@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <unordered_map>
 
 #include <splay_tree.h>
@@ -11,8 +12,7 @@ public:
   bool link(EulerTourTree& other);
   bool cut(EulerTourTree& other);
 
-  void validate() const;
+  bool isvalid() const;
 
-  friend bool isvalid(const EulerTourTree& ett);
-  friend void dump(const EulerTourTree& ett);
+  friend std::ostream& operator<<(std::ostream& os, const EulerTourTree& ett);
 };

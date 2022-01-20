@@ -42,6 +42,7 @@ add_executable(dynamicCC_tests
   test/test_runner.cpp
   test/basic_test.cpp
   test/euler_tour_tree_test.cpp
+  test/splay_tree_test.cpp
 
   src/splay_tree.cpp
 

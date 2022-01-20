@@ -35,8 +35,7 @@ void SplayTree::splay() {
     if (grandparent == nullptr) {
       // zig
       this->rotate_up();
-    } else if ((grandparent->left == parent && parent->left == this) ||
-        (grandparent->right == parent && parent->right == this)) {
+    } else if ((grandparent->left == parent) == (parent->left == this)) {
       // zig-zig
       parent->rotate_up();
       this->rotate_up();
