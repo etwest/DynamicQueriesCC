@@ -2,24 +2,34 @@
 #include "splay_tree.h"
 #include "sketch.h"
 
-TEST(SplayTreeSuite, basic_test) {
-  SplayTree tree;
-  vec_t len = 100;
-  vec_t err = 10;
-  int n = 10;
-  Sketch::configure(len, err);
 
+TEST(SplayTreeSuite, random_splays) {
+  SplayTree tree;
+  //sketch variables
+  vec_t len = 1000;
+  vec_t err = 100;
+  //number of nodes
+  int n = 200;
+  //number of random splays
+  int rsplays = 10000;
+  //configure the sketch globally
+  Sketch::configure(len, err);
   void* sketch_space = alloca(Sketch::sketchSizeof() * n);
 
   std::vector<Sketch*> sketches;
 
-  for (int i = 0; i < 10; i++)
+  for (int i = 0; i < n; i++)
   {
     sketches.push_back(Sketch::makeSketch((char*)sketch_space + Sketch::sketchSizeof()*i, (long)i));
     tree.insert(sketches[i]);
   }
-  for (int i = 0; i < 10; i++)
+
+  for (int i = 0; i < rsplays; i++)
   {
-    tree.remove(sketches[i]);
+    tree.splay_random();
   }
+  // This validates both the parent-child pointer relations and the number of nodes in the tree
+  long nnodes = tree.validate();
+  if(nnodes != n)
+    FAIL() << "Expected " << n << " nodes, found " << nnodes << std::endl;
 }

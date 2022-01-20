@@ -36,21 +36,31 @@ class SplayTreeNode{
 
 class SplayTree {
  private:
+  
+  FRIEND_TEST(SplayTreeSuite, random_splays);
+
   using Sptr = std::shared_ptr<SplayTreeNode>;
   using Rptr = SplayTreeNode*;
   Sptr head;
   void splay(Sptr node);
-
   void splay_largest() {
     assert(head); Sptr node = head; 
     while(node->right) node = node->right; 
-    splay(node); assert(head->right);
+    splay(node); assert(!head->right);
   };
+  void splay_random();
   Rptr get_rightmost() {if (head) return head->get_rightmost(); return nullptr;};
   Rptr get_leftmost() {if (head) return head->get_leftmost(); return nullptr;};
 
   SplayTree(SplayTreeNode* node) {head.reset(node);};
   SplayTree(Sptr node) {head = node;};
+
+  // validation functions 
+  long validateNode(Sptr SplayTreeNode);
+  void check_child(Sptr parent, Sptr child);
+  long validate();
+
+  
 
  public:
   SplayTree()  {};
