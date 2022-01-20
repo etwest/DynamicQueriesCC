@@ -251,6 +251,39 @@ void SplayTreeNode::rebuild_agg()
       */
 }
 
+void SplayTree::join(SplayTree* other)
+{
+  assert(other);
+
+  splay_largest();
+
+  head->right = std::move(other->head);
+  head->right->parent = head;
+}
+
+SplayTree* SplayTree::split()
+{
+  assert(head);
+  assert(head->right);
+
+  SplayTree* toret = new SplayTree(std::move(head->right));
+  head->right = Sptr(nullptr);
+  toret->head->parent = Sptr(nullptr);
+
+  return toret;
+}
+
+void SplayTree::insert(Sketch* sketch)
+{
+  SplayTree right(sketch);
+  join(&right);
+}
+
+void SplayTree::remove(Sketch* sketch)
+{
+  return;
+}
+
 void SplayTree::splay(Sptr node)
 {
   assert(node);

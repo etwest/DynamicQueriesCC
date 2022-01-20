@@ -29,7 +29,7 @@ endif()
 FetchContent_Declare(
   GraphStreamingCC
   GIT_REPOSITORY      "https://github.com/GraphStreamingProject/GraphStreamingCC"
-  GIT_TAG             "cmake_updates"
+  GIT_TAG             "main"
   UPDATE_DISCONNECTED OFF
 
   CMAKE_CACHE_ARGS
@@ -38,9 +38,11 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(GraphStreamingCC)
 
+
 add_executable(dynamicCC_tests
   test/test_runner.cpp
   test/basic_test.cpp
+  test/splay_test.cpp
 
   src/splay_tree.cpp
   include/splay_tree.h
@@ -51,5 +53,7 @@ add_executable(dynamicCC_tests
   src/graph_tiers.cpp
   include/graph_tiers.h
 )
+
+target_include_directories(dynamicCC_tests PUBLIC include)
 add_dependencies(dynamicCC_tests GraphStreamingCC)
 target_link_libraries(dynamicCC_tests PRIVATE GraphStreamingCC)
