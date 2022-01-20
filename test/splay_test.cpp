@@ -9,9 +9,9 @@ TEST(SplayTreeSuite, random_splays) {
   vec_t len = 1000;
   vec_t err = 100;
   //number of nodes
-  int n = 200;
+  int n = 500;
   //number of random splays
-  int rsplays = 10000;
+  int rsplays = 100000;
   //configure the sketch globally
   Sketch::configure(len, err);
   void* sketch_space = alloca(Sketch::sketchSizeof() * n);

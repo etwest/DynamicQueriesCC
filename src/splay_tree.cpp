@@ -33,7 +33,7 @@ void SplayTreeNode::splay()
 // Does not touch the old grandparent node, but does point to them 
 void SplayTreeNode::zig(bool leftm)
 {
-  std::cout << "zig" << std::endl;
+  //std::cout << "zig" << std::endl;
   auto oldparent = std::move(get_parent());
   auto newparent = std::move(oldparent->parent);
   if (leftm)
@@ -83,7 +83,7 @@ void SplayTreeNode::zig(bool leftm)
 //Left defines GP direction. Whether or not its mirrored
 void SplayTreeNode::zigzig(bool leftm)
 {
-  std::cout << "zigzig" << std::endl;
+  //std::cout << "zigzig" << std::endl;
   auto oldparent = std::move(get_parent());
   auto oldgp = std::move(oldparent->get_parent());
 
@@ -155,7 +155,7 @@ void SplayTreeNode::zigzig(bool leftm)
 //Left defines GP direction. Whether or not its mirrored
 void SplayTreeNode::zigzag(bool leftm)
 {
-  std::cout << "zigzag" << std::endl;
+  //std::cout << "zigzag" << std::endl;
   auto oldparent = std::move(get_parent());
   auto oldgp = std::move(oldparent->get_parent());
 
@@ -166,16 +166,16 @@ void SplayTreeNode::zigzag(bool leftm)
   Sptr thisnode;
   if (leftm)
   {
-    thisnode = std::move(get_parent()->left);
+    thisnode = std::move(get_parent()->right);
     // 'A' and 'D' do not need fixing. 
     
     //Fix 'C'
-    oldgp->left = right;
+    oldgp->left = std::move(right);
     if (oldgp->left)
       oldgp->left->parent = oldgp;
 
     //Fix 'B'
-    oldparent->right = left;
+    oldparent->right = std::move(left);
     if (oldparent->right)
       oldparent->right->parent = oldparent;
 
@@ -191,12 +191,12 @@ void SplayTreeNode::zigzag(bool leftm)
     // 'A' and 'D' do not need fixing. 
     
     //Fix 'C'
-    oldgp->right = left;
+    oldgp->right = std::move(left);
     if (oldgp->right)
       oldgp->right->parent = oldgp;
 
     //Fix 'B'
-    oldparent->left = right;
+    oldparent->left = std::move(right);
     if (oldparent->left)
       oldparent->left->parent = oldparent;
 
@@ -310,7 +310,7 @@ void SplayTree::splay(Sptr node)
 {
   assert(node);
 
-  std::cout << "Splaying" << std::endl;
+  //std::cout << "Splaying" << std::endl;
   validate();
 
   node->splay();
