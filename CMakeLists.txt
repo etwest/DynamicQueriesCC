@@ -41,7 +41,7 @@ FetchContent_MakeAvailable(GraphStreamingCC)
 
 add_executable(dynamicCC_tests
   test/test_runner.cpp
-  test/basic_test.cpp
+  test/ett_test.cpp
   test/splay_test.cpp
 
   src/splay_tree.cpp
