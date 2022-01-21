@@ -356,7 +356,13 @@ void SplayTree::splay_random()
   Sptr node = head;
   while(true)
   {
-    int which = rand() % 2;
+    int which = rand() % 20;
+    if (which == 0)
+    {
+      splay(node);
+      return;
+    }
+    which = rand() % 2;
     if (which == 0)
       if (node->left)
         node = node->left;
