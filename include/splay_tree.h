@@ -6,25 +6,29 @@
 class EulerTourTree;
 class SplayTree;
 
-class SplayTreeNode {
-
+class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
+  using Wptr = std::weak_ptr<SplayTreeNode>;
+  using Sptr = std::shared_ptr<SplayTreeNode>;
   // Test helpers
   FRIEND_TEST(SplayTreeSuite, random_splays);
   FRIEND_TEST(SplayTreeSuite, links_and_cuts);
-  SplayTreeNode* splay_random_child();
+  Sptr splay_random_child();
   long count_children();
 
-  SplayTreeNode* left, *right;
-  SplayTreeNode* parent;
+  Sptr left, right;
+  Wptr parent;
+  
+  Sptr get_parent() {return parent.lock();};
+  Sptr get_cparent() const {return parent.lock();};
 
   void rotate_up();
   void splay();
-  void link_left(SplayTreeNode* other);
-  void link_right(SplayTreeNode* other);
+  void link_left(Sptr other);
+  void link_right(Sptr other);
 public:
   EulerTourTree* node;
 
-  SplayTreeNode(): left(nullptr), right(nullptr), parent(nullptr) {};
+  SplayTreeNode() {}
   SplayTreeNode(EulerTourTree& node);
 
   bool isvalid() const;
@@ -36,10 +40,12 @@ public:
 };
 
 class SplayTree {
+  using Wptr = std::weak_ptr<SplayTreeNode>;
+  using Sptr = std::shared_ptr<SplayTreeNode>;
     SplayTree();
   public:
-    static SplayTreeNode* join(SplayTreeNode* left, SplayTreeNode* right);
-    static SplayTreeNode* split_left(SplayTreeNode* node);
-    static SplayTreeNode* split_right(SplayTreeNode* node);
-    static SplayTreeNode* get_last(SplayTreeNode* node);
+    static Sptr join(Sptr left, Sptr right);
+    static Sptr split_left(Sptr node);
+    static Sptr split_right(Sptr node);
+    static Sptr get_last(Sptr node);
 };

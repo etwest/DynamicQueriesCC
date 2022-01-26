@@ -7,15 +7,15 @@
 bool EulerTourTree::isvalid() const {
   bool invalid = false;
   for (const auto& [k, v] : this->edges) {
-    EXPECT_EQ(v.node, this) << (invalid = true, "");
+    EXPECT_EQ(v->node, this) << (invalid = true, "");
     if (invalid) return false;
-    EXPECT_TRUE(v.isvalid()) << (invalid = true, "");
+    EXPECT_TRUE(v->isvalid()) << (invalid = true, "");
     if (invalid) return false;
     if (k == nullptr) {
-      EXPECT_EQ(v.next(), nullptr) << (invalid = true, "");
+      EXPECT_EQ(v->next(), nullptr) << (invalid = true, "");
       if (invalid) return false;
     } else {
-      EXPECT_EQ(v.next()->node, k) << (invalid = true, "");
+      EXPECT_EQ(v->next()->node, k) << (invalid = true, "");
       if (invalid) return false;
     }
   }

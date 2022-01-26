@@ -2,24 +2,23 @@
 
 #include <splay_tree.h>
 
-SplayTreeNode::SplayTreeNode(EulerTourTree& node) :
-  left(nullptr), right(nullptr), parent(nullptr), node(&node) {
+SplayTreeNode::SplayTreeNode(EulerTourTree& node) : node(&node) {
 }
 
 void SplayTreeNode::rotate_up() {
-  assert(this->parent != nullptr);
-  SplayTreeNode* parent = this->parent;
-  SplayTreeNode* grandparent = parent->parent;
+  assert(!this->parent.expired());
+  Sptr parent = this->get_parent();
+  Sptr grandparent = parent->get_parent();
 
   if (grandparent == nullptr) {
-    this->parent = nullptr;
+    this->parent = Wptr();
   } else if (grandparent->left == parent) {
-    grandparent->link_left(this);
+    grandparent->link_left(shared_from_this());
   } else {
-    grandparent->link_right(this);
+    grandparent->link_right(shared_from_this());
   }
 
-  if (parent->left == this) {
+  if (parent->left.get() == this) {
     parent->link_left(this->right);
     this->link_right(parent);
   } else {
@@ -29,13 +28,13 @@ void SplayTreeNode::rotate_up() {
 }
 
 void SplayTreeNode::splay() {
-  while (this->parent != nullptr) {
-    SplayTreeNode* parent = this->parent;
-    SplayTreeNode* grandparent = parent->parent;
+  while (!this->parent.expired()) {
+    Sptr parent = this->get_parent();
+    Sptr grandparent = parent->get_parent();
     if (grandparent == nullptr) {
       // zig
       this->rotate_up();
-    } else if ((grandparent->left == parent) == (parent->left == this)) {
+    } else if ((grandparent->left == parent) == (parent->left.get() == this)) {
       // zig-zig
       parent->rotate_up();
       this->rotate_up();
@@ -47,21 +46,21 @@ void SplayTreeNode::splay() {
   }
 }
 
-void SplayTreeNode::link_left(SplayTreeNode* other) {
+void SplayTreeNode::link_left(Sptr other) {
   this->left = other;
   if (other != nullptr) {
-    other->parent = this;
+    other->parent = shared_from_this();
   }
 }
 
-void SplayTreeNode::link_right(SplayTreeNode* other) {
+void SplayTreeNode::link_right(Sptr other) {
   this->right = other;
   if (other != nullptr) {
-    other->parent = this;
+    other->parent = shared_from_this();
   }
 }
 
-SplayTreeNode* SplayTree::get_last(SplayTreeNode* node) {
+std::shared_ptr<SplayTreeNode> SplayTree::get_last(Sptr node) {
   node->splay();
   while (node->right != nullptr) {
     node = node->right;
@@ -69,21 +68,21 @@ SplayTreeNode* SplayTree::get_last(SplayTreeNode* node) {
   return node;
 }
 
-SplayTreeNode* SplayTree::split_left(SplayTreeNode* node) {
+std::shared_ptr<SplayTreeNode> SplayTree::split_left(Sptr node) {
   node->splay();
-  SplayTreeNode* ret = node->left;
+  Sptr ret = node->left;
   if (ret != nullptr) {
-    ret->parent = nullptr;
+    ret->parent = Wptr();
   }
   node->left = nullptr;
   return ret;
 }
 
-SplayTreeNode* SplayTree::split_right(SplayTreeNode* node) {
+std::shared_ptr<SplayTreeNode> SplayTree::split_right(Sptr node) {
   node->splay();
-  SplayTreeNode* ret = node->right;
+  Sptr ret = node->right;
   if (ret != nullptr) {
-    ret->parent = nullptr;
+    ret->parent = Wptr();
   }
   node->right = nullptr;
   return ret;
@@ -99,9 +98,9 @@ long SplayTreeNode::count_children()
 	return count;
 }
 
-SplayTreeNode* SplayTreeNode::splay_random_child()
+std::shared_ptr<SplayTreeNode> SplayTreeNode::splay_random_child()
 {
-  SplayTreeNode* node = this;
+  Sptr node = shared_from_this();
 	while(true)
 	{
 		int which = rand() % 20;
@@ -131,7 +130,7 @@ SplayTreeNode* SplayTreeNode::splay_random_child()
 }
 
 
-SplayTreeNode* SplayTree::join(SplayTreeNode* left, SplayTreeNode* right) {
+std::shared_ptr<SplayTreeNode> SplayTree::join(Sptr left, Sptr right) {
   if (left == nullptr) {
     return right;
   }
