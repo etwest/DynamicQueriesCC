@@ -4,7 +4,7 @@
 
 #include <splay_tree.h>
 
-bool SplayTree::isvalid() const {
+bool SplayTreeNode::isvalid() const {
   bool invalid = false;
   EXPECT_TRUE(this->parent == nullptr ||
       this->parent->left == this ||
@@ -20,8 +20,8 @@ bool SplayTree::isvalid() const {
   return true;
 }
 
-const SplayTree* SplayTree::next() const {
-  const SplayTree* ret;
+const SplayTreeNode* SplayTreeNode::next() const {
+  const SplayTreeNode* ret;
   if (this->right == nullptr) {
     // Follow parent up until we are a left child
     ret = this;
@@ -39,12 +39,12 @@ const SplayTree* SplayTree::next() const {
   return ret;
 }
 
-std::ostream& operator<<(std::ostream& os, const SplayTree& tree) {
-  const SplayTree* root = &tree;
+std::ostream& operator<<(std::ostream& os, const SplayTreeNode& tree) {
+  const SplayTreeNode* root = &tree;
   while (root->parent != nullptr) {
     root = root->parent;
   }
-  std::function<void(const SplayTree* ptr, int depth)> inorder_dump =
+  std::function<void(const SplayTreeNode* ptr, int depth)> inorder_dump =
       [&os, &tree, &inorder_dump](auto ptr, int depth) {
         if (ptr != nullptr) {
           inorder_dump(ptr->left, depth + 1);

@@ -2,14 +2,14 @@
 
 #include <splay_tree.h>
 
-SplayTree::SplayTree(EulerTourTree& node) :
+SplayTreeNode::SplayTreeNode(EulerTourTree& node) :
   left(nullptr), right(nullptr), parent(nullptr), node(&node) {
 }
 
-void SplayTree::rotate_up() {
+void SplayTreeNode::rotate_up() {
   assert(this->parent != nullptr);
-  SplayTree* parent = this->parent;
-  SplayTree* grandparent = parent->parent;
+  SplayTreeNode* parent = this->parent;
+  SplayTreeNode* grandparent = parent->parent;
 
   if (grandparent == nullptr) {
     this->parent = nullptr;
@@ -28,10 +28,10 @@ void SplayTree::rotate_up() {
   }
 }
 
-void SplayTree::splay() {
+void SplayTreeNode::splay() {
   while (this->parent != nullptr) {
-    SplayTree* parent = this->parent;
-    SplayTree* grandparent = parent->parent;
+    SplayTreeNode* parent = this->parent;
+    SplayTreeNode* grandparent = parent->parent;
     if (grandparent == nullptr) {
       // zig
       this->rotate_up();
@@ -47,45 +47,52 @@ void SplayTree::splay() {
   }
 }
 
-void SplayTree::link_left(SplayTree* other) {
+void SplayTreeNode::link_left(SplayTreeNode* other) {
   this->left = other;
   if (other != nullptr) {
     other->parent = this;
   }
 }
 
-void SplayTree::link_right(SplayTree* other) {
+void SplayTreeNode::link_right(SplayTreeNode* other) {
   this->right = other;
   if (other != nullptr) {
     other->parent = this;
   }
 }
 
-SplayTree* SplayTree::traverse_right() {
-  this->splay();
-  SplayTree* ret = this;
-  while (ret->right != nullptr) {
-    ret = ret->right;
+SplayTreeNode* SplayTree::get_last(SplayTreeNode* node) {
+  node->splay();
+  while (node->right != nullptr) {
+    node = node->right;
   }
-  return ret;
+  return node;
 }
 
-SplayTree* SplayTree::split_left() {
-  this->splay();
-  SplayTree* ret = this->left;
+SplayTreeNode* SplayTree::split_left(SplayTreeNode* node) {
+  node->splay();
+  SplayTreeNode* ret = node->left;
   if (ret != nullptr) {
     ret->parent = nullptr;
   }
-  this->left = nullptr;
+  node->left = nullptr;
   return ret;
 }
 
-SplayTree* SplayTree::split_right() {
-  this->splay();
-  SplayTree* ret = this->right;
+SplayTreeNode* SplayTree::split_right(SplayTreeNode* node) {
+  node->splay();
+  SplayTreeNode* ret = node->right;
   if (ret != nullptr) {
     ret->parent = nullptr;
   }
-  this->right = nullptr;
+  node->right = nullptr;
   return ret;
+}
+
+SplayTreeNode* SplayTree::join(SplayTreeNode* left, SplayTreeNode* right) {
+  if (left == nullptr) {
+    return right;
+  }
+  SplayTree::get_last(left)->link_right(right);
+  return left;
 }
