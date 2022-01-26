@@ -89,3 +89,45 @@ SplayTree* SplayTree::split_right() {
   this->right = nullptr;
   return ret;
 }
+
+long SplayTree::count_children()
+{
+	long count = 1;
+	if (right)
+		count += right->count_children();
+	if (left)
+		count += left->count_children();
+	return count;
+}
+
+SplayTree* SplayTree::splay_random_child()
+{
+  SplayTree* node = this;
+	while(true)
+	{
+		int which = rand() % 20;
+		if (which == 0)
+		{
+			return node;;
+		}
+		which = rand() % 2;
+		if (which == 0)
+			if (node->left)
+				node = node->left;
+			else
+			{
+				node->splay();
+				return node;
+			}
+		else
+			if (node->right)
+				node = node->right;
+			else
+			{
+				node->splay();
+				return node;
+			}
+	}
+}
+
+

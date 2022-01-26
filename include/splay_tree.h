@@ -1,10 +1,18 @@
 #pragma once
 
 #include <iostream>
+#include <gtest/gtest.h>
 
 class EulerTourTree;
 
 class SplayTree {
+
+  // Test helpers
+  FRIEND_TEST(SplayTreeSuite, random_splays);
+  FRIEND_TEST(SplayTreeSuite, links_and_cuts);
+  SplayTree* splay_random_child();
+  long count_children();
+
   SplayTree* left, *right;
   SplayTree* parent;
 
@@ -13,7 +21,7 @@ class SplayTree {
 public:
   EulerTourTree* node;
 
-  SplayTree() = default;
+  SplayTree(): left(nullptr), right(nullptr), parent(nullptr) {};
   SplayTree(EulerTourTree& node);
   void link_left(SplayTree* other);
   void link_right(SplayTree* other);

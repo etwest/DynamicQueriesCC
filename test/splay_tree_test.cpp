@@ -1,8 +1,6 @@
 #include <functional>
-
 #include <gtest/gtest.h>
-
-#include <splay_tree.h>
+#include "splay_tree.h"
 
 bool SplayTree::isvalid() const {
   bool invalid = false;
@@ -56,3 +54,37 @@ std::ostream& operator<<(std::ostream& os, const SplayTree& tree) {
   inorder_dump(root, 0);
   return os;
 }
+
+TEST(SplayTreeSuite, links_and_cuts) {
+
+	
+}
+
+TEST(SplayTreeSuite, random_splays) {
+  SplayTree* tree = new SplayTree();
+  //number of nodes
+  int n = 10000;
+  //number of random splays
+  int rsplays = 10000000;
+  //configure the sketch globally
+
+  for (int i = 0; i < n; i++)
+  {
+    tree->link_right(new SplayTree());
+    tree = tree->right;
+  }
+
+  SplayTree* root = tree;
+  for (int i = 0; i < rsplays; i++)
+  {
+    root = root->splay_random_child();
+  }
+  // This validates both the parent-child pointer relations and the number of nodes in the tree
+  long nnodes = root->count_children();
+  if(nnodes != n+1)
+    FAIL() << "Expected " << n << " nodes, found " << nnodes << std::endl;
+}
+
+
+
+
