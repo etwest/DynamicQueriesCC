@@ -4,33 +4,42 @@
 #include <gtest/gtest.h>
 
 class EulerTourTree;
+class SplayTree;
 
-class SplayTree {
+class SplayTreeNode {
 
   // Test helpers
   FRIEND_TEST(SplayTreeSuite, random_splays);
   FRIEND_TEST(SplayTreeSuite, links_and_cuts);
-  SplayTree* splay_random_child();
+  SplayTreeNode* splay_random_child();
   long count_children();
 
-  SplayTree* left, *right;
-  SplayTree* parent;
+  SplayTreeNode* left, *right;
+  SplayTreeNode* parent;
 
   void rotate_up();
   void splay();
+  void link_left(SplayTreeNode* other);
+  void link_right(SplayTreeNode* other);
 public:
   EulerTourTree* node;
 
-  SplayTree(): left(nullptr), right(nullptr), parent(nullptr) {};
-  SplayTree(EulerTourTree& node);
-  void link_left(SplayTree* other);
-  void link_right(SplayTree* other);
-  SplayTree* traverse_right();
-  SplayTree* split_left();
-  SplayTree* split_right();
+  SplayTreeNode(): left(nullptr), right(nullptr), parent(nullptr) {};
+  SplayTreeNode(EulerTourTree& node);
 
   bool isvalid() const;
-  const SplayTree* next() const;
+  const SplayTreeNode* next() const;
 
-  friend std::ostream& operator<<(std::ostream& os, const SplayTree& tree);
+  friend class SplayTree;
+
+  friend std::ostream& operator<<(std::ostream& os, const SplayTreeNode& tree);
+};
+
+class SplayTree {
+    SplayTree();
+  public:
+    static SplayTreeNode* join(SplayTreeNode* left, SplayTreeNode* right);
+    static SplayTreeNode* split_left(SplayTreeNode* node);
+    static SplayTreeNode* split_right(SplayTreeNode* node);
+    static SplayTreeNode* get_last(SplayTreeNode* node);
 };

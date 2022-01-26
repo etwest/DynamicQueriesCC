@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include "splay_tree.h"
 
-bool SplayTree::isvalid() const {
+bool SplayTreeNode::isvalid() const {
   bool invalid = false;
   EXPECT_TRUE(this->parent == nullptr ||
       this->parent->left == this ||
@@ -18,8 +18,8 @@ bool SplayTree::isvalid() const {
   return true;
 }
 
-const SplayTree* SplayTree::next() const {
-  const SplayTree* ret;
+const SplayTreeNode* SplayTreeNode::next() const {
+  const SplayTreeNode* ret;
   if (this->right == nullptr) {
     // Follow parent up until we are a left child
     ret = this;
@@ -37,12 +37,12 @@ const SplayTree* SplayTree::next() const {
   return ret;
 }
 
-std::ostream& operator<<(std::ostream& os, const SplayTree& tree) {
-  const SplayTree* root = &tree;
+std::ostream& operator<<(std::ostream& os, const SplayTreeNode& tree) {
+  const SplayTreeNode* root = &tree;
   while (root->parent != nullptr) {
     root = root->parent;
   }
-  std::function<void(const SplayTree* ptr, int depth)> inorder_dump =
+  std::function<void(const SplayTreeNode* ptr, int depth)> inorder_dump =
       [&os, &tree, &inorder_dump](auto ptr, int depth) {
         if (ptr != nullptr) {
           inorder_dump(ptr->left, depth + 1);
@@ -61,30 +61,30 @@ TEST(SplayTreeSuite, links_and_cuts) {
 }
 
 TEST(SplayTreeSuite, random_splays) {
-  SplayTree* tree = new SplayTree();
+  long seed = rand();
+  std::cout << "SEED: " << seed << std::endl;
+  srand(seed);
+  SplayTreeNode* tree = new SplayTreeNode();
   //number of nodes
   int n = 10000;
   //number of random splays
   int rsplays = 10000000;
   //configure the sketch globally
 
-  for (int i = 0; i < n; i++)
+  for (int i = 0; i < n-1; i++)
   {
-    tree->link_right(new SplayTree());
+    tree->link_right(new SplayTreeNode());
     tree = tree->right;
   }
 
-  SplayTree* root = tree;
+  SplayTreeNode* root = tree;
   for (int i = 0; i < rsplays; i++)
   {
     root = root->splay_random_child();
   }
   // This validates both the parent-child pointer relations and the number of nodes in the tree
   long nnodes = root->count_children();
-  if(nnodes != n+1)
+  if(nnodes != n)
     FAIL() << "Expected " << n << " nodes, found " << nnodes << std::endl;
 }
-
-
-
 

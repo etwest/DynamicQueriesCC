@@ -2,12 +2,12 @@
 
 #include <euler_tour_tree.h>
 
-EulerTourTree::EulerTourTree() : edges({{nullptr, SplayTree(*this)}}) {
+EulerTourTree::EulerTourTree() : edges({{nullptr, SplayTreeNode(*this)}}) {
 }
 
 bool EulerTourTree::link(EulerTourTree& other) {
-  SplayTree* this_sentinel = this->edges.begin()->second.traverse_right();
-  SplayTree* other_sentinel = other.edges.begin()->second.traverse_right();
+  SplayTreeNode* this_sentinel = SplayTree::get_last(&this->edges.begin()->second);
+  SplayTreeNode* other_sentinel = SplayTree::get_last(&other.edges.begin()->second);
 
   // There should always be a sentinel
   assert(this_sentinel == &this_sentinel->node->edges.at(nullptr));
@@ -27,38 +27,43 @@ bool EulerTourTree::link(EulerTourTree& other) {
   // ^                    ^
   // '--------------------'--- might be null
 
-  SplayTree* aux_this_right = &this->edges.begin()->second;
-  SplayTree* aux_this_left = aux_this_right->split_left();
+  SplayTreeNode* aux_this_right = &this->edges.begin()->second;
+  SplayTreeNode* aux_this_left = SplayTree::split_left(aux_this_right);
 
   // Unlink and destory other_sentinel
-  SplayTree* aux_other = other_sentinel->split_left();
+  SplayTreeNode* aux_other = SplayTree::split_left(other_sentinel);
   other_sentinel->node->edges.erase(nullptr);
 
+  SplayTreeNode* aux_other_left, *aux_other_right;
   if (aux_other == nullptr) {
-    // other tree was only a sentinel
-    // A, construct B, construct D, BA
-    SplayTree* aux_edge_left = &this->edges.emplace(std::make_pair(&other, SplayTree(*this))).first->second;
-    SplayTree* aux_edge_right = &other.edges.emplace(std::make_pair(this, SplayTree(other))).first->second;
-    aux_edge_left->link_left(aux_this_left);
-    aux_edge_left->link_right(aux_edge_right);
-    aux_edge_right->link_right(aux_this_right);
+    aux_other_right = aux_other_left = nullptr;
   } else {
-    // reroot other tree
-    // A, construct B, DED, C, construct D, BA
-    // R  LR           L    R  LR           L
-    // N                    N
-    SplayTree* aux_other_right = &other.edges.begin()->second;
-    SplayTree* aux_other_left = aux_other_right->split_left();
-
-    SplayTree* aux_edge_left = &this->edges.emplace(std::make_pair(&other, SplayTree(*this))).first->second;
-    SplayTree* aux_edge_right = &other.edges.emplace(std::make_pair(this, SplayTree(other))).first->second;
-
-    aux_edge_left->link_left(aux_this_left);
-    aux_other_right->link_left(aux_edge_left);
-    aux_edge_right->link_left(aux_other_left);
-    aux_other_right->traverse_right()->link_right(aux_edge_right);
-    aux_edge_right->link_right(aux_this_right);
+    aux_other_right = &other.edges.begin()->second;
+    aux_other_left = SplayTree::split_left(aux_other_right);
   }
+
+  // reroot other tree
+  // A, construct B, DED, C, construct D, BA
+  // R  LR           L    R  LR           L
+  // N                    N
+
+  SplayTreeNode* aux_edge_left = &this->edges.emplace(
+      std::make_pair(&other, SplayTreeNode(*this))).first->second;
+  SplayTreeNode* aux_edge_right = &other.edges.emplace(
+      std::make_pair(this, SplayTreeNode(other))).first->second;
+
+  SplayTree::join(
+      SplayTree::join(
+        SplayTree::join(
+          SplayTree::join(
+            SplayTree::join(
+              aux_this_left,
+              aux_edge_left),
+            aux_other_right),
+          aux_other_left),
+        aux_edge_right),
+      aux_this_right);
+
 
   return true;
 }
@@ -68,33 +73,31 @@ bool EulerTourTree::cut(EulerTourTree& other) {
     assert(other.edges.find(this) == other.edges.end());
     return false;
   }
-  SplayTree* e1 = &this->edges[&other];
-  SplayTree* e2 = &other.edges[this];
+  SplayTreeNode* e1 = &this->edges[&other];
+  SplayTreeNode* e2 = &other.edges[this];
 
-  SplayTree* frag1r = e1->split_right();
-  bool order_is_e1e2 = e2->traverse_right() != e1;
-  SplayTree* frag1l = e1->split_left();
+  SplayTreeNode* frag1r = SplayTree::split_right(e1);
+  bool order_is_e1e2 = SplayTree::get_last(e2) != e1;
+  SplayTreeNode* frag1l = SplayTree::split_left(e1);
   this->edges.erase(&other);
-  SplayTree* frag2r = e2->split_right();
-  SplayTree* frag2l = e2->split_left();
+  SplayTreeNode* frag2r = SplayTree::split_right(e2);
+  SplayTreeNode* frag2l = SplayTree::split_left(e2);
   other.edges.erase(this);
 
   if (order_is_e1e2) {
     // e1 is to the left of e2
     // e2 should be made into a sentinel
-    SplayTree* sentinel = &other.edges.emplace(std::make_pair(nullptr, SplayTree(other))).first->second;
-    sentinel->link_left(frag2l);
-    if (frag1l != nullptr) {
-      frag1l->traverse_right()->link_right(frag2r);
-    }
+    SplayTreeNode* sentinel = &other.edges.emplace(
+        std::make_pair(nullptr, SplayTreeNode(other))).first->second;
+    SplayTree::join(frag2l, sentinel);
+    SplayTree::join(frag1l, frag2r);
   } else {
     // e2 is to the left of e1
     // e1 should be made into a sentinel
-    SplayTree* sentinel = &this->edges.emplace(std::make_pair(nullptr, SplayTree(*this))).first->second;
-    sentinel->link_left(frag2r);
-    if (frag2l != nullptr) {
-      frag2l->traverse_right()->link_right(frag1r);
-    }
+    SplayTreeNode* sentinel = &this->edges.emplace(
+        std::make_pair(nullptr, SplayTreeNode(*this))).first->second;
+    SplayTree::join(frag2r, sentinel);
+    SplayTree::join(frag2l, frag1r);
   }
 
   return true;

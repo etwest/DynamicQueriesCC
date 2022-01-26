@@ -5,7 +5,7 @@
 #include <splay_tree.h>
 
 class EulerTourTree {
-  std::unordered_map<EulerTourTree*, SplayTree> edges;
+  std::unordered_map<EulerTourTree*, SplayTreeNode> edges;
 
 public:
   EulerTourTree();
