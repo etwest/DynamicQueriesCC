@@ -23,8 +23,8 @@ class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
 
   void rotate_up();
   void splay();
-  void link_left(Sptr other);
-  void link_right(Sptr other);
+  void link_left(const Sptr& other);
+  void link_right(const Sptr& other);
 public:
   EulerTourTree* node;
 
@@ -44,8 +44,8 @@ class SplayTree {
   using Sptr = std::shared_ptr<SplayTreeNode>;
     SplayTree();
   public:
-    static Sptr join(Sptr left, Sptr right);
-    static Sptr split_left(Sptr node);
-    static Sptr split_right(Sptr node);
+    static const Sptr& join(const Sptr& left, const Sptr& right);
+    static Sptr split_left(const Sptr& node);
+    static Sptr split_right(const Sptr& node);
     static Sptr get_last(Sptr node);
 };

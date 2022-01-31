@@ -78,7 +78,7 @@ TEST(SplayTreeSuite, random_splays) {
 
   for (int i = 0; i < n-1; i++)
   {
-    next->link_right(Sptr(new SplayTreeNode()));
+    next->link_right(std::make_shared<SplayTreeNode>());
     next = next->right;
   }
 

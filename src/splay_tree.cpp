@@ -7,8 +7,8 @@ SplayTreeNode::SplayTreeNode(EulerTourTree& node) : node(&node) {
 
 void SplayTreeNode::rotate_up() {
   assert(!this->parent.expired());
-  Sptr parent = this->get_parent();
-  Sptr grandparent = parent->get_parent();
+  const Sptr& parent = this->get_parent();
+  const Sptr& grandparent = parent->get_parent();
 
   if (grandparent == nullptr) {
     this->parent = Wptr();
@@ -29,8 +29,8 @@ void SplayTreeNode::rotate_up() {
 
 void SplayTreeNode::splay() {
   while (!this->parent.expired()) {
-    Sptr parent = this->get_parent();
-    Sptr grandparent = parent->get_parent();
+    const Sptr& parent = this->get_parent();
+    const Sptr& grandparent = parent->get_parent();
     if (grandparent == nullptr) {
       // zig
       this->rotate_up();
@@ -46,14 +46,14 @@ void SplayTreeNode::splay() {
   }
 }
 
-void SplayTreeNode::link_left(Sptr other) {
+void SplayTreeNode::link_left(const Sptr& other) {
   this->left = other;
   if (other != nullptr) {
     other->parent = shared_from_this();
   }
 }
 
-void SplayTreeNode::link_right(Sptr other) {
+void SplayTreeNode::link_right(const Sptr& other) {
   this->right = other;
   if (other != nullptr) {
     other->parent = shared_from_this();
@@ -68,7 +68,7 @@ std::shared_ptr<SplayTreeNode> SplayTree::get_last(Sptr node) {
   return node;
 }
 
-std::shared_ptr<SplayTreeNode> SplayTree::split_left(Sptr node) {
+std::shared_ptr<SplayTreeNode> SplayTree::split_left(const Sptr& node) {
   node->splay();
   Sptr ret = node->left;
   if (ret != nullptr) {
@@ -78,7 +78,7 @@ std::shared_ptr<SplayTreeNode> SplayTree::split_left(Sptr node) {
   return ret;
 }
 
-std::shared_ptr<SplayTreeNode> SplayTree::split_right(Sptr node) {
+std::shared_ptr<SplayTreeNode> SplayTree::split_right(const Sptr& node) {
   node->splay();
   Sptr ret = node->right;
   if (ret != nullptr) {
@@ -130,7 +130,7 @@ std::shared_ptr<SplayTreeNode> SplayTreeNode::splay_random_child()
 }
 
 
-std::shared_ptr<SplayTreeNode> SplayTree::join(Sptr left, Sptr right) {
+const std::shared_ptr<SplayTreeNode>& SplayTree::join(const Sptr& left, const Sptr& right) {
   if (left == nullptr) {
     return right;
   }
