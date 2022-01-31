@@ -6,6 +6,7 @@ EulerTourTree::EulerTourTree() : edges({{nullptr, std::make_shared<SplayTreeNode
 }
 
 bool EulerTourTree::link(EulerTourTree& other) {
+  //TODO: use make and delete edge here
   Sptr this_sentinel = SplayTree::get_last(this->edges.begin()->second);
   Sptr other_sentinel = SplayTree::get_last(other.edges.begin()->second);
 

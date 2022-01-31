@@ -1,10 +1,9 @@
 #include <cassert>
 
-#include <splay_tree.h>
+#include "splay_tree.h"
+#include "euler_tour_tree.h"
 
-SplayTreeNode::SplayTreeNode(EulerTourTree& node) : node(&node) {
-}
-
+//TODO: call rebuild_agg in a way that doesn't waste too much time
 void SplayTreeNode::rotate_up() {
   assert(!this->parent.expired());
   const Sptr& parent = this->get_parent();
@@ -136,4 +135,34 @@ const std::shared_ptr<SplayTreeNode>& SplayTree::join(const Sptr& left, const Sp
   }
   SplayTree::get_last(left)->link_right(right);
   return left;
+}
+
+void SplayTreeNode::rebuild_agg()
+{
+  // If we have a sketch, then copy it over. otherwise, empty sketch
+  Sketch* sketch = get_sketch();
+  if (sketch)
+    Sketch::makeSketch((char*)sketch_agg, *sketch); 
+  else
+    Sketch::makeSketch((char*)sketch_agg, 0); 
+
+  // Agg our left and right child, if we have them
+  if (left)
+    *sketch_agg += *left->sketch_agg;
+  if (right)
+    *sketch_agg += *right->sketch_agg;
+
+  //TODO: some sort of lazy aggregation here, instead?
+  if (!parent.expired())
+  {
+    get_parent()->rebuild_agg();
+  }
+}
+
+Sketch* SplayTreeNode::get_sketch()
+{
+  if (!node)
+    return nullptr;
+  // we pass this to allow the node to differentiate the caller/owner
+  return node->get_sketch(this);
 }
