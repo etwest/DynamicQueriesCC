@@ -2,11 +2,43 @@
 
 #include <euler_tour_tree.h>
 
-EulerTourTree::EulerTourTree() : edges({{nullptr, std::make_shared<SplayTreeNode>(*this)}}) {
+using Sptr = std::shared_ptr<SplayTreeNode>;
+
+EulerTourTree::EulerTourTree() :
+    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())) {
+  // Initialize sentinel
+  this->make_edge(nullptr);
+  // Initialize sketch
+  Sketch::makeSketch((char*)sketch.get(), 0);
+}
+
+Sptr EulerTourTree::make_edge(EulerTourTree* other) {
+  Sptr node = std::make_shared<SplayTreeNode>(*this);
+  if (allowed_caller == nullptr) {
+    allowed_caller = node.get();
+  }
+  return this->edges.emplace(std::make_pair(other, std::move(node))).first->second;
+}
+
+void EulerTourTree::delete_edge(EulerTourTree* other) {
+  bool deleting_allowed = this->edges[other].get() == allowed_caller;
+  this->edges.erase(other);
+  if (deleting_allowed) {
+    if (this->edges.empty()) {
+      allowed_caller = nullptr;
+    } else {
+      allowed_caller = this->edges.begin()->second.get();
+      allowed_caller->rebuild_agg();
+    }
+  }
+}
+
+
+Sketch* EulerTourTree::get_sketch(SplayTreeNode* caller) {
+  return caller == allowed_caller ? sketch.get() : nullptr;
 }
 
 bool EulerTourTree::link(EulerTourTree& other) {
-  //TODO: use make and delete edge here
   Sptr this_sentinel = SplayTree::get_last(this->edges.begin()->second);
   Sptr other_sentinel = SplayTree::get_last(other.edges.begin()->second);
 
@@ -33,7 +65,7 @@ bool EulerTourTree::link(EulerTourTree& other) {
 
   // Unlink and destory other_sentinel
   Sptr aux_other = SplayTree::split_left(other_sentinel);
-  other_sentinel->node->edges.erase(nullptr);
+  other_sentinel->node->delete_edge(nullptr);
 
   Sptr aux_other_left, aux_other_right;
   if (aux_other == nullptr) {
@@ -48,10 +80,8 @@ bool EulerTourTree::link(EulerTourTree& other) {
   // R  LR           L    R  LR           L
   // N                    N
 
-  Sptr aux_edge_left = this->edges.emplace(
-      std::make_pair(&other, new SplayTreeNode(*this))).first->second;
-  Sptr aux_edge_right = other.edges.emplace(
-      std::make_pair(this, new SplayTreeNode(other))).first->second;
+  Sptr aux_edge_left = this->make_edge(&other);
+  Sptr aux_edge_right = other.make_edge(this);
 
   // FIXME: what in gods name is this
   SplayTree::join(
@@ -81,23 +111,21 @@ bool EulerTourTree::cut(EulerTourTree& other) {
   Sptr frag1r = SplayTree::split_right(e1);
   bool order_is_e1e2 = SplayTree::get_last(e2) != e1;
   Sptr frag1l = SplayTree::split_left(e1);
-  this->edges.erase(&other);
+  this->delete_edge(&other);
   Sptr frag2r = SplayTree::split_right(e2);
   Sptr frag2l = SplayTree::split_left(e2);
-  other.edges.erase(this);
+  other.delete_edge(this);
 
   if (order_is_e1e2) {
     // e1 is to the left of e2
     // e2 should be made into a sentinel
-    Sptr sentinel = other.edges.emplace(
-        std::make_pair(nullptr, new SplayTreeNode(other))).first->second;
+    Sptr sentinel = other.make_edge(nullptr);
     SplayTree::join(frag2l, sentinel);
     SplayTree::join(frag1l, frag2r);
   } else {
     // e2 is to the left of e1
     // e1 should be made into a sentinel
-    Sptr sentinel = this->edges.emplace(
-        std::make_pair(nullptr, new SplayTreeNode(*this))).first->second;
+    Sptr sentinel = this->make_edge(nullptr);
     SplayTree::join(frag2r, sentinel);
     SplayTree::join(frag2l, frag1r);
   }

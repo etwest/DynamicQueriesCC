@@ -23,7 +23,9 @@ class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
   Sptr get_cparent() const {return parent.lock();};
 
 
-  Sketch* sketch_agg = nullptr;
+  std::unique_ptr<Sketch> sketch_agg = nullptr;
+
+  SplayTreeNode(EulerTourTree* node);
   Sketch* get_sketch();
   void rotate_up();
   void splay();
@@ -31,23 +33,11 @@ class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
   void link_right(const Sptr& other);
 
 public:
-  EulerTourTree* node;
+  EulerTourTree* node = nullptr;
 
-  SplayTreeNode()
-  {
-    sketch_agg = (Sketch*) new char[Sketch::sketchSizeof()];
-    Sketch::makeSketch((char*)sketch_agg, 0);
-  };
-  
-  SplayTreeNode(EulerTourTree& node) : node(&node)
-  {
-    SplayTreeNode();
-  };
+  SplayTreeNode();
 
-  ~SplayTreeNode() 
-  {
-    free(sketch_agg);
-  };
+  SplayTreeNode(EulerTourTree& node);
 
   /* Rebuilds our aggregate, then recursively rebuilds our parents aggregate
    */ 

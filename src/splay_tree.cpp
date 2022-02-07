@@ -3,6 +3,18 @@
 #include "splay_tree.h"
 #include "euler_tour_tree.h"
 
+SplayTreeNode::SplayTreeNode(EulerTourTree* node) :
+  sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())),
+  node(node) {
+  Sketch::makeSketch((char*)sketch_agg.get(), 0);
+}
+
+SplayTreeNode::SplayTreeNode() : SplayTreeNode(nullptr) {
+}
+
+SplayTreeNode::SplayTreeNode(EulerTourTree& node) : SplayTreeNode(&node) {
+}
+
 //TODO: call rebuild_agg in a way that doesn't waste too much time
 void SplayTreeNode::rotate_up() {
   assert(!this->parent.expired());
@@ -142,9 +154,9 @@ void SplayTreeNode::rebuild_agg()
   // If we have a sketch, then copy it over. otherwise, empty sketch
   Sketch* sketch = get_sketch();
   if (sketch)
-    Sketch::makeSketch((char*)sketch_agg, *sketch); 
+    Sketch::makeSketch((char*)sketch_agg.get(), *sketch);
   else
-    Sketch::makeSketch((char*)sketch_agg, 0); 
+    Sketch::makeSketch((char*)sketch_agg.get(), 0);
 
   // Agg our left and right child, if we have them
   if (left)
