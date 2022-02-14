@@ -1,78 +1,66 @@
 #pragma once
-#include "sketch.h"
-#include <cassert>
 
-// General idea: information is not stored in the leaves and brought up
-// but may exist anywhere. Therefore, we need to store both the aggregate
-// and the information this node adds, if any
-// The only aggregate we care about is the root's aggregate
+#include <iostream>
+#include <gtest/gtest.h>
+#include "sketch.h"
+
+class EulerTourTree;
 class SplayTree;
 
-class SplayTreeNode{
-  private:
-    using Sptr = std::shared_ptr<SplayTreeNode>;
-    using Wptr = std::weak_ptr<SplayTreeNode>;
-    using Rptr = SplayTreeNode*;
-    Sptr left;
-    Sptr right;
-    Wptr parent;
-    void zig(bool leftm);
-    void zigzig(bool leftm);
-    void zigzag(bool leftm);
-    void rebuild_agg();
-    Sptr get_parent() {assert(!parent.expired()); return parent.lock();}
-    Rptr get_rightmost() { Rptr node = this; while(node->right) node = node->right.get(); return node;};
-    Rptr get_leftmost() { Rptr node = this; while(node->left) node = node->left.get(); return node;};
-    friend class SplayTree;
-  public:
-    void splay();
-    Sketch* sketch = nullptr;
-    SplayTreeNode() = default;
-    SplayTreeNode(Sketch* sketch) : sketch(sketch)
-    {
-      rebuild_agg();
-    };
+class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
+  using Wptr = std::weak_ptr<SplayTreeNode>;
+  using Sptr = std::shared_ptr<SplayTreeNode>;
+  // Test helpers
+  FRIEND_TEST(SplayTreeSuite, random_splays);
+  FRIEND_TEST(SplayTreeSuite, links_and_cuts);
+  Sptr splay_random_child();
+  long count_children();
+
+  Sptr left, right;
+  Wptr parent;
+  
+  Sptr get_parent() {return parent.lock();};
+  Sptr get_cparent() const {return parent.lock();};
+
+
+  std::unique_ptr<Sketch> sketch_agg = nullptr;
+
+  Sketch* get_sketch();
+  void rotate_up();
+  void splay();
+  void link_left(const Sptr& other);
+  void link_right(const Sptr& other);
+
+  bool needs_rebuilding = true;
+  void rebuild_one();
+
+public:
+  EulerTourTree* node = nullptr;
+
+  SplayTreeNode();
+
+  SplayTreeNode(EulerTourTree& node);
+  SplayTreeNode(EulerTourTree* node);
+
+  /* Rebuilds our aggregate, then recursively rebuilds our parents aggregate
+   */ 
+  void rebuild_agg();
+
+  bool isvalid() const;
+  const SplayTreeNode* next() const;
+
+  friend class SplayTree;
+
+  friend std::ostream& operator<<(std::ostream& os, const SplayTreeNode& tree);
 };
 
 class SplayTree {
- private:
-  
-  FRIEND_TEST(SplayTreeSuite, random_splays);
-
+  using Wptr = std::weak_ptr<SplayTreeNode>;
   using Sptr = std::shared_ptr<SplayTreeNode>;
-  using Rptr = SplayTreeNode*;
-  Sptr head;
-  void splay(Sptr node);
-  void splay_largest() {
-    assert(head); Sptr node = head; 
-    while(node->right) node = node->right; 
-    splay(node); assert(!head->right);
-  };
-  void splay_random();
-  Rptr get_rightmost() {if (head) return head->get_rightmost(); return nullptr;};
-  Rptr get_leftmost() {if (head) return head->get_leftmost(); return nullptr;};
-
-  SplayTree(SplayTreeNode* node) {head.reset(node);};
-  SplayTree(Sptr node) {head = node;};
-
-  // validation functions 
-  long validateNode(Sptr SplayTreeNode);
-  void check_child(Sptr parent, Sptr child);
-  long validate();
-
-  
-
- public:
-  SplayTree()  {};
-  SplayTree(Sketch* sketch) {head.reset(new SplayTreeNode(sketch));};
-  ~SplayTree() {};
-
-  // Join other to the right of us
-  void join(SplayTree* other);
-  // returns the heads right node and splits 
-  SplayTree* split();
-  void insert(Sketch* node);
-  void remove(Sketch* node);
-
-  Sketch* aggregate() { if (head) return head->sketch; return nullptr; };
+    SplayTree();
+  public:
+    static const Sptr& join(const Sptr& left, const Sptr& right);
+    static Sptr split_left(const Sptr& node);
+    static Sptr split_right(const Sptr& node);
+    static Sptr get_last(Sptr node);
 };

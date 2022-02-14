@@ -1,6 +1,8 @@
+#include "types.h"
+
 #include <vector>
 
-#include "euler_tour_tree.h"
+#include <euler_tour_tree.h>
 
 //TODO: this is currently typedef'd in supernode.h, but we (probably) don't want
 //to include supernode.h. 
@@ -10,7 +12,7 @@ typedef std::pair<node_id_t, node_id_t> Edge;
 // and the spanning forest of the entire graph
 class GraphTiers {
  private:
-  std::vector<std::vector<NodeData>> node_arr;  // for each tier, for each node
+  std::vector<std::vector<EulerTourTree>> node_arr;  // for each tier, for each node
 
   void refresh(Edge new_edge);
 

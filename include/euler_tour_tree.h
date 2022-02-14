@@ -1,35 +1,32 @@
 #pragma once
-#include "sketch.h"
-#include "splay_tree.h"
+#include <iostream>
+#include <unordered_map>
 
-class EulerTourTree;
-
-struct NodeData {
-  EulerTourTree *ett_ptrs[2];  // pointers to ETT aux tree (first and last)
-  Sketch agg_sketch;        // aggregate sketch
-};
-
-//FIXME: Use sketch pointers here
-//When updating a sketch, we DO NOT splay the node containing it in the aux_tree
-// We simply call update on all parents as well
-//This ensures that we don't have to rebuild logn aggregates
+#include <splay_tree.h>
 
 class EulerTourTree {
- private:
-  // Tree representation splay tree, bbst, or skip-list
-  SplayTree aux_tree;  // each node of tree points to a NodeData
+  FRIEND_TEST(SplayTreeSuite, random_splays);
+  using Sptr = std::shared_ptr<SplayTreeNode>;
+  std::unordered_map<EulerTourTree*, Sptr> edges;
+  
 
- public:
-  EulerTourTree(NodeData to_store);
-  ~EulerTourTree();
+  SplayTreeNode* allowed_caller = nullptr;
+  long seed = 0;
+  std::unique_ptr<Sketch> sketch = nullptr;
 
-  void link();
-  void cut();
+  //TODO: implement these
+  Sptr make_edge(EulerTourTree* other);
+  void delete_edge(EulerTourTree* other);
+public:
+  EulerTourTree(long seed);
+  EulerTourTree(Sketch* sketch, long seed);
+  bool link(EulerTourTree& other);
+  bool cut(EulerTourTree& other);
 
-  void get_root();
+  bool isvalid() const;
 
-  //void update_node_to_root_path(/*update id or something*/);
+  Sketch* get_sketch(SplayTreeNode* caller);
+  long get_seed() {return seed;};
 
-  //Sketch* subtree_aggregate() { return aux_tree.aggregate(); };
-  //Sketch* path_aggregate(/*things*/) { return aux_tree.aggregate(); };
+  friend std::ostream& operator<<(std::ostream& os, const EulerTourTree& ett);
 };

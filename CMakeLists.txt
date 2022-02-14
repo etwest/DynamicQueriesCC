@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(DynamicQueriesCC)
 include (FetchContent)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
@@ -41,17 +41,14 @@ FetchContent_MakeAvailable(GraphStreamingCC)
 
 add_executable(dynamicCC_tests
   test/test_runner.cpp
-  test/ett_test.cpp
-  test/splay_test.cpp
+  test/euler_tour_tree_test.cpp
+  test/splay_tree_test.cpp
 
   src/splay_tree.cpp
-  include/splay_tree.h
 
   src/euler_tour_tree.cpp
-  include/euler_tour_tree.h
 
   src/graph_tiers.cpp
-  include/graph_tiers.h
 )
 
 target_include_directories(dynamicCC_tests PUBLIC include)
