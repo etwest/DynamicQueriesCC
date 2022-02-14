@@ -1,6 +1,7 @@
 #include <functional>
 #include <gtest/gtest.h>
 #include "splay_tree.h"
+#include "euler_tour_tree.h"
 
 bool SplayTreeNode::isvalid() const {
   bool invalid = false;
@@ -67,18 +68,34 @@ TEST(SplayTreeSuite, random_splays) {
   std::cout << "SEED: " << seed << std::endl;
   srand(seed);
 
-  Sptr tree = Sptr(new SplayTreeNode());
   //number of nodes
-  int n = 10000;
+  int n = 3;
   //number of random splays
-  int rsplays = 10000000;
-  //configure the sketch globally
+  int rsplays = 1;
+  // sketch variables
+  vec_t len = 10;
+  vec_t err = 10;
+  
+  Sketch::configure(len, err);
 
-  Sptr next = tree;
+  size_t space = Sketch::sketchSizeof();
+  // Let the last sketch be the aggregate
+  void* sketch_space = malloc(space * (n+1));
+  Sketch* agg = Sketch::makeSketch((char*)sketch_space + space * n, seed);
 
-  for (int i = 0; i < n-1; i++)
+  std::vector<Sketch*> sketches;
+  for (int i = 0; i < n; i++)
   {
-    next->link_right(std::make_shared<SplayTreeNode>());
+    sketches.push_back(Sketch::makeSketch((char*)sketch_space + space*i, (long)seed));
+    sketches[i]->update((vec_t)i);
+    *agg += *sketches[i];
+  }
+
+  Sptr tree = std::make_shared<SplayTreeNode>(new EulerTourTree(sketches[0]));
+  Sptr next = tree;
+  for (int i = 1; i < n; i++)
+  {
+    next->link_right(std::make_shared<SplayTreeNode>(new EulerTourTree(sketches[i])));
     next = next->right;
   }
 
@@ -91,5 +108,7 @@ TEST(SplayTreeSuite, random_splays) {
   long nnodes = root->count_children();
   if(nnodes != n)
     FAIL() << "Expected " << n << " nodes, found " << nnodes << std::endl;
+  ASSERT_EQ(*agg, *root->sketch_agg);
+  free(sketch_space);
 }
 

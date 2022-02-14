@@ -12,6 +12,12 @@ EulerTourTree::EulerTourTree() :
   Sketch::makeSketch((char*)sketch.get(), 0);
 }
 
+EulerTourTree::EulerTourTree(Sketch* sketch) :
+  sketch(sketch) {
+  // Initialize sentinel
+  this->make_edge(nullptr);
+}
+
 Sptr EulerTourTree::make_edge(EulerTourTree* other) {
   Sptr node = std::make_shared<SplayTreeNode>(*this);
   if (allowed_caller == nullptr) {

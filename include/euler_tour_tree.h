@@ -17,6 +17,7 @@ class EulerTourTree {
   void delete_edge(EulerTourTree* other);
 public:
   EulerTourTree();
+  EulerTourTree(Sketch* sketch);
   bool link(EulerTourTree& other);
   bool cut(EulerTourTree& other);
 

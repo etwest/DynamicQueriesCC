@@ -61,8 +61,14 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-TEST(EulerTourTreeSuite, stress_test) {
+TEST(EulerTourTreeSuite, DISABLED_stress_test) {
   std::vector<EulerTourTree> nodes(10);
+
+	// sketch variables
+  vec_t len = 1000;
+  vec_t err = 100;
+  //configure the sketch globally
+  Sketch::configure(len, err);
 
   int seed = time(NULL);
   std::cout << "Seeding stress test with " << seed << std::endl;

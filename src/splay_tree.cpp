@@ -2,7 +2,7 @@
 
 #include "splay_tree.h"
 #include "euler_tour_tree.h"
-
+//FIXME: I don't know why * and & are so different
 SplayTreeNode::SplayTreeNode(EulerTourTree* node) :
   sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())),
   node(node) {
@@ -15,7 +15,6 @@ SplayTreeNode::SplayTreeNode() : SplayTreeNode(nullptr) {
 SplayTreeNode::SplayTreeNode(EulerTourTree& node) : SplayTreeNode(&node) {
 }
 
-//TODO: call rebuild_agg in a way that doesn't waste too much time
 void SplayTreeNode::rotate_up() {
   assert(!this->parent.expired());
   const Sptr& parent = this->get_parent();
@@ -55,6 +54,7 @@ void SplayTreeNode::splay() {
       this->rotate_up();
     }
   }
+  rebuild_agg();
 }
 
 void SplayTreeNode::link_left(const Sptr& other) {
@@ -62,6 +62,7 @@ void SplayTreeNode::link_left(const Sptr& other) {
   if (other != nullptr) {
     other->parent = shared_from_this();
   }
+  needs_rebuilding = true;
 }
 
 void SplayTreeNode::link_right(const Sptr& other) {
@@ -69,6 +70,7 @@ void SplayTreeNode::link_right(const Sptr& other) {
   if (other != nullptr) {
     other->parent = shared_from_this();
   }
+  needs_rebuilding = true;
 }
 
 std::shared_ptr<SplayTreeNode> SplayTree::get_last(Sptr node) {
@@ -101,6 +103,7 @@ std::shared_ptr<SplayTreeNode> SplayTree::split_right(const Sptr& node) {
 
 long SplayTreeNode::count_children()
 {
+  assert(!needs_rebuilding);
 	long count = 1;
 	if (right)
 		count += right->count_children();
@@ -149,8 +152,9 @@ const std::shared_ptr<SplayTreeNode>& SplayTree::join(const Sptr& left, const Sp
   return left;
 }
 
-void SplayTreeNode::rebuild_agg()
+void SplayTreeNode::rebuild_one()
 {
+  assert(needs_rebuilding == true);
   // If we have a sketch, then copy it over. otherwise, empty sketch
   Sketch* sketch = get_sketch();
   if (sketch)
@@ -164,11 +168,20 @@ void SplayTreeNode::rebuild_agg()
   if (right)
     *sketch_agg += *right->sketch_agg;
 
-  //TODO: some sort of lazy aggregation here, instead?
-  if (!parent.expired())
-  {
-    get_parent()->rebuild_agg();
-  }
+  needs_rebuilding = false;
+}
+
+void SplayTreeNode::rebuild_agg()
+{
+  if (!needs_rebuilding)
+    return;
+  
+  if (left)
+    left->rebuild_agg();
+  if (right)
+    right->rebuild_agg();
+
+  rebuild_one();
 }
 
 Sketch* SplayTreeNode::get_sketch()
@@ -178,3 +191,6 @@ Sketch* SplayTreeNode::get_sketch()
   // we pass this to allow the node to differentiate the caller/owner
   return node->get_sketch(this);
 }
+
+
+
