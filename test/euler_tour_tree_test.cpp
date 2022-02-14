@@ -61,29 +61,43 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-TEST(EulerTourTreeSuite, DISABLED_stress_test) {
-  std::vector<EulerTourTree> nodes(10);
+TEST(EulerTourTreeSuite, stress_test) {
 
 	// sketch variables
-  vec_t len = 1000;
+  vec_t len = 10000;
   vec_t err = 100;
   //configure the sketch globally
   Sketch::configure(len, err);
 
+  int nodecount = 1000;
+
+  int n = 1000000;
+
   int seed = time(NULL);
+  std::vector<EulerTourTree> nodes;
+  nodes.reserve(nodecount);
+
+  for (int i = 0; i < nodecount; i++)
+  {
+    nodes.emplace_back(seed);
+  }
+
   std::cout << "Seeding stress test with " << seed << std::endl;
   srand(seed);
-  for (int i = 0; i < 10000; i++) {
-    int a = rand() % 10, b = rand() % 10;
+  for (int i = 0; i < n; i++) {
+    int a = rand() % nodecount, b = rand() % nodecount;
     if (rand() % 100 < 15) {
       nodes[a].link(nodes[b]);
     } else {
       nodes[a].cut(nodes[b]);
     }
-    ASSERT_TRUE(std::all_of(nodes.begin(), nodes.end(),
-        [](auto& node){return node.isvalid();}))
-        << "Stress test validation failed, final state:"
-        << std::endl
-        << nodes;
+    if (i % n/100 == 0)
+    {
+      ASSERT_TRUE(std::all_of(nodes.begin(), nodes.end(),
+            [](auto& node){return node.isvalid();}))
+          << "Stress test validation failed, final state:"
+          << std::endl
+          << nodes;
+    }
   }
 }

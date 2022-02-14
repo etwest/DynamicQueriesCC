@@ -4,16 +4,16 @@
 
 using Sptr = std::shared_ptr<SplayTreeNode>;
 
-EulerTourTree::EulerTourTree() :
-    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())) {
+EulerTourTree::EulerTourTree(long seed) :
+    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed) {
   // Initialize sentinel
   this->make_edge(nullptr);
   // Initialize sketch
-  Sketch::makeSketch((char*)sketch.get(), 0);
+  Sketch::makeSketch((char*)sketch.get(), seed);
 }
 
-EulerTourTree::EulerTourTree(Sketch* sketch) :
-  sketch(sketch) {
+EulerTourTree::EulerTourTree(Sketch* sketch, long seed) :
+  sketch(sketch), seed(seed){
   // Initialize sentinel
   this->make_edge(nullptr);
 }

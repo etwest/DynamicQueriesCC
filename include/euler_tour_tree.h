@@ -11,20 +11,22 @@ class EulerTourTree {
   
 
   SplayTreeNode* allowed_caller = nullptr;
+  long seed = 0;
   std::unique_ptr<Sketch> sketch = nullptr;
 
   //TODO: implement these
   Sptr make_edge(EulerTourTree* other);
   void delete_edge(EulerTourTree* other);
 public:
-  EulerTourTree();
-  EulerTourTree(Sketch* sketch);
+  EulerTourTree(long seed);
+  EulerTourTree(Sketch* sketch, long seed);
   bool link(EulerTourTree& other);
   bool cut(EulerTourTree& other);
 
   bool isvalid() const;
 
   Sketch* get_sketch(SplayTreeNode* caller);
+  long get_seed() {return seed;};
 
   friend std::ostream& operator<<(std::ostream& os, const EulerTourTree& ett);
 };

@@ -56,10 +56,10 @@ std::ostream& operator<<(std::ostream& os, const SplayTreeNode& tree) {
   return os;
 }
 
-TEST(SplayTreeSuite, links_and_cuts) {
+/*TEST(SplayTreeSuite, links_and_cuts) {
   using Sptr = std::shared_ptr<SplayTreeNode>;
 	
-}
+}*/
 
 TEST(SplayTreeSuite, random_splays) {
   using Sptr = std::shared_ptr<SplayTreeNode>;
@@ -86,17 +86,17 @@ TEST(SplayTreeSuite, random_splays) {
   std::vector<Sketch*> sketches;
   for (int i = 0; i < n; i++)
   {
-    sketches.push_back(Sketch::makeSketch((char*)sketch_space + space*i, (long)seed));
+    sketches.push_back(Sketch::makeSketch((char*)sketch_space + space*i, seed));
     sketches[i]->update((vec_t)i);
     *agg += *sketches[i];
   }
 
-  Sptr tree = std::make_shared<SplayTreeNode>(new EulerTourTree(sketches[0]));
+  Sptr tree = std::make_shared<SplayTreeNode>(new EulerTourTree(sketches[0], seed));
   tree->node->allowed_caller = tree.get();
   Sptr next = tree;
   for (int i = 1; i < n; i++)
   {
-    next->link_right(std::make_shared<SplayTreeNode>(new EulerTourTree(sketches[i])));
+    next->link_right(std::make_shared<SplayTreeNode>(new EulerTourTree(sketches[i], seed)));
     next = next->right;
     next->node->allowed_caller = next.get();
   }

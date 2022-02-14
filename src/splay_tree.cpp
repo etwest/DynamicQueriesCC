@@ -2,18 +2,16 @@
 
 #include "splay_tree.h"
 #include "euler_tour_tree.h"
-//FIXME: I don't know why * and & are so different
+
 SplayTreeNode::SplayTreeNode(EulerTourTree* node) :
   sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())),
   node(node) {
-  Sketch::makeSketch((char*)sketch_agg.get(), 0);
+  Sketch::makeSketch((char*)sketch_agg.get(), node ? node->get_seed() : 0);
 }
 
-SplayTreeNode::SplayTreeNode() : SplayTreeNode(nullptr) {
-}
+SplayTreeNode::SplayTreeNode() : SplayTreeNode(nullptr) {}
 
-SplayTreeNode::SplayTreeNode(EulerTourTree& node) : SplayTreeNode(&node) {
-}
+SplayTreeNode::SplayTreeNode(EulerTourTree& node) : SplayTreeNode(&node) {}
 
 void SplayTreeNode::rotate_up() {
   assert(!this->parent.expired());
