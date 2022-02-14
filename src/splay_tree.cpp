@@ -1,5 +1,6 @@
 #include <cassert>
 
+
 #include "splay_tree.h"
 #include "euler_tour_tree.h"
 
@@ -59,6 +60,7 @@ void SplayTreeNode::link_left(const Sptr& other) {
   this->left = other;
   if (other != nullptr) {
     other->parent = shared_from_this();
+
   }
   needs_rebuilding = true;
 }
@@ -141,7 +143,6 @@ std::shared_ptr<SplayTreeNode> SplayTreeNode::splay_random_child()
 	}
 }
 
-
 const std::shared_ptr<SplayTreeNode>& SplayTree::join(const Sptr& left, const Sptr& right) {
   if (left == nullptr) {
     return right;
@@ -160,7 +161,6 @@ void SplayTreeNode::rebuild_one()
     Sketch::makeSketch((char*)sketch_agg.get(), *sketch);
   else
     *sketch_agg += *sketch_agg;
-
 
   // Agg our left and right child, if we have them
   if (left)
@@ -192,5 +192,43 @@ Sketch* SplayTreeNode::get_sketch()
   return node->get_sketch(this);
 }
 
+//asserts if a child doesn't point to its parent
+long SplayTree::validate()
+{
+  if (!head)
+    return 0;
+  assert(head->parent.expired());
+  return validateNode(head);
+}
 
+void SplayTree::splay_random()
+{
+  Sptr node = head;
+  while(true)
+  {
+    int which = rand() % 20;
+    if (which == 0)
+    {
+      splay(node);
+      return;
+    }
+    which = rand() % 2;
+    if (which == 0)
+      if (node->left)
+        node = node->left;
+      else
+      {
+        splay(node);
+        return;
+      }
+    else
+      if (node->right)
+        node = node->right;
+      else
+      {
+        splay(node);
+        return;
+      }
+  }
+}
 

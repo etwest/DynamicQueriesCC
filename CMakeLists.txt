@@ -38,11 +38,13 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(GraphStreamingCC)
 
+
 add_executable(dynamicCC_tests
   test/test_runner.cpp
   test/basic_test.cpp
   test/euler_tour_tree_test.cpp
   test/splay_tree_test.cpp
+
 
   src/splay_tree.cpp
 
@@ -50,6 +52,7 @@ add_executable(dynamicCC_tests
 
   src/graph_tiers.cpp
 )
+
 target_include_directories(dynamicCC_tests PUBLIC include)
 add_dependencies(dynamicCC_tests GraphStreamingCC)
 target_link_libraries(dynamicCC_tests PRIVATE GraphStreamingCC)
