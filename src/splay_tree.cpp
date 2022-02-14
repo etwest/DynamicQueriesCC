@@ -156,11 +156,13 @@ void SplayTreeNode::rebuild_one()
 {
   assert(needs_rebuilding == true);
   // If we have a sketch, then copy it over. otherwise, empty sketch
+  
   Sketch* sketch = get_sketch();
   if (sketch)
     Sketch::makeSketch((char*)sketch_agg.get(), *sketch);
   else
-    Sketch::makeSketch((char*)sketch_agg.get(), 0);
+    *sketch_agg += *sketch_agg;
+
 
   // Agg our left and right child, if we have them
   if (left)

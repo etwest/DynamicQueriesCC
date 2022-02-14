@@ -5,6 +5,7 @@
 #include <splay_tree.h>
 
 class EulerTourTree {
+  FRIEND_TEST(SplayTreeSuite, random_splays);
   using Sptr = std::shared_ptr<SplayTreeNode>;
   std::unordered_map<EulerTourTree*, Sptr> edges;
   

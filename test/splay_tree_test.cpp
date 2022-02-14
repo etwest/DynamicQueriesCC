@@ -69,12 +69,12 @@ TEST(SplayTreeSuite, random_splays) {
   srand(seed);
 
   //number of nodes
-  int n = 3;
+  int n = 10000;
   //number of random splays
-  int rsplays = 1;
+  int rsplays = 10000000;
   // sketch variables
-  vec_t len = 10;
-  vec_t err = 10;
+  vec_t len = 1000;
+  vec_t err = 100;
   
   Sketch::configure(len, err);
 
@@ -92,11 +92,13 @@ TEST(SplayTreeSuite, random_splays) {
   }
 
   Sptr tree = std::make_shared<SplayTreeNode>(new EulerTourTree(sketches[0]));
+  tree->node->allowed_caller = tree.get();
   Sptr next = tree;
   for (int i = 1; i < n; i++)
   {
     next->link_right(std::make_shared<SplayTreeNode>(new EulerTourTree(sketches[i])));
     next = next->right;
+    next->node->allowed_caller = next.get();
   }
 
   auto root = tree;

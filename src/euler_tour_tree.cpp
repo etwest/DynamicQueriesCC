@@ -41,6 +41,7 @@ void EulerTourTree::delete_edge(EulerTourTree* other) {
 
 
 Sketch* EulerTourTree::get_sketch(SplayTreeNode* caller) {
+  assert(allowed_caller);
   return caller == allowed_caller ? sketch.get() : nullptr;
 }
 
