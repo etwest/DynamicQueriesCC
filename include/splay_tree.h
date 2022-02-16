@@ -60,7 +60,14 @@ class SplayTree {
     SplayTree();
   public:
     static const Sptr& join(const Sptr& left, const Sptr& right);
+    template <typename... T>
+    static const Sptr& join(const Sptr& head, const T&... tail);
     static Sptr split_left(const Sptr& node);
     static Sptr split_right(const Sptr& node);
     static Sptr get_last(Sptr node);
 };
+
+template <typename... T>
+const std::shared_ptr<SplayTreeNode>& SplayTree::join(const std::shared_ptr<SplayTreeNode>& head, const T&... tail) {
+  return join(head, join(tail...));
+}

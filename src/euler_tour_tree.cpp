@@ -90,19 +90,8 @@ bool EulerTourTree::link(EulerTourTree& other) {
   Sptr aux_edge_left = this->make_edge(&other);
   Sptr aux_edge_right = other.make_edge(this);
 
-  // FIXME: what in gods name is this
-  SplayTree::join(
-      SplayTree::join(
-        SplayTree::join(
-          SplayTree::join(
-            SplayTree::join(
-              aux_this_left,
-              aux_edge_left),
-            aux_other_right),
-          aux_other_left),
-        aux_edge_right),
-      aux_this_right);
-
+  SplayTree::join(aux_this_left, aux_edge_left, aux_other_right,
+      aux_other_left, aux_edge_right, aux_this_right);
 
   return true;
 }
