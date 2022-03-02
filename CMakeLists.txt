@@ -28,12 +28,9 @@ endif()
 # Install GraphStreamingCC Project
 FetchContent_Declare(
   GraphStreamingCC
-  GIT_REPOSITORY      "https://github.com/GraphStreamingProject/GraphStreamingCC"
-  GIT_TAG             "main"
-  UPDATE_DISCONNECTED OFF
 
-  CMAKE_CACHE_ARGS
-    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+  GIT_REPOSITORY      https://github.com/GraphStreamingProject/GraphStreamingCC
+  GIT_TAG             main
 )
 
 FetchContent_MakeAvailable(GraphStreamingCC)
