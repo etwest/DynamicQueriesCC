@@ -116,21 +116,23 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
 
   //int seed = time(NULL);
   int seed = 1648213336;
-  size_t space = Sketch::sketchSizeof();
-  void* sketch_space = malloc(space * nodecount);
-  std::vector<Sketch*> sketches;
-  // Update each sketch with an edge that easily identifies the node
-  for (int i = 0; i < nodecount; i++)
-  {
-    sketches.emplace_back(Sketch::makeSketch((char*)sketch_space + space*i, seed));
-    sketches[i]->update((vec_t)i);
-  }
+  //size_t space = Sketch::sketchSizeof();
+  //void* sketch_space = malloc(space * nodecount);
+  //std::vector<Sketch*> sketches;
+  //// Update each sketch with an edge that easily identifies the node
+  //for (int i = 0; i < nodecount; i++)
+  //{
+  //  sketches.emplace_back(Sketch::makeSketch((char*)sketch_space + space*i, seed));
+  //  sketches[i]->update((vec_t)i);
+  //}
 
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
   for (int i = 0; i < nodecount; i++)
   {
-    nodes.emplace_back(sketches[i], seed);
+    //nodes.emplace_back(sketches[i], seed);
+    nodes.emplace_back(seed);
+    nodes[i].sketch.get()->update((vec_t)i);
   }
 
   std::cout << "Seeding random links and cuts test with " << seed << std::endl;
@@ -176,7 +178,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
                 << std::endl;
     }
 
-    if (i == 5) // CHANGE ME
+    if (i == 3) // CHANGE ME
     {
       std::pair<vec_t, SampleSketchRet> query = aux_root->sketch_agg.get()->query();
       std::string sketch_ret;
