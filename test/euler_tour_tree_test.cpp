@@ -143,6 +143,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     if (rand() % 100 < 50) {
       std::cout << "Link " << a << " to " << b << std::endl;
       nodes[a].link(nodes[b]);
+      nodes[b].link(nodes[a]);
     } else {
       std::cout << "Cut " << a << " from " << b << std::endl;
       nodes[a].cut(nodes[b]);
