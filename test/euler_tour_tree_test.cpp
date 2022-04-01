@@ -143,7 +143,6 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     if (rand() % 100 < 50) {
       std::cout << "Link " << a << " to " << b << std::endl;
       nodes[a].link(nodes[b]);
-      nodes[b].link(nodes[a]);
     } else {
       std::cout << "Cut " << a << " from " << b << std::endl;
       nodes[a].cut(nodes[b]);
@@ -165,18 +164,26 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     SplayTreeNode *aux_root = nodes[i].edges.begin()->second.get();
     while (aux_root->get_parent().get() != nullptr)
     {
+      ASSERT_FALSE(aux_root->needs_rebuilding)
+        << "Found node " << i << " in incomplete state!"
+        << std::endl
+        << nodes;
       aux_root = aux_root->get_parent().get();
     }
+    ASSERT_FALSE(aux_root->needs_rebuilding)
+      << "Found node " << i << " in incomplete state!"
+      << std::endl
+      << nodes;
     // Sanity checks
     if (i == 3 || i == 5)
     {
       std::cout << "Node "
-                << i
-                << " aux tree root address: "
-                << aux_root
-                << " root sketch aggregate address: "
-                << aux_root->sketch_agg.get()
-                << std::endl;
+        << i
+        << " aux tree root address: "
+        << aux_root
+        << " root sketch aggregate address: "
+        << aux_root->sketch_agg.get()
+        << std::endl;
     }
 
     if (i == 3) // CHANGE ME

@@ -55,7 +55,6 @@ bool EulerTourTree::link(EulerTourTree& other) {
 
   // If the nodes are already part of the same tree, don't link
   if (this_sentinel == other_sentinel) {
-    std::cout << "DOUBLE LINK!" << std::endl;
     return false;
   }
 
