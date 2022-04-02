@@ -161,6 +161,10 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
     sentinel->splay();
     SplayTreeNode *aux_root = sentinel;
+    ASSERT_FALSE(aux_root->needs_rebuilding)
+      << "Found node " << i << " in incomplete state!"
+      << std::endl
+      << nodes;
     if (aggs.find(sentinel) == aggs.end())
     {
       char *location = (char*)cc_sketch_space + space*aggs.size();
