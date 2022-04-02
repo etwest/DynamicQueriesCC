@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstdint>
+#include <unordered_set>
 
 #include <gtest/gtest.h>
 
@@ -106,16 +107,16 @@ TEST(EulerTourTreeSuite, stress_test) {
 TEST(EulerTourTreeSuite, random_links_and_cuts) {
 
   // sketch variables
-  vec_t len = 10000;
-  vec_t err = 100;
+  vec_t len = 10;
+  vec_t err = 10;
   //configure the sketch globally
   Sketch::configure(len, err);
+  size_t space = Sketch::sketchSizeof();
 
   int nodecount = 10;
-  int n = 1;
+  int n = 50;
 
-  //int seed = time(NULL);
-  int seed = 1648213336;
+  int seed = time(NULL);
   //size_t space = Sketch::sketchSizeof();
   //void* sketch_space = malloc(space * nodecount);
   //std::vector<Sketch*> sketches;
@@ -140,7 +141,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   // Do random links and cuts
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
-    if (rand() % 100 < 50) {
+    if (rand() % 100 < 10) {
       std::cout << "Link " << a << " to " << b << std::endl;
       nodes[a].link(nodes[b]);
     } else {
@@ -157,49 +158,89 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     }
   }
 
+  std::unordered_set<SplayTreeNode*> sentinels;
+  for (int i = 0; i < nodecount; i++)
+  {
+    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    sentinels.insert(sentinel);
+  }
+  void *cc_sketch_space = malloc(space * sentinels.size());
+
   // Walk up from an occurrence of each node to the root of its auxiliary tre
   std::unordered_map<SplayTreeNode*, Sketch*> aggs;
   for (int i = 0; i < nodecount; i++)
   {
-    SplayTreeNode *aux_root = nodes[i].edges.begin()->second.get();
-    while (aux_root->get_parent().get() != nullptr)
-    {
-      aux_root = aux_root->get_parent().get();
-    }
-    // Sanity checks
-    if (i == 3 || i == 5)
-    {
-      std::cout << "Node "
-                << i
-                << " aux tree root address: "
-                << aux_root
-                << " root sketch aggregate address: "
-                << aux_root->sketch_agg.get()
-                << std::endl;
-    }
-
-    if (i == 3) // CHANGE ME
-    {
-      std::pair<vec_t, SampleSketchRet> query = aux_root->sketch_agg.get()->query();
-      std::string sketch_ret;
-      if (query.second == SampleSketchRet::GOOD)
-      {
-        sketch_ret = "GOOD";
-      }
-      else if (query.second == SampleSketchRet::ZERO)
-      {
-        sketch_ret = "ZERO";
-      }
-      else if (query.second == SampleSketchRet::FAIL)
-      {
-        sketch_ret = "FAIL";
-      }
-      std::cout << "Node " << i << " value: " << query.first << " sketch ret: " << sketch_ret << std::endl;
-    }
     SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    sentinel->splay();
+    SplayTreeNode *aux_root = sentinel;
+    //while (aux_root->get_parent().get() != nullptr)
+    //{
+    //  aux_root = aux_root->get_parent().get();
+    //}
+    //// Sanity checks
+    //if (i == 3 || i == 5)
+    //{
+    //  std::cout << "Node "
+    //            << i
+    //            << " aux tree root address: "
+    //            << aux_root
+    //            << " root sketch aggregate address: "
+    //            << aux_root->sketch_agg.get()
+    //            << std::endl;
+    //}
+
+    //if (i == 3 || i == 5) // CHANGE ME
+    //{
+    //  std::pair<vec_t, SampleSketchRet> query = aux_root->sketch_agg.get()->query();
+    //  std::string sketch_ret;
+    //  if (query.second == SampleSketchRet::GOOD)
+    //  {
+    //    sketch_ret = "GOOD";
+    //  }
+    //  else if (query.second == SampleSketchRet::ZERO)
+    //  {
+    //    sketch_ret = "ZERO";
+    //  }
+    //  else if (query.second == SampleSketchRet::FAIL)
+    //  {
+    //    sketch_ret = "FAIL";
+    //  }
+    //  std::cout << "Node " << i << " value: " << query.first << " sketch ret: " << sketch_ret << std::endl;
+    //  aux_root->sketch_agg.get()->reset_queried();
+    //}
     if (aggs.find(sentinel) == aggs.end())
     {
-      aggs[sentinel] = aux_root->sketch_agg.get();
+      char *location = (char*)cc_sketch_space + space*aggs.size();
+      aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
+      *aggs[sentinel] += *aux_root->sketch_agg;
     }
   }
+
+  void *naive_cc_sketch_space = malloc(space * sentinels.size());
+  std::unordered_map<SplayTreeNode*, Sketch*> naive_aggs;
+  // Naively compute aggregates for each connected component
+  for (int i = 0; i < nodecount; i++)
+  {
+    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    if (naive_aggs.find(sentinel) != naive_aggs.end())
+    {
+      *naive_aggs[sentinel] += *nodes[i].sketch;
+    }
+    else
+    {
+      char *location = (char*)naive_cc_sketch_space + space*naive_aggs.size();
+      naive_aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
+      *naive_aggs[sentinel] += *nodes[i].sketch;
+    }
+  }
+  for (auto agg : aggs)
+  {
+    bool eq = *(agg.second) == *(naive_aggs[agg.first]);
+    if (!eq)
+    {
+      std::cout << *agg.second << "\n\n\n" << *naive_aggs[agg.first] << std::endl;
+    }
+    std::cout << agg.first << " " << eq << " " << agg.second->query().first << " " << naive_aggs[agg.first]->query().first << std::endl;
+  }
+  free(cc_sketch_space);
 }
