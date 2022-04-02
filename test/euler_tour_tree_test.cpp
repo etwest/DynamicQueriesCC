@@ -112,21 +112,9 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   //configure the sketch globally
   Sketch::configure(len, err);
   size_t space = Sketch::sketchSizeof();
-
   int nodecount = 10;
   int n = 50;
-
   int seed = time(NULL);
-  //size_t space = Sketch::sketchSizeof();
-  //void* sketch_space = malloc(space * nodecount);
-  //std::vector<Sketch*> sketches;
-  //// Update each sketch with an edge that easily identifies the node
-  //for (int i = 0; i < nodecount; i++)
-  //{
-  //  sketches.emplace_back(Sketch::makeSketch((char*)sketch_space + space*i, seed));
-  //  sketches[i]->update((vec_t)i);
-  //}
-
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
   for (int i = 0; i < nodecount; i++)
@@ -173,41 +161,6 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
     sentinel->splay();
     SplayTreeNode *aux_root = sentinel;
-    //while (aux_root->get_parent().get() != nullptr)
-    //{
-    //  aux_root = aux_root->get_parent().get();
-    //}
-    //// Sanity checks
-    //if (i == 3 || i == 5)
-    //{
-    //  std::cout << "Node "
-    //            << i
-    //            << " aux tree root address: "
-    //            << aux_root
-    //            << " root sketch aggregate address: "
-    //            << aux_root->sketch_agg.get()
-    //            << std::endl;
-    //}
-
-    //if (i == 3 || i == 5) // CHANGE ME
-    //{
-    //  std::pair<vec_t, SampleSketchRet> query = aux_root->sketch_agg.get()->query();
-    //  std::string sketch_ret;
-    //  if (query.second == SampleSketchRet::GOOD)
-    //  {
-    //    sketch_ret = "GOOD";
-    //  }
-    //  else if (query.second == SampleSketchRet::ZERO)
-    //  {
-    //    sketch_ret = "ZERO";
-    //  }
-    //  else if (query.second == SampleSketchRet::FAIL)
-    //  {
-    //    sketch_ret = "FAIL";
-    //  }
-    //  std::cout << "Node " << i << " value: " << query.first << " sketch ret: " << sketch_ret << std::endl;
-    //  aux_root->sketch_agg.get()->reset_queried();
-    //}
     if (aggs.find(sentinel) == aggs.end())
     {
       char *location = (char*)cc_sketch_space + space*aggs.size();
