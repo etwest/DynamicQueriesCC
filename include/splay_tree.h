@@ -13,6 +13,7 @@ class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
   // Test helpers
   FRIEND_TEST(SplayTreeSuite, random_splays);
   FRIEND_TEST(SplayTreeSuite, links_and_cuts);
+  FRIEND_TEST(EulerTourTreeSuite, random_links_and_cuts);
   Sptr splay_random_child();
   long count_children();
 
@@ -21,7 +22,6 @@ class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
   
   Sptr get_parent() {return parent.lock();};
   Sptr get_cparent() const {return parent.lock();};
-
 
   std::unique_ptr<Sketch> sketch_agg = nullptr;
 

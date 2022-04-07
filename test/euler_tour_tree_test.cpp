@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <cstdint>
+#include <unordered_set>
 
 #include <gtest/gtest.h>
 
@@ -100,4 +102,102 @@ TEST(EulerTourTreeSuite, stress_test) {
           << nodes;
     }
   }
+}
+
+TEST(EulerTourTreeSuite, random_links_and_cuts) {
+
+  // sketch variables
+  vec_t len = 10;
+  vec_t err = 10;
+  //configure the sketch globally
+  Sketch::configure(len, err);
+  size_t space = Sketch::sketchSizeof();
+  int nodecount = 10;
+  int n = 50;
+  int seed = time(NULL);
+  std::vector<EulerTourTree> nodes;
+  nodes.reserve(nodecount);
+  for (int i = 0; i < nodecount; i++)
+  {
+    //nodes.emplace_back(sketches[i], seed);
+    nodes.emplace_back(seed);
+    nodes[i].sketch.get()->update((vec_t)i);
+  }
+
+  std::cout << "Seeding random links and cuts test with " << seed << std::endl;
+  srand(seed);
+  // Do random links and cuts
+  for (int i = 0; i < n; i++) {
+    int a = rand() % nodecount, b = rand() % nodecount;
+    if (rand() % 100 < 10) {
+      std::cout << "Link " << a << " to " << b << std::endl;
+      nodes[a].link(nodes[b]);
+    } else {
+      std::cout << "Cut " << a << " from " << b << std::endl;
+      nodes[a].cut(nodes[b]);
+    }
+    if (i % n/100 == 0)
+    {
+      ASSERT_TRUE(std::all_of(nodes.begin(), nodes.end(),
+            [](auto& node){return node.isvalid();}))
+          << "Stress test validation failed, final state:"
+          << std::endl
+          << nodes;
+    }
+  }
+
+  std::unordered_set<SplayTreeNode*> sentinels;
+  for (int i = 0; i < nodecount; i++)
+  {
+    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    sentinels.insert(sentinel);
+  }
+  void *cc_sketch_space = malloc(space * sentinels.size());
+
+  // Walk up from an occurrence of each node to the root of its auxiliary tre
+  std::unordered_map<SplayTreeNode*, Sketch*> aggs;
+  for (int i = 0; i < nodecount; i++)
+  {
+    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    sentinel->splay();
+    SplayTreeNode *aux_root = sentinel;
+    ASSERT_FALSE(aux_root->needs_rebuilding)
+      << "Found node " << i << " in incomplete state!"
+      << std::endl
+      << nodes;
+    if (aggs.find(sentinel) == aggs.end())
+    {
+      char *location = (char*)cc_sketch_space + space*aggs.size();
+      aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
+      *aggs[sentinel] += *aux_root->sketch_agg;
+    }
+  }
+
+  void *naive_cc_sketch_space = malloc(space * sentinels.size());
+  std::unordered_map<SplayTreeNode*, Sketch*> naive_aggs;
+  // Naively compute aggregates for each connected component
+  for (int i = 0; i < nodecount; i++)
+  {
+    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    if (naive_aggs.find(sentinel) != naive_aggs.end())
+    {
+      *naive_aggs[sentinel] += *nodes[i].sketch;
+    }
+    else
+    {
+      char *location = (char*)naive_cc_sketch_space + space*naive_aggs.size();
+      naive_aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
+      *naive_aggs[sentinel] += *nodes[i].sketch;
+    }
+  }
+  for (auto agg : aggs)
+  {
+    bool eq = *(agg.second) == *(naive_aggs[agg.first]);
+    if (!eq)
+    {
+      std::cout << *agg.second << "\n\n\n" << *naive_aggs[agg.first] << std::endl;
+    }
+    std::cout << agg.first << " " << eq << " " << agg.second->query().first << " " << naive_aggs[agg.first]->query().first << std::endl;
+  }
+  free(cc_sketch_space);
 }
