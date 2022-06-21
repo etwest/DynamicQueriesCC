@@ -25,15 +25,15 @@ else()
   message("${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
 endif()
 
-# Install GraphStreamingCC Project
+# Install GraphZeppelin Project
 FetchContent_Declare(
-  GraphStreamingCC
+  GraphZeppelin
 
-  GIT_REPOSITORY      https://github.com/GraphStreamingProject/GraphStreamingCC
+  GIT_REPOSITORY      https://github.com/GraphStreamingProject/GraphZeppelin
   GIT_TAG             main
 )
 
-FetchContent_MakeAvailable(GraphStreamingCC)
+FetchContent_MakeAvailable(GraphZeppelin)
 
 
 add_executable(dynamicCC_tests
@@ -49,5 +49,5 @@ add_executable(dynamicCC_tests
 )
 
 target_include_directories(dynamicCC_tests PUBLIC include)
-add_dependencies(dynamicCC_tests GraphStreamingCC)
-target_link_libraries(dynamicCC_tests PRIVATE GraphStreamingCC)
+add_dependencies(dynamicCC_tests GraphZeppelin)
+target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelin)
