@@ -12,8 +12,8 @@ class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
   using Sptr = std::shared_ptr<SplayTreeNode>;
   // Test helpers
   FRIEND_TEST(SplayTreeSuite, random_splays);
-  FRIEND_TEST(SplayTreeSuite, links_and_cuts);
   FRIEND_TEST(EulerTourTreeSuite, random_links_and_cuts);
+  FRIEND_TEST(EulerTourTreeSuite, get_aggregate);
   Sptr splay_random_child();
   long count_children();
 
@@ -23,7 +23,7 @@ class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
   Sptr get_parent() {return parent.lock();};
   Sptr get_cparent() const {return parent.lock();};
 
-  std::unique_ptr<Sketch> sketch_agg = nullptr;
+   std::shared_ptr<Sketch> sketch_agg = nullptr;
 
   Sketch* get_sketch();
   void rotate_up();
@@ -42,8 +42,7 @@ public:
   SplayTreeNode(EulerTourTree& node);
   SplayTreeNode(EulerTourTree* node);
 
-  /* Rebuilds our aggregate, then recursively rebuilds our parents aggregate
-   */ 
+  //Rebuilds our aggregate, then recursively rebuilds our parents aggregate
   void rebuild_agg();
 
   bool isvalid() const;
@@ -64,6 +63,7 @@ class SplayTree {
     static const Sptr& join(const Sptr& head, const T&... tail);
     static Sptr split_left(const Sptr& node);
     static Sptr split_right(const Sptr& node);
+    static std::shared_ptr<Sketch> get_root_aggregate(const Sptr& node);
     static Sptr get_last(Sptr node);
 };
 

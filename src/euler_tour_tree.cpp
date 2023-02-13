@@ -19,11 +19,14 @@ EulerTourTree::EulerTourTree(Sketch* sketch, long seed) :
 }
 
 Sptr EulerTourTree::make_edge(EulerTourTree* other) {
+  //Constructing a new SplayTreeNode with pointer to this ETT object
   Sptr node = std::make_shared<SplayTreeNode>(*this);
   if (allowed_caller == nullptr) {
     allowed_caller = node.get();
   }
+  //Add the new SplayTreeNode to the edge list
   return this->edges.emplace(std::make_pair(other, std::move(node))).first->second;
+  //Returns the new node pointer or the one that already existed if it did
 }
 
 void EulerTourTree::delete_edge(EulerTourTree* other) {
@@ -43,6 +46,15 @@ void EulerTourTree::delete_edge(EulerTourTree* other) {
 Sketch* EulerTourTree::get_sketch(SplayTreeNode* caller) {
   assert(allowed_caller);
   return caller == allowed_caller ? sketch.get() : nullptr;
+}
+
+void EulerTourTree::update_sketch(vec_t update_idx) {
+  this->sketch.get()->update(update_idx);
+}
+
+//Get the aggregate sketch at the root of the ETT for this node
+std::shared_ptr<Sketch> EulerTourTree::get_aggregate() {
+  return SplayTree::get_root_aggregate(this->edges.begin()->second);
 }
 
 bool EulerTourTree::link(EulerTourTree& other) {

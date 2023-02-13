@@ -201,3 +201,38 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   }
   free(cc_sketch_space);
 }
+
+TEST(EulerTourTreeSuite, get_aggregate) {
+  // Sketch variables
+  vec_t len = 10;
+  vec_t err = 10;
+  // Configure the sketch globally
+  Sketch::configure(len, err);
+
+  int seed = time(NULL);
+
+  // Keep a manual aggregate of all the sketches
+  Sketch* true_aggregate = (Sketch *) ::operator new(Sketch::sketchSizeof());
+  Sketch::makeSketch(true_aggregate, seed);
+
+  int nodecount = 10;
+  std::vector<EulerTourTree> nodes;
+  nodes.reserve(nodecount);
+
+  // Add value to each sketch, update the manual aggregate
+  for (int i = 0; i < nodecount; i++)
+  {
+    nodes.emplace_back(seed);
+    nodes[i].update_sketch((vec_t)i);
+    true_aggregate->update((vec_t)i);
+  }
+
+  // Link all the ETT nodes
+  for (int i = 0; i < nodecount-1; i++) {
+    nodes[i].link(nodes[i+1]);
+  }
+
+  // Check that the ETT aggregate is properly maintained and gotten
+  std::shared_ptr<Sketch> aggregate = nodes[0].get_aggregate();
+  ASSERT_TRUE(*aggregate == *true_aggregate);
+}
