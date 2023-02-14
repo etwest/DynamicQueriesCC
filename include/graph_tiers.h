@@ -10,7 +10,7 @@ class GraphTiers {
  private:
   std::vector<std::vector<EulerTourTree>> node_arr;  // for each tier, for each node
 
-  void refresh(Edge new_edge);
+  void refresh(GraphUpdate update);
 
  public:
   GraphTiers(node_id_t num_nodes);
@@ -19,7 +19,7 @@ class GraphTiers {
   // apply an edge update
   // loop through each tier and update the sketches
   // at that tier
-  void update();
+  void update(GraphUpdate update);
 
   // query for the connected components of the graph
   void get_cc();
