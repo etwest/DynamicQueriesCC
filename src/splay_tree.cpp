@@ -101,6 +101,11 @@ std::shared_ptr<SplayTreeNode> SplayTree::split_right(const Sptr& node) {
   return ret;
 }
 
+std::shared_ptr<Sketch> SplayTree::get_root_aggregate(const Sptr& node) {
+  node->splay();
+  return std::shared_ptr<Sketch>(node->sketch_agg);
+}
+
 long SplayTreeNode::count_children()
 {
   assert(!needs_rebuilding);

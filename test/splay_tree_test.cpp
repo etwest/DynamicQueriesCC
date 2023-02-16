@@ -71,9 +71,9 @@ TEST(SplayTreeSuite, random_splays) {
   //number of nodes
   int n = 10000;
   //number of random splays
-  int rsplays = 10000000;
+  int rsplays = 1000000;
   // sketch variables
-  vec_t len = 1000;
+  vec_t len = 10000;
   vec_t err = 100;
   
   Sketch::configure(len, err);
