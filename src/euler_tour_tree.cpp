@@ -50,6 +50,7 @@ Sketch* EulerTourTree::get_sketch(SplayTreeNode* caller) {
 
 void EulerTourTree::update_sketch(vec_t update_idx) {
   this->sketch.get()->update(update_idx);
+  this->edges.begin()->second->splay();
 }
 
 //Get the aggregate sketch at the root of the ETT for this node
