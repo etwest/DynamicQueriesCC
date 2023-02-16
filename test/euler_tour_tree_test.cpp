@@ -71,7 +71,7 @@ TEST(EulerTourTreeSuite, stress_test) {
   //configure the sketch globally
   Sketch::configure(len, err);
 
-  int nodecount = 1000;
+  int nodecount = 10000;
 
   int n = 1000000;
 
@@ -107,13 +107,13 @@ TEST(EulerTourTreeSuite, stress_test) {
 TEST(EulerTourTreeSuite, random_links_and_cuts) {
 
   // sketch variables
-  vec_t len = 10;
-  vec_t err = 10;
+  vec_t len = 1000;
+  vec_t err = 100;
   //configure the sketch globally
   Sketch::configure(len, err);
   size_t space = Sketch::sketchSizeof();
-  int nodecount = 10;
-  int n = 50;
+  int nodecount = 1000;
+  int n = 500;
   int seed = time(NULL);
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
@@ -130,20 +130,15 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
     if (rand() % 100 < 10) {
-      std::cout << "Link " << a << " to " << b << std::endl;
       nodes[a].link(nodes[b]);
     } else {
-      std::cout << "Cut " << a << " from " << b << std::endl;
       nodes[a].cut(nodes[b]);
     }
-    if (i % n/100 == 0)
-    {
-      ASSERT_TRUE(std::all_of(nodes.begin(), nodes.end(),
-            [](auto& node){return node.isvalid();}))
-          << "Stress test validation failed, final state:"
-          << std::endl
-          << nodes;
-    }
+    ASSERT_TRUE(std::all_of(nodes.begin(), nodes.end(),
+          [](auto& node){return node.isvalid();}))
+        << "Stress test validation failed, final state:"
+        << std::endl
+        << nodes;
   }
 
   std::unordered_set<SplayTreeNode*> sentinels;
@@ -192,12 +187,8 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   }
   for (auto agg : aggs)
   {
-    bool eq = *(agg.second) == *(naive_aggs[agg.first]);
-    if (!eq)
-    {
-      std::cout << *agg.second << "\n\n\n" << *naive_aggs[agg.first] << std::endl;
-    }
-    std::cout << agg.first << " " << eq << " " << agg.second->query().first << " " << naive_aggs[agg.first]->query().first << std::endl;
+    ASSERT_EQ(*(agg.second), *(naive_aggs[agg.first])) 
+      << *agg.second << "\n\n\n" << *naive_aggs[agg.first] << std::endl;
   }
   free(cc_sketch_space);
 }
