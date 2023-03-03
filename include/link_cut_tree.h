@@ -35,10 +35,10 @@ class LinkCutTree{
   public:
     LinkCutTree(node_id_t num_nodes);
 
-    // Given v a tree root and w a vertex in another tree, link the trees containing v and w by adding the edge(v, w), making w the parent of v
+    // Given nodes v and w, link the trees containing v and w by adding the edge(v, w)
     void link(node_id_t v, node_id_t w);
-    // Given node v not a tree root, divide the tree containing v into two trees by deleting the edge(v, parent(v))
-    void cut(node_id_t v);
+    // Given nodes v and w, divide the tree containing v and w by deleting the edge(v, w)
+    void cut(node_id_t v, node_id_t w);
 
     node_id_t find_root(node_id_t v);
 
