@@ -31,7 +31,6 @@ class LinkCutTree{
   std::vector<LinkCutNode*> roots;
   
   void access(const LinkCutNode& v);
-  uint32_t path_aggregate(const LinkCutNode& v);
 
   public:
     LinkCutTree(node_id_t num_nodes);
@@ -43,8 +42,7 @@ class LinkCutTree{
 
     node_id_t find_root(node_id_t v);
 
-    // Given node v return the edge(a, b) with the maximum or minimum weight on the path from the tree root to v
-    edge_id_t path_minimum(node_id_t v);
-    edge_id_t path_maximum(node_id_t v);
+    // Given node v return the edge(a, b) with the maximum weight on the path from the tree root to v and the weight itself
+    std::pair<edge_id_t, uint32_t> path_aggregate(node_id_t v);
 };
 
