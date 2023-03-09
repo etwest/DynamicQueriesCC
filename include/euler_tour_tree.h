@@ -7,6 +7,7 @@
 class EulerTourTree {
   FRIEND_TEST(SplayTreeSuite, random_splays);
   FRIEND_TEST(EulerTourTreeSuite, random_links_and_cuts);
+  FRIEND_TEST(EulerTourTreeSuite, get_aggregate);
   using Sptr = std::shared_ptr<SplayTreeNode>;
   std::unordered_map<EulerTourTree*, Sptr> edges;
   
@@ -27,6 +28,9 @@ public:
   bool isvalid() const;
 
   Sketch* get_sketch(SplayTreeNode* caller);
+  void update_sketch(vec_t update_idx);
+  std::shared_ptr<Sketch> get_aggregate();
+
   long get_seed() {return seed;};
 
   friend std::ostream& operator<<(std::ostream& os, const EulerTourTree& ett);

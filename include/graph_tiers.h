@@ -4,10 +4,6 @@
 
 #include <euler_tour_tree.h>
 
-//TODO: this is currently typedef'd in supernode.h, but we (probably) don't want
-//to include supernode.h. 
-typedef std::pair<node_id_t, node_id_t> Edge;
-
 // maintains the tiers of the algorithm
 // and the spanning forest of the entire graph
 class GraphTiers {
