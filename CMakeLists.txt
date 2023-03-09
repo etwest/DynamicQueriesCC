@@ -45,6 +45,8 @@ add_executable(dynamicCC_tests
 
   src/euler_tour_tree.cpp
 
+  src/link_cut_tree.cpp
+
   src/graph_tiers.cpp
 )
 

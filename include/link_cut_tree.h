@@ -6,7 +6,7 @@
 class LinkCutTree;
 class SplayTree;
 
-class LinkCutNode{
+class LinkCutNode {
 
   LinkCutNode* parent;
   LinkCutNode* dparent;
@@ -15,6 +15,15 @@ class LinkCutNode{
   
   //Each node contains the weight of the edge from itself to its parent in the represented tree  
   uint32_t edge_weight;
+  //Maintain an aggregate maximum of the edge weights in the auxilliary tree
+  uint32_t max;
+
+  //Indicates that the meanings of left and right are reversed at all nodes in this subtree
+  bool reversed;
+  //Reverses all of appropriate nodes on the path from the root to this node
+  void correct_reversals();
+
+  void rotate_up();
 
   public:
     void splay();
@@ -23,9 +32,11 @@ class LinkCutNode{
     void set_left(LinkCutNode* left);
     void set_right(LinkCutNode* right);
     void set_edge_weight(uint32_t weight);
+    void set_max(uint32_t weight);
+    void set_reversed(bool reversed);
 };
 
-class LinkCutTree{
+class LinkCutTree {
   
   std::vector<LinkCutNode*> nodes;
   
