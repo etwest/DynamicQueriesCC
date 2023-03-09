@@ -17,6 +17,8 @@ class LinkCutNode {
   uint32_t edge_weight;
   //Maintain an aggregate maximum of the edge weights in the auxilliary tree
   uint32_t max;
+  //Recompute the maximum just for this single node
+  void rebuild_max();
 
   //Indicates that the meanings of left and right are reversed at all nodes in this subtree
   bool reversed;

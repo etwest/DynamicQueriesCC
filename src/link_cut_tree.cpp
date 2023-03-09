@@ -1,5 +1,13 @@
 #include "../include/link_cut_tree.h"
 
+void LinkCutNode::set_parent(LinkCutNode* parent) { this->parent = parent; }
+void LinkCutNode::set_dparent(LinkCutNode* dparent) { this->dparent = dparent; }
+void LinkCutNode::set_left(LinkCutNode* left) { this->left = left; }
+void LinkCutNode::set_right(LinkCutNode* right){ this->right = right; }
+void LinkCutNode::set_edge_weight(uint32_t weight){ this->edge_weight = weight; }
+void LinkCutNode::set_max(uint32_t weight){ this->max = weight; }
+void LinkCutNode::set_reversed(bool reversed){ this->reversed = reversed; }
+
 void LinkCutNode::correct_reversals() {
     //Get the XOR of all reversed booleans from this node to root
     bool reversal_state = 0;
@@ -29,6 +37,18 @@ void LinkCutNode::correct_reversals() {
     }
 }
 
+void LinkCutNode::rebuild_max() {
+    if (this->left && this->right) {
+        this->set_max(std::max(this->edge_weight, std::max(this->left->max, this->right->max)));
+    } else if (this->left) {
+        this->set_max(std::max(this->edge_weight, this->left->max));
+    } else if (this->right) {
+        this->set_max(std::max(this->edge_weight, this->right->max));
+    } else {
+        this->set_max(this->edge_weight);
+    }
+}
+
 void LinkCutNode::rotate_up() {
     LinkCutNode* parent = this->parent;
     LinkCutNode* grandparent = parent->parent;
@@ -49,25 +69,8 @@ void LinkCutNode::rotate_up() {
         this->set_left(parent);
     }
     //Rebuild max aggregates
-    if (parent->left && parent->right) {
-        parent->set_max(std::max(parent->edge_weight, std::max(parent->left->max, parent->right->max)));
-    } else if (parent->left) {
-        parent->set_max(std::max(parent->edge_weight, parent->left->max));
-    } else if (parent->right) {
-        parent->set_max(std::max(parent->edge_weight, parent->right->max));
-    } else {
-        parent->set_max(parent->edge_weight);
-    }
-
-    if (this->left && this->right) {
-        this->set_max(std::max(this->edge_weight, std::max(this->left->max, this->right->max)));
-    } else if (this->left) {
-        this->set_max(std::max(this->edge_weight, this->left->max));
-    } else if (this->right) {
-        this->set_max(std::max(this->edge_weight, this->right->max));
-    } else {
-        this->set_max(this->edge_weight);
-    }
+    parent->rebuild_max();
+    this->rebuild_max();
 }
 
 void LinkCutNode::splay() {
