@@ -31,7 +31,7 @@ class LinkCutNode {
   void rotate_up();
 
   public:
-    void splay();
+    LinkCutNode* splay();
 
     void link_left(LinkCutNode* left);
     void link_right(LinkCutNode* right);
@@ -62,6 +62,7 @@ class LinkCutTree {
   
   static LinkCutNode* splice(LinkCutNode* p);
   static LinkCutNode* expose(LinkCutNode* v);
+  // Make v the new root of the represented tree by "turning the tree inside out"
   static void evert(LinkCutNode* v);
 
   public:

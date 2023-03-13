@@ -10,10 +10,10 @@ void LinkCutNode::link_left(LinkCutNode* other) {
   this->left = other;
   if (other != nullptr) {
     other->parent = this;
-    this->tail = other->tail;
+    this->head = other->head;
   }
   else {
-    this->tail = this;
+    this->head = this;
   }
   this->rebuild_max();
 }
@@ -22,10 +22,10 @@ void LinkCutNode::link_right(LinkCutNode* other) {
   this->right = other;
   if (other != nullptr) {
     other->parent = this;
-    this->head = other->head;
+    this->tail = other->tail;
   }
   else {
-    this->head = this;
+    this->tail = this;
   }
   this->rebuild_max();
 }
@@ -99,7 +99,7 @@ void LinkCutNode::rotate_up() {
     }
 }
 
-void LinkCutNode::splay() {
+LinkCutNode* LinkCutNode::splay() {
     this->correct_reversals();
 
     while (this->parent) {
@@ -118,6 +118,7 @@ void LinkCutNode::splay() {
             this->rotate_up();
         }
     }
+    return this;
 }
 
 LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
@@ -153,8 +154,7 @@ LinkCutNode* LinkCutTree::expose(LinkCutNode* v) {
         paths.second->get_head()->set_dparent(v);
     }
 
-    v->splay();
-    LinkCutNode* p = v;
+    LinkCutNode* p = v->splay();
     while(p->get_head()->get_dparent() != nullptr) {
         p = LinkCutTree::splice(p);
     }
