@@ -2,11 +2,45 @@
 
 void LinkCutNode::set_parent(LinkCutNode* parent) { this->parent = parent; }
 void LinkCutNode::set_dparent(LinkCutNode* dparent) { this->dparent = dparent; }
-void LinkCutNode::set_left(LinkCutNode* left) { this->left = left; }
-void LinkCutNode::set_right(LinkCutNode* right){ this->right = right; }
 void LinkCutNode::set_edge_weight(uint32_t weight){ this->edge_weight = weight; }
 void LinkCutNode::set_max(uint32_t weight){ this->max = weight; }
 void LinkCutNode::set_reversed(bool reversed){ this->reversed = reversed; }
+
+void LinkCutNode::link_left(LinkCutNode* other) {
+  this->left = other;
+  if (other != nullptr) {
+    other->parent = this;
+    this->tail = other->tail;
+  }
+  else {
+    this->tail = this;
+  }
+  this->rebuild_max();
+}
+
+void LinkCutNode::link_right(LinkCutNode* other) {
+  this->right = other;
+  if (other != nullptr) {
+    other->parent = this;
+    this->head = other->head;
+  }
+  else {
+    this->head = this;
+  }
+  this->rebuild_max();
+}
+
+LinkCutNode* LinkCutNode::get_head() {
+    return this->head;
+}
+
+LinkCutNode* LinkCutNode::get_tail() {
+    return this->tail;
+}
+
+LinkCutNode* LinkCutNode::get_dparent() {
+    return this->dparent;
+}
 
 void LinkCutNode::correct_reversals() {
     //Get the XOR of all reversed booleans from this node to root
@@ -52,25 +86,22 @@ void LinkCutNode::rebuild_max() {
 void LinkCutNode::rotate_up() {
     LinkCutNode* parent = this->parent;
     LinkCutNode* grandparent = parent->parent;
-    //Perform rotations
+
+    if (parent->left == this) {
+        parent->link_left(this->right);
+        this->link_right(parent);
+    } else {
+        parent->link_right(this->left);
+        this->link_left(parent);
+    }
+
     if (grandparent) {
         if (grandparent->left == parent) {
-            grandparent->set_left(this);
+            grandparent->link_left(this);
         } else {
-            grandparent->set_right(this);
+            grandparent->link_right(this);
         }
     }
-    
-    if (parent->left == this) {
-        parent->set_left(this->right);
-        this->set_right(parent);
-    } else {
-        parent->set_right(this->left);
-        this->set_left(parent);
-    }
-    //Rebuild max aggregates
-    parent->rebuild_max();
-    this->rebuild_max();
 }
 
 void LinkCutNode::splay() {
@@ -92,4 +123,55 @@ void LinkCutNode::splay() {
             this->rotate_up();
         }
     }
+}
+
+LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
+    LinkCutNode* head = v->get_head();
+    head->set_dparent(w);
+    v->splay();
+    return v;
+}
+
+std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree::split(LinkCutNode* v) {
+    v.splay();
+    std::pair<LinkCutNode*, LinkCutNode*> paths = {v, v.right};
+    v.link_right(nullptr);
+    return paths;
+}
+
+LinkCutNode* LinkCutTree::splice(LinkCutNode* p) {
+    LinkCutNode* v = p->get_head()->get_dparent();
+    std::pair<LinkCutNode*, LinkCutNode*> paths = this->split(v);
+
+    if (paths.first != nullptr) {
+        v = paths.first->get_head()->get_dparent();
+    }
+
+    p = this->join(p, v);
+
+    if (paths.second == nullptr) {
+        return p;
+    }
+
+    return this->join(p, paths.second);
+}
+
+void LinkCutTree::expose(LinkCutNode* v) {
+    std::pair<LinkCutNode*, LinkCutNode*> paths = this->split(v);
+    LinkCutNode *p;
+    if (paths.first != nullptr) {
+        paths.first->get_head()->set_dparent(v);
+    }
+    if (paths.second == nullptr) {
+        p = v->splay();
+    }
+    else {
+        this->join(v, paths.second);
+    }
+    
+    while(p->get_head()->get_dparent()) != nullptr) {
+        p = this->splice(p);
+    }
+    
+    return p;
 }
