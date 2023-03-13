@@ -30,17 +30,12 @@ void LinkCutNode::link_right(LinkCutNode* other) {
   this->rebuild_max();
 }
 
-LinkCutNode* LinkCutNode::get_head() {
-    return this->head;
-}
-
-LinkCutNode* LinkCutNode::get_tail() {
-    return this->tail;
-}
-
-LinkCutNode* LinkCutNode::get_dparent() {
-    return this->dparent;
-}
+LinkCutNode* LinkCutNode::get_left() { return this->left; }
+LinkCutNode* LinkCutNode::get_right() { return this->right; }
+LinkCutNode* LinkCutNode::get_parent() { return this->parent; }
+LinkCutNode* LinkCutNode::get_dparent() { return this->dparent; }
+LinkCutNode* LinkCutNode::get_head() { return this->head; }
+LinkCutNode* LinkCutNode::get_tail() { return this->tail; }
 
 void LinkCutNode::correct_reversals() {
     //Get the XOR of all reversed booleans from this node to root
@@ -56,8 +51,8 @@ void LinkCutNode::correct_reversals() {
     while (curr) {
         if (reversal_state) {
             LinkCutNode* temp = curr->left;
-            curr->set_left(curr->right);
-            curr->set_right(temp);
+            curr->left = curr->right;
+            curr->right = temp;
             if (curr->left && curr->left != prev) {
                 curr->left->set_reversed(curr->left->reversed != 1);
             }
@@ -126,52 +121,42 @@ void LinkCutNode::splay() {
 }
 
 LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
-    LinkCutNode* head = v->get_head();
-    head->set_dparent(w);
-    v->splay();
-    return v;
+    LinkCutNode* tail = v->get_tail();
+    tail->splay();
+    tail->link_right(w);
+    return tail;
 }
 
 std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree::split(LinkCutNode* v) {
-    v.splay();
-    std::pair<LinkCutNode*, LinkCutNode*> paths = {v, v.right};
-    v.link_right(nullptr);
+    v->splay();
+    if (v->get_right() != nullptr) {
+        v->get_right()->set_parent(nullptr);
+    }
+    std::pair<LinkCutNode*, LinkCutNode*> paths = {v, v->get_right()};
+    v->link_right(nullptr);
     return paths;
 }
 
 LinkCutNode* LinkCutTree::splice(LinkCutNode* p) {
     LinkCutNode* v = p->get_head()->get_dparent();
     std::pair<LinkCutNode*, LinkCutNode*> paths = this->split(v);
-
-    if (paths.first != nullptr) {
-        v = paths.first->get_head()->get_dparent();
+    if (paths.second != nullptr) {
+        paths.second->get_head()->set_dparent(v);
     }
-
-    p = this->join(p, v);
-
-    if (paths.second == nullptr) {
-        return p;
-    }
-
-    return this->join(p, paths.second);
+    p->get_head()->set_dparent(nullptr);
+    return this->join(paths.first, p);
 }
 
-void LinkCutTree::expose(LinkCutNode* v) {
+LinkCutNode* LinkCutTree::expose(LinkCutNode* v) {
     std::pair<LinkCutNode*, LinkCutNode*> paths = this->split(v);
-    LinkCutNode *p;
-    if (paths.first != nullptr) {
-        paths.first->get_head()->set_dparent(v);
+    if (paths.second != nullptr) {
+        paths.second->get_head()->set_dparent(v);
     }
-    if (paths.second == nullptr) {
-        p = v->splay();
-    }
-    else {
-        this->join(v, paths.second);
-    }
-    
-    while(p->get_head()->get_dparent()) != nullptr) {
+
+    v->splay();
+    LinkCutNode* p = v;
+    while(p->get_head()->get_dparent() != nullptr) {
         p = this->splice(p);
     }
-    
     return p;
 }

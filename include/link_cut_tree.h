@@ -15,10 +15,6 @@ class LinkCutNode {
   
   LinkCutNode* head;
   LinkCutNode* tail;
-  
-  LinkCutNode* get_head();
-  LinkCutNode* get_tail();
-  LinkCutNode* get_dparent();
 
   //Each node contains the weight of the edge from itself to its parent in the represented tree  
   uint32_t edge_weight;
@@ -37,28 +33,37 @@ class LinkCutNode {
   public:
     void splay();
 
+    void link_left(LinkCutNode* left);
+    void link_right(LinkCutNode* right);
+
     void set_parent(LinkCutNode* parent);
     void set_dparent(LinkCutNode* dparent);
     void set_edge_weight(uint32_t weight);
     void set_max(uint32_t weight);
     void set_reversed(bool reversed);
 
-    void link_left(LinkCutNode* left);
-    void link_right(LinkCutNode* right);
+    LinkCutNode* get_left();
+    LinkCutNode* get_right();
+    LinkCutNode* get_parent();
+    LinkCutNode* get_dparent();
+
+    LinkCutNode* get_head();
+    LinkCutNode* get_tail();
 };
 
 class LinkCutTree {
   
   std::vector<LinkCutNode*> nodes;
   
-  void expose(LinkCutNode* v);
+  LinkCutNode* splice(LinkCutNode* p);
+  LinkCutNode* expose(LinkCutNode* v);
   void evert(LinkCutNode* v);
 
   public:
     LinkCutTree(node_id_t num_nodes);
     ~LinkCutTree();
 
-    // Concatenate the aux trees rooted at v and w and return the root of the combined aux tree
+    // Concatenate the paths with aux trees rooted at v and w and return the root of the combined aux tree
     LinkCutNode* join(LinkCutNode* v, LinkCutNode* w);
     // Split the aux tree of the path containing v right after v, and return the roots of the two new aux trees
     std::pair<LinkCutNode*, LinkCutNode*> split(LinkCutNode* v);
@@ -73,4 +78,3 @@ class LinkCutTree {
     // Given node v and w return the edge with the maximum weight on the path from v to w and the weight itself
     std::pair<edge_id_t, uint32_t> path_aggregate(node_id_t v, node_id_t w);
 };
-
