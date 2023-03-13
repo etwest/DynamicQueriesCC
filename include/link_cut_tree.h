@@ -54,19 +54,19 @@ class LinkCutNode {
 class LinkCutTree {
   
   std::vector<LinkCutNode*> nodes;
+
+  // Concatenate the paths with aux trees rooted at v and w and return the root of the combined aux tree
+  static LinkCutNode* join(LinkCutNode* v, LinkCutNode* w);
+  // Split the aux tree of the path containing v right after v, and return the roots of the two new aux trees
+  static std::pair<LinkCutNode*, LinkCutNode*> split(LinkCutNode* v);
   
-  LinkCutNode* splice(LinkCutNode* p);
-  LinkCutNode* expose(LinkCutNode* v);
-  void evert(LinkCutNode* v);
+  static LinkCutNode* splice(LinkCutNode* p);
+  static LinkCutNode* expose(LinkCutNode* v);
+  static void evert(LinkCutNode* v);
 
   public:
     LinkCutTree(node_id_t num_nodes);
     ~LinkCutTree();
-
-    // Concatenate the paths with aux trees rooted at v and w and return the root of the combined aux tree
-    LinkCutNode* join(LinkCutNode* v, LinkCutNode* w);
-    // Split the aux tree of the path containing v right after v, and return the roots of the two new aux trees
-    std::pair<LinkCutNode*, LinkCutNode*> split(LinkCutNode* v);
     
     // Given nodes v and w, link the trees containing v and w by adding the edge(v, w)
     void link(node_id_t v, node_id_t w, uint32_t weight);

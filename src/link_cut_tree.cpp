@@ -139,16 +139,16 @@ std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree::split(LinkCutNode* v) {
 
 LinkCutNode* LinkCutTree::splice(LinkCutNode* p) {
     LinkCutNode* v = p->get_head()->get_dparent();
-    std::pair<LinkCutNode*, LinkCutNode*> paths = this->split(v);
+    std::pair<LinkCutNode*, LinkCutNode*> paths = LinkCutTree::split(v);
     if (paths.second != nullptr) {
         paths.second->get_head()->set_dparent(v);
     }
     p->get_head()->set_dparent(nullptr);
-    return this->join(paths.first, p);
+    return LinkCutTree::join(paths.first, p);
 }
 
 LinkCutNode* LinkCutTree::expose(LinkCutNode* v) {
-    std::pair<LinkCutNode*, LinkCutNode*> paths = this->split(v);
+    std::pair<LinkCutNode*, LinkCutNode*> paths = LinkCutTree::split(v);
     if (paths.second != nullptr) {
         paths.second->get_head()->set_dparent(v);
     }
@@ -156,7 +156,7 @@ LinkCutNode* LinkCutTree::expose(LinkCutNode* v) {
     v->splay();
     LinkCutNode* p = v;
     while(p->get_head()->get_dparent() != nullptr) {
-        p = this->splice(p);
+        p = LinkCutTree::splice(p);
     }
     return p;
 }
