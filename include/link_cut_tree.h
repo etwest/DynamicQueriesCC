@@ -47,6 +47,7 @@ class LinkCutNode {
     void set_edge_weight_down(uint32_t weight);
     void set_max(uint32_t weight);
     void set_reversed(bool reversed);
+    void reverse();
     void set_use_edge_up(bool use_edge_up);
     void set_use_edge_down(bool use_edge_down);
     

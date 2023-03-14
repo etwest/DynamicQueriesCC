@@ -8,6 +8,7 @@ void LinkCutNode::set_max(uint32_t weight){ this->max = weight; }
 void LinkCutNode::set_use_edge_up(bool use_edge_up){ this->use_edge_up = use_edge_up; }
 void LinkCutNode::set_use_edge_down(bool use_edge_down){ this->use_edge_down = use_edge_down; }
 void LinkCutNode::set_reversed(bool reversed){ this->reversed = reversed; }
+void LinkCutNode::reverse() { this->reversed = !this->reversed; }
 
 void LinkCutNode::link_left(LinkCutNode* other) {
   this->left = other;
@@ -172,4 +173,9 @@ LinkCutNode* LinkCutTree::expose(LinkCutNode* v) {
         p = LinkCutTree::splice(p);
     }
     return p;
+}
+
+void LinkCutTree::evert(LinkCutNode* v) {
+    LinkCutNode* p = LinkCutTree::expose(v);
+    p->reverse();
 }
