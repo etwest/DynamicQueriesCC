@@ -16,8 +16,13 @@ class LinkCutNode {
   LinkCutNode* head;
   LinkCutNode* tail;
 
+  //Boolean to indicate if a node uses the up or down edge in its aggregate
+  bool use_edge_up = false;
+  bool use_edge_down = false;
+
   //Each node contains the weight of the edge from itself to its parent in the represented tree  
-  uint32_t edge_weight;
+  uint32_t edge_weight_up;
+  uint32_t edge_weight_down;
   //Maintain an aggregate maximum of the edge weights in the auxilliary tree
   uint32_t max;
   //Recompute the maximum just for this single node
@@ -38,10 +43,13 @@ class LinkCutNode {
 
     void set_parent(LinkCutNode* parent);
     void set_dparent(LinkCutNode* dparent);
-    void set_edge_weight(uint32_t weight);
+    void set_edge_weight_up(uint32_t weight);
+    void set_edge_weight_down(uint32_t weight);
     void set_max(uint32_t weight);
     void set_reversed(bool reversed);
-
+    void set_use_edge_up(bool use_edge_up);
+    void set_use_edge_down(bool use_edge_down);
+    
     LinkCutNode* get_left();
     LinkCutNode* get_right();
     LinkCutNode* get_parent();

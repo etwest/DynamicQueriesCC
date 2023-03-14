@@ -2,15 +2,18 @@
 
 void LinkCutNode::set_parent(LinkCutNode* parent) { this->parent = parent; }
 void LinkCutNode::set_dparent(LinkCutNode* dparent) { this->dparent = dparent; }
-void LinkCutNode::set_edge_weight(uint32_t weight){ this->edge_weight = weight; }
+void LinkCutNode::set_edge_weight_up(uint32_t weight){ this->edge_weight_up = weight; }
+void LinkCutNode::set_edge_weight_down(uint32_t weight){ this->edge_weight_down = weight; }
 void LinkCutNode::set_max(uint32_t weight){ this->max = weight; }
+void LinkCutNode::set_use_edge_up(bool use_edge_up){ this->use_edge_up = use_edge_up; }
+void LinkCutNode::set_use_edge_down(bool use_edge_down){ this->use_edge_down = use_edge_down; }
 void LinkCutNode::set_reversed(bool reversed){ this->reversed = reversed; }
 
 void LinkCutNode::link_left(LinkCutNode* other) {
   this->left = other;
   if (other != nullptr) {
     other->parent = this;
-    this->head = other->head;
+    this->head = other->get_head();
   }
   else {
     this->head = this;
@@ -22,7 +25,7 @@ void LinkCutNode::link_right(LinkCutNode* other) {
   this->right = other;
   if (other != nullptr) {
     other->parent = this;
-    this->tail = other->tail;
+    this->tail = other->get_tail();
   }
   else {
     this->tail = this;
@@ -34,8 +37,8 @@ LinkCutNode* LinkCutNode::get_left() { return this->left; }
 LinkCutNode* LinkCutNode::get_right() { return this->right; }
 LinkCutNode* LinkCutNode::get_parent() { return this->parent; }
 LinkCutNode* LinkCutNode::get_dparent() { return this->dparent; }
-LinkCutNode* LinkCutNode::get_head() { return this->head; }
-LinkCutNode* LinkCutNode::get_tail() { return this->tail; }
+LinkCutNode* LinkCutNode::get_head() { return this->reversed ? this->tail : this->head; }
+LinkCutNode* LinkCutNode::get_tail() { return this->reversed ? this->head : this->tail; }
 
 void LinkCutNode::correct_reversals() {
     //Get the XOR of all reversed booleans from this node to root
@@ -66,16 +69,18 @@ void LinkCutNode::correct_reversals() {
     }
 }
 
+// rewrite this to use edge__weight_up and edge_weight_down
 void LinkCutNode::rebuild_max() {
-    if (this->left && this->right) {
-        this->set_max(std::max(this->edge_weight, std::max(this->left->max, this->right->max)));
-    } else if (this->left) {
-        this->set_max(std::max(this->edge_weight, this->left->max));
-    } else if (this->right) {
-        this->set_max(std::max(this->edge_weight, this->right->max));
-    } else {
-        this->set_max(this->edge_weight);
-    }
+    uint32_t edges[] = {0,0,0,0,0,0};
+
+    if (this->use_edge_up) { edges[0] = this->edge_weight_up; }
+    if (this->use_edge_down) { edges[1] = this->edge_weight_down; }
+    if (this->left && this->left->use_edge_up) { edges[2] = this->left->edge_weight_up; }
+    if (this->left && this->left->use_edge_down) { edges[3] = this->left->edge_weight_down; }
+    if (this->right && this->right->use_edge_up) { edges[4] = this->right->edge_weight_up; }
+    if (this->right && this->right->use_edge_down) { edges[5] = this->right->edge_weight_down; }
+
+    this->set_max(*std::max_element(edges, edges+6));
 }
 
 void LinkCutNode::rotate_up() {
@@ -123,15 +128,23 @@ LinkCutNode* LinkCutNode::splay() {
 
 LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
     LinkCutNode* tail = v->get_tail();
+    LinkCutNode* head = w->get_head();
+    tail->set_use_edge_down(true);
+    head->set_use_edge_up(true);
     tail->splay();
-    tail->link_right(w);
+    head->splay();
+    tail->link_right(head);
     return tail;
 }
 
 std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree::split(LinkCutNode* v) {
+    v->set_use_edge_down(false);
     v->splay();
     if (v->get_right() != nullptr) {
         v->get_right()->set_parent(nullptr);
+        LinkCutNode* w = v->get_right()->get_head();
+        w->set_use_edge_up(false);
+        w->splay();
     }
     std::pair<LinkCutNode*, LinkCutNode*> paths = {v, v->get_right()};
     v->link_right(nullptr);
