@@ -1,4 +1,5 @@
 #include "../include/link_cut_tree.h"
+#include <cassert>
 
 void LinkCutNode::set_parent(LinkCutNode* parent) { this->parent = parent; }
 void LinkCutNode::set_dparent(LinkCutNode* dparent) { this->dparent = dparent; }
@@ -96,22 +97,24 @@ void LinkCutNode::rotate_up() {
         this->link_left(parent);
     }
 
-    if (grandparent) {
+    if (grandparent != nullptr) {
         if (grandparent->left == parent) {
             grandparent->link_left(this);
         } else {
             grandparent->link_right(this);
         }
+    } else {
+        this->set_parent(nullptr);
     }
 }
 
 LinkCutNode* LinkCutNode::splay() {
     this->correct_reversals();
 
-    while (this->parent) {
+    while (this->parent != nullptr) {
         LinkCutNode* parent = this->parent;
         LinkCutNode* grandparent = parent->parent;
-        if (!grandparent) {
+        if (grandparent == nullptr) {
             // zig
             this->rotate_up();
         } else if ((grandparent->left == parent) == (parent->left == this)) {
@@ -124,6 +127,7 @@ LinkCutNode* LinkCutNode::splay() {
             this->rotate_up();
         }
     }
+    assert(this->get_parent() == nullptr);
     return this;
 }
 
@@ -141,14 +145,15 @@ LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
 std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree::split(LinkCutNode* v) {
     v->set_use_edge_down(false);
     v->splay();
-    if (v->get_right() != nullptr) {
-        v->get_right()->set_parent(nullptr);
-        LinkCutNode* w = v->get_right()->get_head();
+    LinkCutNode* w = v->get_right();
+    if (w != nullptr) {
+        v->link_right(nullptr);
+        w->set_parent(nullptr);
+        w = w->get_head();
         w->set_use_edge_up(false);
         w->splay();
     }
-    std::pair<LinkCutNode*, LinkCutNode*> paths = {v, v->get_right()};
-    v->link_right(nullptr);
+    std::pair<LinkCutNode*, LinkCutNode*> paths = {v, w};
     return paths;
 }
 

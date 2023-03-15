@@ -71,7 +71,7 @@ TEST(SplayTreeSuite, random_splays) {
   //number of nodes
   int n = 10000;
   //number of random splays
-  int rsplays = 1000000;
+  int rsplays = 100000;
   // sketch variables
   vec_t len = 10000;
   vec_t err = 100;

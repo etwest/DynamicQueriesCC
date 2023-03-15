@@ -1,6 +1,6 @@
 #pragma once
 
-#include "splay_tree.h"
+#include <gtest/gtest.h>
 #include "types.h"
 
 class LinkCutTree;
@@ -13,8 +13,8 @@ class LinkCutNode {
   LinkCutNode* left;
   LinkCutNode* right;
   
-  LinkCutNode* head;
-  LinkCutNode* tail;
+  LinkCutNode* head = this;
+  LinkCutNode* tail = this;
 
   //Boolean to indicate if a node uses the up or down edge in its aggregate
   bool use_edge_up = false;
@@ -61,6 +61,8 @@ class LinkCutNode {
 };
 
 class LinkCutTree {
+  FRIEND_TEST(LinkCutTreeSuite, join_split_test);
+  FRIEND_TEST(LinkCutTreeSuite, expose_simple_test);
   
   std::vector<LinkCutNode*> nodes;
 
