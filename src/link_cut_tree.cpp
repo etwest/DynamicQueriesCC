@@ -71,7 +71,6 @@ void LinkCutNode::correct_reversals() {
     }
 }
 
-// rewrite this to use edge__weight_up and edge_weight_down
 void LinkCutNode::rebuild_max() {
     uint32_t edges[] = {0,0,0,0,0,0};
 
@@ -131,6 +130,13 @@ LinkCutNode* LinkCutNode::splay() {
     return this;
 }
 
+LinkCutTree::LinkCutTree(node_id_t num_nodes) {
+    this->nodes.reserve(num_nodes);
+    for (uint32_t i = 0; i < num_nodes; i++) {
+        this->nodes.emplace_back();
+    }
+}
+
 LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
     LinkCutNode* tail = v->get_tail();
     LinkCutNode* head = w->get_head();
@@ -180,7 +186,26 @@ LinkCutNode* LinkCutTree::expose(LinkCutNode* v) {
     return p;
 }
 
-void LinkCutTree::evert(LinkCutNode* v) {
+LinkCutNode* LinkCutTree::evert(LinkCutNode* v) {
     LinkCutNode* p = LinkCutTree::expose(v);
     p->reverse();
+    return p;
+}
+
+void LinkCutTree::link(node_id_t v, node_id_t w, uint32_t weight) {
+    LinkCutNode* v_node = &this->nodes[v];
+    LinkCutNode* w_node = &this->nodes[w];
+    v_node->set_edge_weight_down(weight);
+    w_node->set_edge_weight_up(weight);
+    LinkCutTree::join(LinkCutTree::expose(v_node), LinkCutTree::evert(w_node));
+}
+
+void LinkCutTree::cut(node_id_t v, node_id_t w) {
+    LinkCutNode* v_node = &this->nodes[v];
+    LinkCutNode* w_node = &this->nodes[w];
+    v_node->set_edge_weight_down(0);
+    w_node->set_edge_weight_up(0);
+    LinkCutTree::evert(v_node);
+    LinkCutTree::expose(v_node);
+    w_node->set_dparent(nullptr);
 }

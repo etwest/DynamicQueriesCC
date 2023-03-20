@@ -64,7 +64,7 @@ class LinkCutTree {
   FRIEND_TEST(LinkCutTreeSuite, join_split_test);
   FRIEND_TEST(LinkCutTreeSuite, expose_simple_test);
   
-  std::vector<LinkCutNode*> nodes;
+  std::vector<LinkCutNode> nodes;
 
   // Concatenate the paths with aux trees rooted at v and w and return the root of the combined aux tree
   static LinkCutNode* join(LinkCutNode* v, LinkCutNode* w);
@@ -74,7 +74,7 @@ class LinkCutTree {
   static LinkCutNode* splice(LinkCutNode* p);
   static LinkCutNode* expose(LinkCutNode* v);
   // Make v the new root of the represented tree by "turning the tree inside out"
-  static void evert(LinkCutNode* v);
+  static LinkCutNode* evert(LinkCutNode* v);
 
   public:
     LinkCutTree(node_id_t num_nodes);
