@@ -206,7 +206,7 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   Sketch* true_aggregate = (Sketch *) ::operator new(Sketch::sketchSizeof());
   Sketch::makeSketch(true_aggregate, seed);
 
-  int nodecount = 10;
+  int nodecount = 1000;
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
 

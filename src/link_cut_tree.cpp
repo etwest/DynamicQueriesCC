@@ -12,27 +12,29 @@ void LinkCutNode::set_reversed(bool reversed){ this->reversed = reversed; }
 void LinkCutNode::reverse() { this->reversed = !this->reversed; }
 
 void LinkCutNode::link_left(LinkCutNode* other) {
-  this->left = other;
-  if (other != nullptr) {
-    other->parent = this;
-    this->head = other->get_head();
-  }
-  else {
-    this->head = this;
-  }
-  this->rebuild_max();
+    this->left = other;
+    if (other != nullptr) {
+        other->set_parent(this);
+        this->head = other->get_head();
+    }
+    else {
+        this->head = this;
+    }
+    this->rebuild_max();
+    assert(this->get_left() == nullptr || this->get_left()->get_parent() == this);
 }
 
 void LinkCutNode::link_right(LinkCutNode* other) {
-  this->right = other;
-  if (other != nullptr) {
-    other->parent = this;
-    this->tail = other->get_tail();
-  }
-  else {
-    this->tail = this;
-  }
-  this->rebuild_max();
+    this->right = other;
+    if (other != nullptr) {
+        other->set_parent(this);
+        this->tail = other->get_tail();
+    }
+    else {
+        this->tail = this;
+    }
+    this->rebuild_max();
+    assert(this->get_right() == nullptr || this->get_right()->get_parent() == this);
 }
 
 LinkCutNode* LinkCutNode::get_left() { return this->left; }
@@ -59,13 +61,14 @@ void LinkCutNode::correct_reversals() {
             curr->left = curr->right;
             curr->right = temp;
             if (curr->left && curr->left != prev) {
-                curr->left->set_reversed(curr->left->reversed != 1);
+                curr->left->set_reversed(!curr->left->reversed);
             }
             if (curr->right && curr->right != prev) {
-                curr->right->set_reversed(curr->left->reversed != 1);
+                curr->right->set_reversed(!curr->right->reversed);
             }
-            curr->set_reversed(0);
+            curr->set_reversed(false);
         }
+        prev = curr;
         curr = curr->parent;
         if (curr) {reversal_state = reversal_state != curr->reversed;}
     }
@@ -208,4 +211,8 @@ void LinkCutTree::cut(node_id_t v, node_id_t w) {
     LinkCutTree::evert(v_node);
     LinkCutTree::expose(v_node);
     w_node->set_dparent(nullptr);
+}
+
+void* LinkCutTree::find_root(node_id_t v) {
+    return expose(&this->nodes[v])->get_head();
 }

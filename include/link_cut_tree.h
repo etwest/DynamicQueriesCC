@@ -63,6 +63,7 @@ class LinkCutNode {
 class LinkCutTree {
   FRIEND_TEST(LinkCutTreeSuite, join_split_test);
   FRIEND_TEST(LinkCutTreeSuite, expose_simple_test);
+  FRIEND_TEST(LinkCutTreeSuite, random_links_and_cuts);
   
   std::vector<LinkCutNode> nodes;
 
@@ -78,14 +79,13 @@ class LinkCutTree {
 
   public:
     LinkCutTree(node_id_t num_nodes);
-    ~LinkCutTree();
     
     // Given nodes v and w, link the trees containing v and w by adding the edge(v, w)
     void link(node_id_t v, node_id_t w, uint32_t weight);
     // Given nodes v and w, divide the tree containing v and w by deleting the edge(v, w)
     void cut(node_id_t v, node_id_t w);
 
-    node_id_t find_root(node_id_t v);
+    void* find_root(node_id_t v);
 
     // Given node v and w return the edge with the maximum weight on the path from v to w and the weight itself
     std::pair<edge_id_t, uint32_t> path_aggregate(node_id_t v, node_id_t w);
