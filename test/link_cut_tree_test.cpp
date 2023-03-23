@@ -104,12 +104,12 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
     int seed = time(NULL);
     // Link all nodes
     for (int i = 0; i < nodecount-1; i++) {
-        lct.link(i,i+1, rand());
+        lct.link(i,i+1, rand()%100);
         ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
           << "One or more invalid nodes found" << std::endl;
     }
-    // Cut every 10 nodes
-    for (int i = 0; i < nodecount-1; i+=10) {
+    // Cut every node
+    for (int i = 0; i < nodecount-1; i+=1) {
         lct.cut(i,i+1);
         ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
           << "One or more invalid nodes found" << std::endl;
@@ -123,7 +123,7 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
         if (a != b) {
             if (rand() % 100 < 50 && lct.find_root(a) != lct.find_root(b)) {
                 //std::cout << i << ": Linking " << a << " and " << b << std::endl;
-                lct.link(a, b, rand());
+                lct.link(a, b, rand()%100);
             } else if (lct.find_root(a) == lct.find_root(b)) {
                 //std::cout << i << ": Cutting " << a << " and " << b << std::endl;
                 lct.cut(a, b);
@@ -131,5 +131,27 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
             ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
              << "One or more invalid nodes found" << std::endl;
         }
+    }
+    // Manually compute the aggregates for each aux tree
+    std::unordered_map<LinkCutNode*, uint32_t> path_aggregates;
+    for (int i = 0; i < nodecount; i++) {
+        //std::cout << "Edge up: " << lct.nodes[i].edge_weight_up << " Edge down: " << lct.nodes[i].edge_weight_down << std::endl;
+        LinkCutNode* curr = &lct.nodes[i];
+        while (curr) {
+            if (curr->get_parent() == nullptr) {
+                uint32_t nodemax = std::max(lct.nodes[i].use_edge_up ? lct.nodes[i].edge_weight_up : 0,
+                    lct.nodes[i].use_edge_down ? lct.nodes[i].edge_weight_down : 0);
+                if (path_aggregates.find(curr) != path_aggregates.end()) {
+                    path_aggregates[curr] = std::max(path_aggregates[curr], nodemax);
+                } else {
+                    path_aggregates.insert({curr, nodemax});
+                }
+            }
+            curr = curr->get_parent();
+        }
+    }
+    // Compare all root aggregates with manually computed ones
+    for (auto agg : path_aggregates) {
+        ASSERT_EQ(agg.second, agg.first->max) << "Aggregate incorrect" << std::endl;
     }
 }

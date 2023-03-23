@@ -7,6 +7,7 @@ class LinkCutTree;
 class SplayTree;
 
 class LinkCutNode {
+  FRIEND_TEST(LinkCutTreeSuite, random_links_and_cuts);
 
   LinkCutNode* parent;
   LinkCutNode* dparent;
@@ -21,10 +22,10 @@ class LinkCutNode {
   bool use_edge_down = false;
 
   //Each node contains the weight of the edge from itself to its parent in the represented tree  
-  uint32_t edge_weight_up;
-  uint32_t edge_weight_down;
+  uint32_t edge_weight_up = 0;
+  uint32_t edge_weight_down = 0;
   //Maintain an aggregate maximum of the edge weights in the auxilliary tree
-  uint32_t max;
+  uint32_t max = 0;
   //Recompute the maximum just for this single node
   void rebuild_max();
 

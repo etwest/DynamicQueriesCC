@@ -122,16 +122,14 @@ void LinkCutNode::correct_reversals() {
 }
 
 void LinkCutNode::rebuild_max() {
-    uint32_t edges[] = {0,0,0,0,0,0};
+    uint32_t edges[] = {0,0,0,0};
 
-    if (this->use_edge_up) { edges[0] = this->edge_weight_up; }
-    if (this->use_edge_down) { edges[1] = this->edge_weight_down; }
-    if (this->left && this->left->use_edge_up) { edges[2] = this->left->edge_weight_up; }
-    if (this->left && this->left->use_edge_down) { edges[3] = this->left->edge_weight_down; }
-    if (this->right && this->right->use_edge_up) { edges[4] = this->right->edge_weight_up; }
-    if (this->right && this->right->use_edge_down) { edges[5] = this->right->edge_weight_down; }
+    if (this->use_edge_up) edges[0] = this->edge_weight_up;
+    if (this->use_edge_down) edges[1] = this->edge_weight_down;
+    if (this->left) edges[2] = this->left->max;
+    if (this->right) edges[3] = this->right->max;
 
-    this->set_max(*std::max_element(edges, edges+6));
+    this->set_max(*std::max_element(edges, edges+4));
 }
 
 void LinkCutNode::rotate_up() {
