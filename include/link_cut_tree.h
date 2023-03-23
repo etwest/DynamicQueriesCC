@@ -17,13 +17,9 @@ class LinkCutNode {
   LinkCutNode* head = this;
   LinkCutNode* tail = this;
 
-  //Boolean to indicate if a node uses the up or down edge in its aggregate
-  bool use_edge_up = false;
-  bool use_edge_down = false;
-
-  //Each node contains the weight of the edge from itself to its parent in the represented tree  
-  uint32_t edge_weight_up = 0;
-  uint32_t edge_weight_down = 0;
+  //Keep a list of edges with weights and up to two preferred edges
+  std::pair<LinkCutNode*, LinkCutNode*> preferred_edges;
+  std::map<LinkCutNode*, uint32_t> edges;
   //Maintain an aggregate maximum of the edge weights in the auxilliary tree
   uint32_t max = 0;
   //Recompute the maximum just for this single node
@@ -44,9 +40,13 @@ class LinkCutNode {
 
     void set_parent(LinkCutNode* parent);
     void set_dparent(LinkCutNode* dparent);
-    void set_edge_weight_up(uint32_t weight);
-    void set_edge_weight_down(uint32_t weight);
+    
+    void make_preferred_edge(LinkCutNode* v);
+    void unmake_preferred_edge(LinkCutNode* v);
+    void insert_edge(LinkCutNode* v, uint32_t weight);
+    void remove_edge(LinkCutNode* v);
     void set_max(uint32_t weight);
+
     void set_reversed(bool reversed);
     void reverse();
     void set_use_edge_up(bool use_edge_up);
