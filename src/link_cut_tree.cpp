@@ -15,10 +15,6 @@ void LinkCutNode::link_left(LinkCutNode* other) {
     this->left = other;
     if (other != nullptr) {
         other->set_parent(this);
-        this->head = other->get_head();
-    }
-    else {
-        this->head = this;
     }
     this->rebuild_max();
     assert(this->get_left() == nullptr || this->get_left()->get_parent() == this);
@@ -28,10 +24,6 @@ void LinkCutNode::link_right(LinkCutNode* other) {
     this->right = other;
     if (other != nullptr) {
         other->set_parent(this);
-        this->tail = other->get_tail();
-    }
-    else {
-        this->tail = this;
     }
     this->rebuild_max();
     assert(this->get_right() == nullptr || this->get_right()->get_parent() == this);
@@ -41,10 +33,63 @@ LinkCutNode* LinkCutNode::get_left() { return this->left; }
 LinkCutNode* LinkCutNode::get_right() { return this->right; }
 LinkCutNode* LinkCutNode::get_parent() { return this->parent; }
 LinkCutNode* LinkCutNode::get_dparent() { return this->dparent; }
-LinkCutNode* LinkCutNode::get_head() { return this->reversed ? this->tail : this->head; }
-LinkCutNode* LinkCutNode::get_tail() { return this->reversed ? this->head : this->tail; }
+LinkCutNode* LinkCutNode::get_head() { return this->head; }
+LinkCutNode* LinkCutNode::get_tail() { return this->tail; }
+bool LinkCutNode::get_reversed() { return this->reversed; }
+
+LinkCutNode* LinkCutNode::recompute_head() {
+    LinkCutNode* curr = this;
+    LinkCutNode* next;
+    bool reversal_state = false;
+    while (curr != nullptr) {
+        reversal_state = reversal_state != curr->reversed;
+        if((next = reversal_state ? curr->right : curr->left) == nullptr) { this->head = curr; }
+        curr = next;
+    }
+    return this->head;
+}
+
+LinkCutNode* LinkCutNode::recompute_tail() {
+    LinkCutNode* curr = this;
+    LinkCutNode* next;
+    bool reversal_state = false;
+    while (curr != nullptr) {
+        reversal_state = reversal_state != curr->reversed;
+        if((next = reversal_state ? curr->left : curr->right) == nullptr) { this->tail = curr; }
+        curr = next;
+    }
+    return this->tail;
+}
+
+void inorder(LinkCutNode* node, std::vector<LinkCutNode*>& nodes, bool reversal_state) {
+    if (node != nullptr) {
+        reversal_state = reversal_state != node->get_reversed();
+        if (!reversal_state) {
+            inorder(node->get_left(), nodes, reversal_state);
+            nodes.push_back(node);
+            inorder(node->get_right(), nodes, reversal_state);
+        } else {
+            inorder(node->get_right(), nodes, reversal_state);
+            nodes.push_back(node);
+            inorder(node->get_left(), nodes, reversal_state);
+        }
+    }
+}
+
+std::vector<LinkCutNode*> get_inorder(LinkCutNode* node) {
+    LinkCutNode* curr = node;
+    LinkCutNode* root;
+    while (curr) {
+        if (curr->get_parent() == nullptr) { root = curr; }
+        curr = curr->get_parent();
+    }
+    std::vector<LinkCutNode*> nodes;
+    inorder(root, nodes, false);
+    return nodes;
+}
 
 void LinkCutNode::correct_reversals() {
+    std::vector<LinkCutNode*> inorder = get_inorder(this);
     //Get the XOR of all reversed booleans from this node to root
     bool reversal_state = 0;
     LinkCutNode* curr = this;
@@ -56,6 +101,7 @@ void LinkCutNode::correct_reversals() {
     curr = this;
     LinkCutNode* prev = nullptr;
     while (curr) {
+        bool next_reversal_state = reversal_state != curr->reversed;
         if (reversal_state) {
             LinkCutNode* temp = curr->left;
             curr->left = curr->right;
@@ -66,12 +112,13 @@ void LinkCutNode::correct_reversals() {
             if (curr->right && curr->right != prev) {
                 curr->right->set_reversed(!curr->right->reversed);
             }
-            curr->set_reversed(false);
         }
+        curr->set_reversed(false);
+        reversal_state = next_reversal_state;
         prev = curr;
         curr = curr->parent;
-        if (curr) {reversal_state = reversal_state != curr->reversed;}
     }
+    assert(inorder == get_inorder(this));
 }
 
 void LinkCutNode::rebuild_max() {
@@ -129,6 +176,8 @@ LinkCutNode* LinkCutNode::splay() {
             this->rotate_up();
         }
     }
+    this->recompute_head();
+    this->recompute_tail();
     assert(this->get_parent() == nullptr);
     return this;
 }
@@ -141,27 +190,36 @@ LinkCutTree::LinkCutTree(node_id_t num_nodes) {
 }
 
 LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
+    assert(v != nullptr && w != nullptr && v->get_parent() == nullptr && w->get_parent() == nullptr);
     LinkCutNode* tail = v->get_tail();
     LinkCutNode* head = w->get_head();
     tail->set_use_edge_down(true);
     head->set_use_edge_up(true);
     tail->splay();
-    head->splay();
+    head->splay(); // To recompute the aggregate
+    assert(tail->get_right() == nullptr);
     tail->link_right(head);
+    tail->recompute_head();
+    tail->recompute_tail();
     return tail;
 }
 
 std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree::split(LinkCutNode* v) {
+    assert(v != nullptr);
     v->set_use_edge_down(false);
     v->splay();
     LinkCutNode* w = v->get_right();
     if (w != nullptr) {
         v->link_right(nullptr);
         w->set_parent(nullptr);
-        w = w->get_head();
+        w = w->recompute_head();
         w->set_use_edge_up(false);
-        w->splay();
+        w->splay(); // Recompute the aggregate
+        w->recompute_head();
+        w->recompute_tail();
     }
+    v->recompute_head();
+    v->recompute_tail();
     std::pair<LinkCutNode*, LinkCutNode*> paths = {v, w};
     return paths;
 }
@@ -182,7 +240,7 @@ LinkCutNode* LinkCutTree::expose(LinkCutNode* v) {
         paths.second->get_head()->set_dparent(v);
     }
 
-    LinkCutNode* p = v->splay();
+    LinkCutNode* p = paths.first;
     while(p->get_head()->get_dparent() != nullptr) {
         p = LinkCutTree::splice(p);
     }
@@ -196,6 +254,7 @@ LinkCutNode* LinkCutTree::evert(LinkCutNode* v) {
 }
 
 void LinkCutTree::link(node_id_t v, node_id_t w, uint32_t weight) {
+    assert(find_root(v) != find_root(w));
     LinkCutNode* v_node = &this->nodes[v];
     LinkCutNode* w_node = &this->nodes[w];
     v_node->set_edge_weight_down(weight);
@@ -204,6 +263,7 @@ void LinkCutTree::link(node_id_t v, node_id_t w, uint32_t weight) {
 }
 
 void LinkCutTree::cut(node_id_t v, node_id_t w) {
+    assert(find_root(v) == find_root(w));
     LinkCutNode* v_node = &this->nodes[v];
     LinkCutNode* w_node = &this->nodes[w];
     v_node->set_edge_weight_down(0);

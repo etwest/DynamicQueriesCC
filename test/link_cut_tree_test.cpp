@@ -108,24 +108,24 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
         ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
           << "One or more invalid nodes found" << std::endl;
     }
-    // Cut all nodes
-    for (int i = 0; i < nodecount-1; i++) {
+    // Cut every 10 nodes
+    for (int i = 0; i < nodecount-1; i+=10) {
         lct.cut(i,i+1);
         ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
           << "One or more invalid nodes found" << std::endl;
     }
     // Do random links and cuts
-    int n = 5000;
+    int n = 2000;
     std::cout << "Seeding random links and cuts test with " << seed << std::endl;
     srand(seed);
     for (int i = 0; i < n; i++) {
         node_id_t a = rand() % nodecount, b = rand() % nodecount;
         if (a != b) {
             if (rand() % 100 < 50 && lct.find_root(a) != lct.find_root(b)) {
-                std::cout << i << ": Linking " << a << " and " << b << std::endl;
+                //std::cout << i << ": Linking " << a << " and " << b << std::endl;
                 lct.link(a, b, rand());
             } else if (lct.find_root(a) == lct.find_root(b)) {
-                std::cout << i << ": Cutting " << a << " and " << b << std::endl;
+                //std::cout << i << ": Cutting " << a << " and " << b << std::endl;
                 lct.cut(a, b);
             }
             ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))

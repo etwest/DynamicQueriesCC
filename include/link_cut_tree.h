@@ -58,6 +58,9 @@ class LinkCutNode {
 
     LinkCutNode* get_head();
     LinkCutNode* get_tail();
+    LinkCutNode* recompute_head();
+    LinkCutNode* recompute_tail();
+    bool get_reversed();
 };
 
 class LinkCutTree {
