@@ -99,7 +99,7 @@ TEST(LinkCutTreeSuite, expose_simple_test) {
 }
 
 TEST(LinkCutTreeSuite, random_links_and_cuts) {
-    int nodecount = 1000;
+    int nodecount = 100;
     LinkCutTree lct(nodecount);
     int seed = time(NULL);
     // Link all nodes
@@ -115,17 +115,17 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
           << "One or more invalid nodes found" << std::endl;
     }
     // Do random links and cuts
-    int n = 2000;
+    int n = 5000;
     std::cout << "Seeding random links and cuts test with " << seed << std::endl;
     srand(seed);
     for (int i = 0; i < n; i++) {
         node_id_t a = rand() % nodecount, b = rand() % nodecount;
         if (a != b) {
             if (rand() % 100 < 50 && lct.find_root(a) != lct.find_root(b)) {
-                //std::cout << i << ": Linking " << a << " and " << b << std::endl;
+                std::cout << i << ": Linking " << a << " and " << b << std::endl;
                 lct.link(a, b, rand()%100);
             } else if (lct.find_root(a) == lct.find_root(b)) {
-                //std::cout << i << ": Cutting " << a << " and " << b << std::endl;
+                std::cout << i << ": Cutting " << a << " and " << b << std::endl;
                 lct.cut(a, b);
             }
             ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
@@ -135,12 +135,11 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
     // Manually compute the aggregates for each aux tree
     std::unordered_map<LinkCutNode*, uint32_t> path_aggregates;
     for (int i = 0; i < nodecount; i++) {
-        //std::cout << "Edge up: " << lct.nodes[i].edge_weight_up << " Edge down: " << lct.nodes[i].edge_weight_down << std::endl;
         LinkCutNode* curr = &lct.nodes[i];
         while (curr) {
             if (curr->get_parent() == nullptr) {
-                uint32_t nodemax = std::max(lct.nodes[i].use_edge_up ? lct.nodes[i].edge_weight_up : 0,
-                    lct.nodes[i].use_edge_down ? lct.nodes[i].edge_weight_down : 0);
+                uint32_t nodemax = std::max(lct.nodes[i].edges[lct.nodes[i].preferred_edges.first],
+                lct.nodes[i].edges[lct.nodes[i].preferred_edges.second]);
                 if (path_aggregates.find(curr) != path_aggregates.end()) {
                     path_aggregates[curr] = std::max(path_aggregates[curr], nodemax);
                 } else {

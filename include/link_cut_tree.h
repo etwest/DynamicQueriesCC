@@ -16,10 +16,10 @@ class LinkCutNode {
   
   LinkCutNode* head = this;
   LinkCutNode* tail = this;
-
+public:
   //Keep a list of edges with weights and up to two preferred edges
-  std::pair<LinkCutNode*, LinkCutNode*> preferred_edges;
-  std::map<LinkCutNode*, uint32_t> edges;
+  std::pair<LinkCutNode*, LinkCutNode*> preferred_edges = {nullptr, nullptr};
+  std::unordered_map<LinkCutNode*, uint32_t> edges = {};
   //Maintain an aggregate maximum of the edge weights in the auxilliary tree
   uint32_t max = 0;
   //Recompute the maximum just for this single node
