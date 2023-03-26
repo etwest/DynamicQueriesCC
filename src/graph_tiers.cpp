@@ -37,7 +37,9 @@ void GraphTiers::update(GraphUpdate update) {
 
 void GraphTiers::get_cc() {}
 
-bool GraphTiers::is_connected(node_id_t a, node_id_t b) {}
+bool GraphTiers::is_connected(node_id_t a, node_id_t b) {
+	return this->link_cut_tree.find_root(a) == this->link_cut_tree.find_root(b);
+}
 
 void GraphTiers::refresh(GraphUpdate update) {
 	// For each tier for each endpoint of the edge
