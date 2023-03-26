@@ -118,7 +118,6 @@ void LinkCutNode::correct_reversals() {
 }
 
 void LinkCutNode::make_preferred_edge(LinkCutNode* v) {
-    //std::cout << "Make preferred " << this << ", " << v << std::endl;
     assert(this->preferred_edges.first == nullptr || this->preferred_edges.second == nullptr);
     if (this->preferred_edges.first == nullptr) {
         this->preferred_edges.first = v;
@@ -128,7 +127,6 @@ void LinkCutNode::make_preferred_edge(LinkCutNode* v) {
 }
 
 void LinkCutNode::unmake_preferred_edge(LinkCutNode* v) {
-    //std::cout << "Unmake preferred " << this << ", " << v << std::endl;
     assert(this->preferred_edges.first == v || this->preferred_edges.second == v);
     if (this->preferred_edges.first == v) {
         this->preferred_edges.first = nullptr;
@@ -138,13 +136,11 @@ void LinkCutNode::unmake_preferred_edge(LinkCutNode* v) {
 }
 
 void LinkCutNode::insert_edge(LinkCutNode* v, uint32_t weight) {
-    std::cout << "Insert edge " << this << ", " << v << ", current map size: " << this->edges.size() << std::endl;
     assert(this->edges.count(v) == 0);
     this->edges.insert({v, weight});
 }
 
 void LinkCutNode::remove_edge(LinkCutNode* v) {
-    std::cout << "Remove edge " << this << ", " << v << ", current map size: " << this->edges.size() << std::endl;
     assert(this->edges.count(v) == 1);
     this->edges.erase(v);
 }
@@ -152,8 +148,8 @@ void LinkCutNode::remove_edge(LinkCutNode* v) {
 void LinkCutNode::rebuild_max() {
     uint32_t max = 0;
 
-    if (this->preferred_edges.first && this->edges[this->preferred_edges.first] > max) max = this->edges[this->preferred_edges.first];
-    if (this->preferred_edges.second && this->edges[this->preferred_edges.second] > max) max = this->edges[this->preferred_edges.second];
+    if (this->preferred_edges.first && this->edges.find(this->preferred_edges.first) != this->edges.end() && this->edges[this->preferred_edges.first] > max) max = this->edges[this->preferred_edges.first];
+    if (this->preferred_edges.second && this->edges.find(this->preferred_edges.second) != this->edges.end() && this->edges[this->preferred_edges.second] > max) max = this->edges[this->preferred_edges.second];
     if (this->left && this->left->max > max) max = this->left->max;
     if (this->right && this->right->max > max) max = this->right->max;
 
@@ -204,6 +200,7 @@ LinkCutNode* LinkCutNode::splay() {
     }
     this->recompute_head();
     this->recompute_tail();
+    this->rebuild_max();
     assert(this->get_parent() == nullptr);
     return this;
 }
@@ -213,21 +210,18 @@ LinkCutTree::LinkCutTree(node_id_t num_nodes) {
     for (uint32_t i = 0; i < num_nodes; i++) {
         this->nodes.emplace_back();
     }
-    for (uint32_t i = 0; i < num_nodes; i++) {
-        std::cout << this->nodes[i].edges.size() << std::endl;
-    }
 }
 
 LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
     assert(v != nullptr && w != nullptr && v->get_parent() == nullptr && w->get_parent() == nullptr);
     LinkCutNode* tail = v->get_tail();
     LinkCutNode* head = w->get_head();
+    tail->make_preferred_edge(head);
+    head->make_preferred_edge(tail);
     tail->splay();
     head->splay(); // To recompute the aggregate
     assert(tail->get_right() == nullptr);
     tail->link_right(head);
-    tail->make_preferred_edge(head);
-    head->make_preferred_edge(tail);
     tail->recompute_head();
     tail->recompute_tail();
     return tail;
@@ -238,12 +232,13 @@ std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree::split(LinkCutNode* v) {
     v->splay();
     LinkCutNode* w = v->get_right();
     if (w != nullptr) {
+        LinkCutNode* w_head = w->recompute_head();
+        v->unmake_preferred_edge(w_head);
+        w_head->unmake_preferred_edge(v);
         v->link_right(nullptr); // This also recomputes the aggregate for v
         w->set_parent(nullptr);
-        w = w->recompute_head();
+        w = w_head;
         w->set_dparent(v);
-        v->unmake_preferred_edge(w);
-        w->unmake_preferred_edge(v);
         w->splay(); // Recompute the aggregate for w
         w->recompute_head();
         w->recompute_tail();

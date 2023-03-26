@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
+#include <string>
 #include "link_cut_tree.h"
 
 static bool validate(LinkCutNode* v) {
@@ -21,6 +22,56 @@ static bool validate(LinkCutNode* v) {
         << "Rights's parent: " << v->get_right()->get_parent() << std::endl;
     }
     return valid;
+}
+
+static void inorder(LinkCutNode* node, std::vector<LinkCutNode*>& nodes, bool reversal_state) {
+    if (node != nullptr) {
+        reversal_state = reversal_state != node->get_reversed();
+        if (!reversal_state) {
+            inorder(node->get_left(), nodes, reversal_state);
+            nodes.push_back(node);
+            inorder(node->get_right(), nodes, reversal_state);
+        } else {
+            inorder(node->get_right(), nodes, reversal_state);
+            nodes.push_back(node);
+            inorder(node->get_left(), nodes, reversal_state);
+        }
+    }
+}
+
+static std::vector<LinkCutNode*> get_inorder(LinkCutNode* node) {
+    LinkCutNode* curr = node;
+    LinkCutNode* root;
+    while (curr) {
+        if (curr->get_parent() == nullptr) { root = curr; }
+        curr = curr->get_parent();
+    }
+    std::vector<LinkCutNode*> nodes;
+    inorder(root, nodes, false);
+    return nodes;
+}
+
+static void print_paths(std::vector<LinkCutNode>* nodes) {
+    std::set<LinkCutNode*> paths;
+    std::cout << "Paths: " << std::endl;
+    for (uint32_t i = 0; i < (*nodes).size(); i++) {
+        LinkCutNode* curr = &(*nodes)[i];
+        while (curr) {
+            if (curr->get_parent() == nullptr) {
+                if (paths.find(curr) == paths.end()) {
+                    paths.insert(curr);
+                    std::vector<LinkCutNode*> inorder = get_inorder(&(*nodes)[i]);
+                    for (uint32_t i = 0; i < inorder.size(); i++) {
+                        std::cout << inorder[i]-&(*nodes)[0] << " ";
+                    }
+                    std::cout << "dparent: " << (curr->get_head()->get_dparent()==nullptr ? "null" : std::to_string(curr->get_head()->get_dparent()-&(*nodes)[0]));
+                    std::cout << " agg: " << curr->max << std::endl;
+                }
+            }
+            curr = curr->get_parent();
+        }
+    }
+    std::cout << std::endl;
 }
 
 TEST(LinkCutTreeSuite, join_split_test) {
@@ -99,7 +150,7 @@ TEST(LinkCutTreeSuite, expose_simple_test) {
 }
 
 TEST(LinkCutTreeSuite, random_links_and_cuts) {
-    int nodecount = 100;
+    int nodecount = 1000;
     LinkCutTree lct(nodecount);
     int seed = time(NULL);
     // Link all nodes
@@ -121,12 +172,15 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
     for (int i = 0; i < n; i++) {
         node_id_t a = rand() % nodecount, b = rand() % nodecount;
         if (a != b) {
-            if (rand() % 100 < 50 && lct.find_root(a) != lct.find_root(b)) {
-                std::cout << i << ": Linking " << a << " and " << b << std::endl;
-                lct.link(a, b, rand()%100);
-            } else if (lct.find_root(a) == lct.find_root(b)) {
+            if (lct.find_root(a) != lct.find_root(b)) {
+                uint32_t weight = rand()%100;
+                std::cout << i << ": Linking " << a << " and " << b << " weight " << weight << std::endl;
+                lct.link(a, b, weight);
+                //print_paths(&lct.nodes);
+            } else if (lct.nodes[a].edges.find(&lct.nodes[b]) != lct.nodes[a].edges.end()) {
                 std::cout << i << ": Cutting " << a << " and " << b << std::endl;
                 lct.cut(a, b);
+                //print_paths(&lct.nodes);
             }
             ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
              << "One or more invalid nodes found" << std::endl;
@@ -135,11 +189,11 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
     // Manually compute the aggregates for each aux tree
     std::unordered_map<LinkCutNode*, uint32_t> path_aggregates;
     for (int i = 0; i < nodecount; i++) {
+        uint32_t nodemax = std::max(lct.nodes[i].edges[lct.nodes[i].preferred_edges.first],
+                lct.nodes[i].edges[lct.nodes[i].preferred_edges.second]);
         LinkCutNode* curr = &lct.nodes[i];
         while (curr) {
             if (curr->get_parent() == nullptr) {
-                uint32_t nodemax = std::max(lct.nodes[i].edges[lct.nodes[i].preferred_edges.first],
-                lct.nodes[i].edges[lct.nodes[i].preferred_edges.second]);
                 if (path_aggregates.find(curr) != path_aggregates.end()) {
                     path_aggregates[curr] = std::max(path_aggregates[curr], nodemax);
                 } else {
@@ -151,6 +205,6 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
     }
     // Compare all root aggregates with manually computed ones
     for (auto agg : path_aggregates) {
-        ASSERT_EQ(agg.second, agg.first->max) << "Aggregate incorrect" << std::endl;
+        EXPECT_EQ(agg.second, agg.first->max) << "Aggregate incorrect" << std::endl;
     }
 }
