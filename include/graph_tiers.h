@@ -9,7 +9,7 @@
 // and the spanning forest of the entire graph
 class GraphTiers {
  private:
-  std::vector<std::vector<EulerTourTree>> node_arr;  // for each tier, for each node
+  std::vector<std::vector<EulerTourTree>> ett_nodes;  // for each tier, for each node
   LinkCutTree link_cut_tree;
 
   void refresh(GraphUpdate update);
