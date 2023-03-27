@@ -40,10 +40,13 @@ add_executable(dynamicCC_tests
   test/test_runner.cpp
   test/euler_tour_tree_test.cpp
   test/splay_tree_test.cpp
+  test/link_cut_tree_test.cpp
 
   src/splay_tree.cpp
 
   src/euler_tour_tree.cpp
+
+  src/link_cut_tree.cpp
 
   src/graph_tiers.cpp
 )

@@ -1,48 +1,96 @@
 #pragma once
 
-#include "splay_tree.h"
+#include <gtest/gtest.h>
 #include "types.h"
 
 class LinkCutTree;
 class SplayTree;
 
-class LinkCutNode{
+class LinkCutNode {
+  FRIEND_TEST(LinkCutTreeSuite, random_links_and_cuts);
+
   LinkCutNode* parent;
   LinkCutNode* dparent;
-
-  bool is_root;
-
-  std::vector<LinkCutNode*> children;
-  LinkCutNode* preferred_child;
+  LinkCutNode* left;
+  LinkCutNode* right;
   
-  uint32_t edge_weight;
+  LinkCutNode* head = this;
+  LinkCutNode* tail = this;
+public:
+  //Keep a list of edges with weights and up to two preferred edges
+  std::pair<LinkCutNode*, LinkCutNode*> preferred_edges = {nullptr, nullptr};
+  std::unordered_map<LinkCutNode*, uint32_t> edges = {};
+  //Maintain an aggregate maximum of the edge weights in the auxilliary tree
+  uint32_t max = 0;
+  //Recompute the maximum just for this single node
+  void rebuild_max();
 
+  //Indicates that the meanings of left and right are reversed at all nodes in this subtree
+  bool reversed;
+  //Reverses all of appropriate nodes on the path from the root to this node
+  void correct_reversals();
+
+  void rotate_up();
 
   public:
-    void set_edge_weight(uint32_t tier);
+    LinkCutNode* splay();
 
+    void link_left(LinkCutNode* left);
+    void link_right(LinkCutNode* right);
+
+    void set_parent(LinkCutNode* parent);
+    void set_dparent(LinkCutNode* dparent);
+    
+    void make_preferred_edge(LinkCutNode* v);
+    void unmake_preferred_edge(LinkCutNode* v);
+    void insert_edge(LinkCutNode* v, uint32_t weight);
+    void remove_edge(LinkCutNode* v);
+    void set_max(uint32_t weight);
+
+    void set_reversed(bool reversed);
+    void reverse();
+    void set_use_edge_up(bool use_edge_up);
+    void set_use_edge_down(bool use_edge_down);
+    
+    LinkCutNode* get_left();
+    LinkCutNode* get_right();
+    LinkCutNode* get_parent();
+    LinkCutNode* get_dparent();
+
+    LinkCutNode* get_head();
+    LinkCutNode* get_tail();
+    LinkCutNode* recompute_head();
+    LinkCutNode* recompute_tail();
+    bool get_reversed();
 };
 
-class LinkCutTree{
-  //need path aggregate
-  //link
-  //cut
+class LinkCutTree {
+  FRIEND_TEST(LinkCutTreeSuite, join_split_test);
+  FRIEND_TEST(LinkCutTreeSuite, expose_simple_test);
+  FRIEND_TEST(LinkCutTreeSuite, random_links_and_cuts);
   
-  std::vector<LinkCutNode*> roots;
+  std::vector<LinkCutNode> nodes;
+
+  // Concatenate the paths with aux trees rooted at v and w and return the root of the combined aux tree
+  static LinkCutNode* join(LinkCutNode* v, LinkCutNode* w);
+  // Split the aux tree of the path containing v right after v, and return the roots of the two new aux trees
+  static std::pair<LinkCutNode*, LinkCutNode*> split(LinkCutNode* v);
   
-  void access(const LinkCutNode& v);
+  static LinkCutNode* splice(LinkCutNode* p);
+  static LinkCutNode* expose(LinkCutNode* v);
+  // Make v the new root of the represented tree by "turning the tree inside out"
+  static LinkCutNode* evert(LinkCutNode* v);
 
   public:
     LinkCutTree(node_id_t num_nodes);
-
+    
     // Given nodes v and w, link the trees containing v and w by adding the edge(v, w)
-    void link(node_id_t v, node_id_t w);
+    void link(node_id_t v, node_id_t w, uint32_t weight);
     // Given nodes v and w, divide the tree containing v and w by deleting the edge(v, w)
     void cut(node_id_t v, node_id_t w);
 
-    node_id_t find_root(node_id_t v);
+    void* find_root(node_id_t v);
 
-    // Given node v return the edge(a, b) with the maximum weight on the path from the tree root to v and the weight itself
-    std::pair<edge_id_t, uint32_t> path_aggregate(node_id_t v);
+    // Given node v and w return the edge with the maximum weight on the path from v to w and the weight itself
+    std::pair<edge_id_t, uint32_t> path_aggregate(node_id_t v, node_id_t w);
 };
-
