@@ -31,6 +31,7 @@ LinkCutNode* LinkCutNode::get_parent() { return this->parent; }
 LinkCutNode* LinkCutNode::get_dparent() { return this->dparent; }
 LinkCutNode* LinkCutNode::get_head() { return this->head; }
 LinkCutNode* LinkCutNode::get_tail() { return this->tail; }
+std::pair<edge_id_t, uint32_t> LinkCutNode::get_max_edge() { return {this->max_edge, this->max}; }
 bool LinkCutNode::get_reversed() { return this->reversed; }
 
 LinkCutNode* LinkCutNode::recompute_head() {
@@ -117,43 +118,57 @@ void LinkCutNode::correct_reversals() {
     assert(inorder == get_inorder(this));
 }
 
-void LinkCutNode::make_preferred_edge(LinkCutNode* v) {
-    assert(this->preferred_edges.first == nullptr || this->preferred_edges.second == nullptr);
-    if (this->preferred_edges.first == nullptr) {
-        this->preferred_edges.first = v;
+void LinkCutNode::make_preferred_edge(edge_id_t e) {
+    assert(this->preferred_edges.first == MAX_UINT64 || this->preferred_edges.second == MAX_UINT64);
+    if (this->preferred_edges.first == MAX_UINT64) {
+        this->preferred_edges.first = e;
     } else {
-        this->preferred_edges.second = v;
+        this->preferred_edges.second = e;
     }
 }
 
-void LinkCutNode::unmake_preferred_edge(LinkCutNode* v) {
-    assert(this->preferred_edges.first == v || this->preferred_edges.second == v);
-    if (this->preferred_edges.first == v) {
-        this->preferred_edges.first = nullptr;
+void LinkCutNode::unmake_preferred_edge(edge_id_t e) {
+    assert(this->preferred_edges.first == e || this->preferred_edges.second == e);
+    if (this->preferred_edges.first == e) {
+        this->preferred_edges.first = MAX_UINT64;
     } else {
-        this->preferred_edges.second = nullptr;
+        this->preferred_edges.second = MAX_UINT64;
     }
 }
 
-void LinkCutNode::insert_edge(LinkCutNode* v, uint32_t weight) {
-    assert(this->edges.count(v) == 0);
-    this->edges.insert({v, weight});
+void LinkCutNode::insert_edge(edge_id_t e, uint32_t weight) {
+    assert(this->edges.count(e) == 0);
+    this->edges.insert({e, weight});
 }
 
-void LinkCutNode::remove_edge(LinkCutNode* v) {
-    assert(this->edges.count(v) == 1);
-    this->edges.erase(v);
+void LinkCutNode::remove_edge(edge_id_t e) {
+    assert(this->edges.count(e) == 1);
+    this->edges.erase(e);
 }
 
 void LinkCutNode::rebuild_max() {
     uint32_t max = 0;
+    edge_id_t max_edge = 0;
 
-    if (this->preferred_edges.first && this->edges.find(this->preferred_edges.first) != this->edges.end() && this->edges[this->preferred_edges.first] > max) max = this->edges[this->preferred_edges.first];
-    if (this->preferred_edges.second && this->edges.find(this->preferred_edges.second) != this->edges.end() && this->edges[this->preferred_edges.second] > max) max = this->edges[this->preferred_edges.second];
-    if (this->left && this->left->max > max) max = this->left->max;
-    if (this->right && this->right->max > max) max = this->right->max;
+    if (this->preferred_edges.first != MAX_UINT64 && this->edges.find(this->preferred_edges.first) != this->edges.end() && this->edges[this->preferred_edges.first] > max) {
+        max = this->edges[this->preferred_edges.first];
+        max_edge = this->preferred_edges.first;
+    }
+    if (this->preferred_edges.second != MAX_UINT64 && this->edges.find(this->preferred_edges.second) != this->edges.end() && this->edges[this->preferred_edges.second] > max) {
+        max = this->edges[this->preferred_edges.second];
+        max_edge = this->preferred_edges.second;
+    }
+    if (this->left && this->left->max > max) {
+        max = this->left->max;
+        max_edge = this->left->max_edge;
+    }
+    if (this->right && this->right->max > max) {
+        max = this->right->max;
+        max_edge = this->right->max_edge;
+    }
 
     this->set_max(max);
+    this->max_edge = max_edge;
 }
 
 void LinkCutNode::rotate_up() {
@@ -216,8 +231,11 @@ LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
     assert(v != nullptr && w != nullptr && v->get_parent() == nullptr && w->get_parent() == nullptr);
     LinkCutNode* tail = v->get_tail();
     LinkCutNode* head = w->get_head();
-    tail->make_preferred_edge(head);
-    head->make_preferred_edge(tail);
+    node_id_t tail_id = tail-&(this->nodes[0]);
+    node_id_t head_id = head-&(this->nodes[0]);
+    edge_id_t edge = (tail_id < head_id) ? (((edge_id_t)tail_id << 32) + head_id) : (((edge_id_t)head_id << 32) + tail_id);
+    tail->make_preferred_edge(edge);
+    head->make_preferred_edge(edge);
     tail->splay();
     head->splay(); // To recompute the aggregate
     assert(tail->get_right() == nullptr);
@@ -230,14 +248,17 @@ LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
 std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree::split(LinkCutNode* v) {
     assert(v != nullptr);
     v->splay();
-    LinkCutNode* w = v->get_right();
-    if (w != nullptr) {
-        LinkCutNode* w_head = w->recompute_head();
-        v->unmake_preferred_edge(w_head);
-        w_head->unmake_preferred_edge(v);
+    LinkCutNode* r = v->get_right();
+    LinkCutNode* w = nullptr;
+    if (r != nullptr) {
+        w = r->recompute_head();
+        node_id_t v_id = v-&(this->nodes[0]);
+        node_id_t w_id = w-&(this->nodes[0]);
+        edge_id_t edge = (v_id < w_id) ? (((edge_id_t)v_id << 32) + w_id) : (((edge_id_t)w_id << 32) + v_id);
+        v->unmake_preferred_edge(edge);
+        w->unmake_preferred_edge(edge);
         v->link_right(nullptr); // This also recomputes the aggregate for v
-        w->set_parent(nullptr);
-        w = w_head;
+        r->set_parent(nullptr);
         w->set_dparent(v);
         w->splay(); // Recompute the aggregate for w
         w->recompute_head();
@@ -251,22 +272,22 @@ std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree::split(LinkCutNode* v) {
 
 LinkCutNode* LinkCutTree::splice(LinkCutNode* p) {
     LinkCutNode* v = p->get_head()->get_dparent();
-    std::pair<LinkCutNode*, LinkCutNode*> paths = LinkCutTree::split(v);
+    std::pair<LinkCutNode*, LinkCutNode*> paths = this->split(v);
     p->get_head()->set_dparent(nullptr);
-    return LinkCutTree::join(paths.first, p);
+    return this->join(paths.first, p);
 }
 
 LinkCutNode* LinkCutTree::expose(LinkCutNode* v) {
-    std::pair<LinkCutNode*, LinkCutNode*> paths = LinkCutTree::split(v);
+    std::pair<LinkCutNode*, LinkCutNode*> paths = this->split(v);
     LinkCutNode* p = paths.first;
     while(p->get_head()->get_dparent() != nullptr) {
-        p = LinkCutTree::splice(p);
+        p = this->splice(p);
     }
     return p;
 }
 
 LinkCutNode* LinkCutTree::evert(LinkCutNode* v) {
-    LinkCutNode* p = LinkCutTree::expose(v);
+    LinkCutNode* p = this->expose(v);
     p->reverse();
     p->recompute_head();
     p->recompute_tail();
@@ -277,26 +298,37 @@ void LinkCutTree::link(node_id_t v, node_id_t w, uint32_t weight) {
     assert(find_root(v) != find_root(w));
     LinkCutNode* v_node = &this->nodes[v];
     LinkCutNode* w_node = &this->nodes[w];
-    v_node->insert_edge(w_node, weight);
-    w_node->insert_edge(v_node, weight);
-    LinkCutNode* p_v = LinkCutTree::expose(v_node);
-    LinkCutNode* p_w = LinkCutTree::evert(w_node);
+    edge_id_t edge = (v < w) ? (((edge_id_t)v << 32) + w) : (((edge_id_t)w << 32) + v);
+    v_node->insert_edge(edge, weight);
+    w_node->insert_edge(edge, weight);
+    LinkCutNode* p_v = this->expose(v_node);
+    LinkCutNode* p_w = this->evert(w_node);
     assert(p_v->get_tail() == v_node);
     assert(p_w->get_head() == w_node);
-    LinkCutTree::join(p_v, p_w);
+    this->join(p_v, p_w);
 }
 
 void LinkCutTree::cut(node_id_t v, node_id_t w) {
     assert(find_root(v) == find_root(w));
     LinkCutNode* v_node = &this->nodes[v];
     LinkCutNode* w_node = &this->nodes[w];
-    v_node->remove_edge(w_node);
-    w_node->remove_edge(v_node);
-    LinkCutTree::evert(v_node);
-    LinkCutTree::expose(v_node);
+    edge_id_t edge = (v < w) ? (((edge_id_t)v << 32) + w) : (((edge_id_t)w << 32) + v);
+    v_node->remove_edge(edge);
+    w_node->remove_edge(edge);
+    this->evert(v_node);
+    this->expose(v_node);
     w_node->set_dparent(nullptr);
 }
 
 void* LinkCutTree::find_root(node_id_t v) {
-    return expose(&this->nodes[v])->get_head();
+    return this->expose(&this->nodes[v])->get_head();
+}
+
+std::pair<edge_id_t, uint32_t> LinkCutTree::path_aggregate(node_id_t v, node_id_t w) {
+    assert(find_root(v) == find_root(w));
+    LinkCutNode* v_node = &this->nodes[v];
+    LinkCutNode* w_node = &this->nodes[w];
+    this->evert(v_node);
+    LinkCutNode* p = this->expose(w_node);
+    return p->get_max_edge();
 }

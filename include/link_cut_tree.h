@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include "types.h"
 
+#define MAX_UINT64 (std::numeric_limits<uint64_t>::max())
 class LinkCutTree;
 class SplayTree;
 
@@ -16,12 +17,13 @@ class LinkCutNode {
   
   LinkCutNode* head = this;
   LinkCutNode* tail = this;
-public:
+
   //Keep a list of edges with weights and up to two preferred edges
-  std::pair<LinkCutNode*, LinkCutNode*> preferred_edges = {nullptr, nullptr};
-  std::unordered_map<LinkCutNode*, uint32_t> edges = {};
+  std::pair<edge_id_t, edge_id_t> preferred_edges = {MAX_UINT64, MAX_UINT64};
+  std::unordered_map<edge_id_t, uint32_t> edges = {};
   //Maintain an aggregate maximum of the edge weights in the auxilliary tree
   uint32_t max = 0;
+  edge_id_t max_edge = MAX_UINT64;
   //Recompute the maximum just for this single node
   void rebuild_max();
 
@@ -41,10 +43,10 @@ public:
     void set_parent(LinkCutNode* parent);
     void set_dparent(LinkCutNode* dparent);
     
-    void make_preferred_edge(LinkCutNode* v);
-    void unmake_preferred_edge(LinkCutNode* v);
-    void insert_edge(LinkCutNode* v, uint32_t weight);
-    void remove_edge(LinkCutNode* v);
+    void make_preferred_edge(edge_id_t e);
+    void unmake_preferred_edge(edge_id_t e);
+    void insert_edge(edge_id_t e, uint32_t weight);
+    void remove_edge(edge_id_t e);
     void set_max(uint32_t weight);
 
     void set_reversed(bool reversed);
@@ -61,6 +63,7 @@ public:
     LinkCutNode* get_tail();
     LinkCutNode* recompute_head();
     LinkCutNode* recompute_tail();
+    std::pair<edge_id_t, uint32_t> get_max_edge();
     bool get_reversed();
 };
 
@@ -72,14 +75,14 @@ class LinkCutTree {
   std::vector<LinkCutNode> nodes;
 
   // Concatenate the paths with aux trees rooted at v and w and return the root of the combined aux tree
-  static LinkCutNode* join(LinkCutNode* v, LinkCutNode* w);
+  LinkCutNode* join(LinkCutNode* v, LinkCutNode* w);
   // Split the aux tree of the path containing v right after v, and return the roots of the two new aux trees
-  static std::pair<LinkCutNode*, LinkCutNode*> split(LinkCutNode* v);
+  std::pair<LinkCutNode*, LinkCutNode*> split(LinkCutNode* v);
   
-  static LinkCutNode* splice(LinkCutNode* p);
-  static LinkCutNode* expose(LinkCutNode* v);
+  LinkCutNode* splice(LinkCutNode* p);
+  LinkCutNode* expose(LinkCutNode* v);
   // Make v the new root of the represented tree by "turning the tree inside out"
-  static LinkCutNode* evert(LinkCutNode* v);
+  LinkCutNode* evert(LinkCutNode* v);
 
   public:
     LinkCutTree(node_id_t num_nodes);
