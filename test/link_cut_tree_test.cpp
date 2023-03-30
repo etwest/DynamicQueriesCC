@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include "link_cut_tree.h"
+#include "binary_graph_stream.h"
 
 static bool validate(LinkCutNode* v) {
     bool valid = true;
@@ -199,4 +200,9 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
     for (auto agg : path_aggregates) {
         EXPECT_EQ(agg.second, agg.first->max) << "Aggregate incorrect" << std::endl;
     }
+}
+
+TEST(LinkCutTreeSuite, read_from_binary) {
+  BinaryGraphStream stream("kron_13_stream_binary", 100000);
+  stream.get_edge();
 }
