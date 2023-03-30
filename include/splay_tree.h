@@ -27,7 +27,6 @@ class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
 
   Sketch* get_sketch();
   void rotate_up();
-  void splay();
   void link_left(const Sptr& other);
   void link_right(const Sptr& other);
 
@@ -42,6 +41,8 @@ public:
   SplayTreeNode(EulerTourTree& node);
   SplayTreeNode(EulerTourTree* node);
 
+  void splay();
+  
   //Rebuilds our aggregate, then recursively rebuilds our parents aggregate
   void rebuild_agg();
 

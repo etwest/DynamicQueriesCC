@@ -2,15 +2,17 @@
 
 #include <vector>
 
-#include <euler_tour_tree.h>
+#include "euler_tour_tree.h"
+#include "link_cut_tree.h"
 
 // maintains the tiers of the algorithm
 // and the spanning forest of the entire graph
 class GraphTiers {
  private:
-  std::vector<std::vector<EulerTourTree>> node_arr;  // for each tier, for each node
+  std::vector<std::vector<EulerTourTree>> ett_nodes;  // for each tier, for each node
+  LinkCutTree link_cut_tree;
 
-  void refresh(Edge new_edge);
+  void refresh(GraphUpdate update);
 
  public:
   GraphTiers(node_id_t num_nodes);
@@ -19,7 +21,7 @@ class GraphTiers {
   // apply an edge update
   // loop through each tier and update the sketches
   // at that tier
-  void update();
+  void update(GraphUpdate update);
 
   // query for the connected components of the graph
   void get_cc();
