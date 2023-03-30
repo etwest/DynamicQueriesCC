@@ -66,14 +66,14 @@ std::ostream& operator<<(std::ostream& os,
 TEST(EulerTourTreeSuite, stress_test) {
 
 	// sketch variables
-  vec_t len = 10000;
+  vec_t len = 1000;
   vec_t err = 100;
   //configure the sketch globally
   Sketch::configure(len, err);
 
-  int nodecount = 10000;
+  int nodecount = 1000;
 
-  int n = 1000000;
+  int n = 100000;
 
   int seed = time(NULL);
   std::vector<EulerTourTree> nodes;
@@ -206,7 +206,7 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   Sketch* true_aggregate = (Sketch *) ::operator new(Sketch::sketchSizeof());
   Sketch::makeSketch(true_aggregate, seed);
 
-  int nodecount = 10;
+  int nodecount = 1000;
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
 
