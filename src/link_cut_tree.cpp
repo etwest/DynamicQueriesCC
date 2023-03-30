@@ -220,12 +220,7 @@ LinkCutNode* LinkCutNode::splay() {
     return this;
 }
 
-LinkCutTree::LinkCutTree(node_id_t num_nodes) {
-    this->nodes.reserve(num_nodes);
-    for (uint32_t i = 0; i < num_nodes; i++) {
-        this->nodes.emplace_back();
-    }
-}
+LinkCutTree::LinkCutTree(node_id_t num_nodes) : nodes(num_nodes) {}
 
 LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
     assert(v != nullptr && w != nullptr && v->get_parent() == nullptr && w->get_parent() == nullptr);
