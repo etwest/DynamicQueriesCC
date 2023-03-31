@@ -106,6 +106,11 @@ std::shared_ptr<Sketch> SplayTree::get_root_aggregate(const Sptr& node) {
   return std::shared_ptr<Sketch>(node->sketch_agg);
 }
 
+uint32_t SplayTree::get_root_size(const Sptr& node) {
+  node->splay();
+  return node->size;
+}
+
 long SplayTreeNode::count_children()
 {
   assert(!needs_rebuilding);
@@ -172,6 +177,11 @@ void SplayTreeNode::rebuild_one()
     *sketch_agg += *left->sketch_agg;
   if (right)
     *sketch_agg += *right->sketch_agg;
+
+  // Update node size aggregate
+  size = 1;
+  if (left) size += left->size;
+  if (right) size += right->size;
 
   needs_rebuilding = false;
 }

@@ -29,7 +29,9 @@ public:
 
   Sketch* get_sketch(SplayTreeNode* caller);
   void update_sketch(vec_t update_idx);
+
   std::shared_ptr<Sketch> get_aggregate();
+  uint32_t get_size();
 
   long get_seed() {return seed;};
 

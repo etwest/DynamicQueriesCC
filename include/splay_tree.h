@@ -23,7 +23,8 @@ class SplayTreeNode :public std::enable_shared_from_this<SplayTreeNode> {
   Sptr get_parent() {return parent.lock();};
   Sptr get_cparent() const {return parent.lock();};
 
-   std::shared_ptr<Sketch> sketch_agg = nullptr;
+  std::shared_ptr<Sketch> sketch_agg = nullptr;
+  uint32_t size = 1;
 
   Sketch* get_sketch();
   void rotate_up();
@@ -65,6 +66,7 @@ class SplayTree {
     static Sptr split_left(const Sptr& node);
     static Sptr split_right(const Sptr& node);
     static std::shared_ptr<Sketch> get_root_aggregate(const Sptr& node);
+    static uint32_t get_root_size(const Sptr& node);
     static Sptr get_last(Sptr node);
 };
 

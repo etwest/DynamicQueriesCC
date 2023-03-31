@@ -151,6 +151,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
 
   // Walk up from an occurrence of each node to the root of its auxiliary tre
   std::unordered_map<SplayTreeNode*, Sketch*> aggs;
+  std::unordered_map<SplayTreeNode*, uint32_t> sizes;
   for (int i = 0; i < nodecount; i++)
   {
     SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
@@ -165,11 +166,13 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
       char *location = (char*)cc_sketch_space + space*aggs.size();
       aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
       *aggs[sentinel] += *aux_root->sketch_agg;
+      sizes[sentinel] = aux_root->size;
     }
   }
 
   void *naive_cc_sketch_space = malloc(space * sentinels.size());
   std::unordered_map<SplayTreeNode*, Sketch*> naive_aggs;
+  std::unordered_map<SplayTreeNode*, uint32_t> naive_sizes;
   // Naively compute aggregates for each connected component
   for (int i = 0; i < nodecount; i++)
   {
@@ -177,12 +180,14 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     if (naive_aggs.find(sentinel) != naive_aggs.end())
     {
       *naive_aggs[sentinel] += *nodes[i].sketch;
+      naive_sizes[sentinel] += 1;
     }
     else
     {
       char *location = (char*)naive_cc_sketch_space + space*naive_aggs.size();
       naive_aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
       *naive_aggs[sentinel] += *nodes[i].sketch;
+      naive_sizes[sentinel] = 1;
     }
   }
   for (auto agg : aggs)
@@ -191,6 +196,10 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
       << *agg.second << "\n\n\n" << *naive_aggs[agg.first] << std::endl;
   }
   free(cc_sketch_space);
+  for (auto size: sizes) {
+    // Euler tour has length 2n-1
+    EXPECT_EQ(size.second, 2*naive_sizes[size.first]-1);
+  }
 }
 
 TEST(EulerTourTreeSuite, get_aggregate) {

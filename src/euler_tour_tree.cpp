@@ -58,6 +58,10 @@ std::shared_ptr<Sketch> EulerTourTree::get_aggregate() {
   return SplayTree::get_root_aggregate(this->edges.begin()->second);
 }
 
+uint32_t EulerTourTree::get_size() {
+  return SplayTree::get_root_size(this->edges.begin()->second);
+}
+
 bool EulerTourTree::link(EulerTourTree& other) {
   Sptr this_sentinel = SplayTree::get_last(this->edges.begin()->second);
   Sptr other_sentinel = SplayTree::get_last(other.edges.begin()->second);

@@ -46,10 +46,9 @@ void GraphTiers::refresh(GraphUpdate update) {
 	for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
 			std::shared_ptr<Sketch> ett_agg = ett_nodes[tier][v].get_aggregate();
-			std::shared_ptr<Sketch> above_agg = ett_nodes[tier+1][v].get_aggregate();
 
 			// Check if the tree containing this endpoint is isolated
-			if (*ett_agg == *above_agg) {
+			if (ett_nodes[tier][v].get_size() == ett_nodes[tier+1][v].get_size()) {
 				 std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
 				 if (query_result.second == GOOD) {
 				 	edge_id_t edge = query_result.first;
