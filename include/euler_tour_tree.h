@@ -33,6 +33,8 @@ public:
   std::shared_ptr<Sketch> get_aggregate();
   uint32_t get_size();
 
+  std::set<EulerTourTree*> get_component();
+
   long get_seed() {return seed;};
 
   friend std::ostream& operator<<(std::ostream& os, const EulerTourTree& ett);

@@ -62,6 +62,10 @@ uint32_t EulerTourTree::get_size() {
   return SplayTree::get_root_size(this->edges.begin()->second);
 }
 
+std::set<EulerTourTree*> EulerTourTree::get_component() {
+    return SplayTreeNode::get_component(this->edges.begin()->second.get());
+}
+
 bool EulerTourTree::link(EulerTourTree& other) {
   Sptr this_sentinel = SplayTree::get_last(this->edges.begin()->second);
   Sptr other_sentinel = SplayTree::get_last(other.edges.begin()->second);

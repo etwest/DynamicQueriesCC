@@ -50,6 +50,9 @@ public:
   bool isvalid() const;
   const SplayTreeNode* next() const;
 
+  static std::set<EulerTourTree*> get_component(SplayTreeNode* node);
+  static void inorder(SplayTreeNode* node, std::set<EulerTourTree*>& nodes);
+
   friend class SplayTree;
 
   friend std::ostream& operator<<(std::ostream& os, const SplayTreeNode& tree);

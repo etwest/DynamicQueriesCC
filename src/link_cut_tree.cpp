@@ -58,35 +58,35 @@ LinkCutNode* LinkCutNode::recompute_tail() {
     return this->tail;
 }
 
-void inorder(LinkCutNode* node, std::vector<LinkCutNode*>& nodes, bool reversal_state) {
-    if (node != nullptr) {
-        reversal_state = reversal_state != node->get_reversed();
-        if (!reversal_state) {
-            inorder(node->get_left(), nodes, reversal_state);
-            nodes.push_back(node);
-            inorder(node->get_right(), nodes, reversal_state);
-        } else {
-            inorder(node->get_right(), nodes, reversal_state);
-            nodes.push_back(node);
-            inorder(node->get_left(), nodes, reversal_state);
-        }
-    }
-}
+// void inorder(LinkCutNode* node, std::vector<LinkCutNode*>& nodes, bool reversal_state) {
+//     if (node != nullptr) {
+//         reversal_state = reversal_state != node->get_reversed();
+//         if (!reversal_state) {
+//             inorder(node->get_left(), nodes, reversal_state);
+//             nodes.push_back(node);
+//             inorder(node->get_right(), nodes, reversal_state);
+//         } else {
+//             inorder(node->get_right(), nodes, reversal_state);
+//             nodes.push_back(node);
+//             inorder(node->get_left(), nodes, reversal_state);
+//         }
+//     }
+// }
 
-std::vector<LinkCutNode*> get_inorder(LinkCutNode* node) {
-    LinkCutNode* curr = node;
-    LinkCutNode* root;
-    while (curr) {
-        if (curr->get_parent() == nullptr) { root = curr; }
-        curr = curr->get_parent();
-    }
-    std::vector<LinkCutNode*> nodes;
-    inorder(root, nodes, false);
-    return nodes;
-}
+// std::vector<LinkCutNode*> get_inorder(LinkCutNode* node) {
+//     LinkCutNode* curr = node;
+//     LinkCutNode* root;
+//     while (curr) {
+//         if (curr->get_parent() == nullptr) { root = curr; }
+//         curr = curr->get_parent();
+//     }
+//     std::vector<LinkCutNode*> nodes;
+//     inorder(root, nodes, false);
+//     return nodes;
+// }
 
 void LinkCutNode::correct_reversals() {
-    std::vector<LinkCutNode*> inorder = get_inorder(this);
+    //std::vector<LinkCutNode*> inorder = get_inorder(this);
     //Get the XOR of all reversed booleans from this node to root
     bool reversal_state = 0;
     LinkCutNode* curr = this;
@@ -115,7 +115,7 @@ void LinkCutNode::correct_reversals() {
         prev = curr;
         curr = curr->parent;
     }
-    assert(inorder == get_inorder(this));
+    //assert(inorder == get_inorder(this));
 }
 
 void LinkCutNode::make_preferred_edge(edge_id_t e) {

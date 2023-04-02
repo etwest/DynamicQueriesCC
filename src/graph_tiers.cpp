@@ -35,7 +35,23 @@ void GraphTiers::update(GraphUpdate update) {
 	refresh(update);
 }
 
-void GraphTiers::get_cc() {}
+std::vector<std::vector<node_id_t>> GraphTiers::get_cc() {
+	std::vector<std::vector<node_id_t>> cc;
+	std::set<EulerTourTree*> visited;
+	int top = ett_nodes.size()-1;
+	for (uint32_t i = 0; i < ett_nodes[top].size(); i++) {
+		if (visited.find(&ett_nodes[top][i]) == visited.end()) {
+			std::set<EulerTourTree*> pointer_component = ett_nodes[top][i].get_component();
+			std::vector<node_id_t> component;
+			for (auto pointer : pointer_component) {
+				component.push_back(pointer-&ett_nodes[top][0]);
+				visited.insert(pointer);
+			}
+			cc.push_back(component);
+		}
+	}
+	return cc;
+}
 
 bool GraphTiers::is_connected(node_id_t a, node_id_t b) {
 	return this->link_cut_tree.find_root(a) == this->link_cut_tree.find_root(b);
