@@ -1,5 +1,6 @@
-#include "types.h"
+#pragma once
 
+#include "types.h"
 #include <vector>
 
 #include "euler_tour_tree.h"

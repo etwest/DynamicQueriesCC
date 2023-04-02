@@ -6,16 +6,15 @@ GraphTiers::GraphTiers(node_id_t num_nodes) :
 	vec_t sketch_len = num_nodes;
 	vec_t sketch_err = 100;
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
-	int seed;
+	int seed = 0;
 
 	// Configure the sketches globally
 	Sketch::configure(sketch_len, sketch_err);
 
-	// Initialize all the ETT nodes
-	ett_nodes.reserve(num_tiers);
+	// Initialize all the ETT node
 	for (uint32_t i = 0; i < num_tiers; i++) {
-		ett_nodes[i].reserve(num_nodes);
 		srand(seed);
+		ett_nodes.emplace_back();
 		for (node_id_t j = 0; j < num_nodes; j++) {
 			ett_nodes[i].emplace_back(seed);
 		}
