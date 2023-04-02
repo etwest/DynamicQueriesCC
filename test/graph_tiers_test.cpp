@@ -4,6 +4,10 @@
 
 TEST(GraphTiersSuite, read_from_binary) {
     BinaryGraphStream stream("kron_13_stream_binary", 100000);
+}
+
+TEST(GraphTiersSuite, cc_correctness_test) {
+    BinaryGraphStream stream("kron_13_stream_binary", 100000);
     GraphTiers gt(stream.nodes());
     int edgecount = stream.edges();
 

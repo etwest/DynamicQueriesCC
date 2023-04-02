@@ -121,7 +121,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   {
     //nodes.emplace_back(sketches[i], seed);
     nodes.emplace_back(seed);
-    nodes[i].sketch.get()->update((vec_t)i);
+    nodes[i].update_sketch((vec_t)i);
   }
 
   std::cout << "Seeding random links and cuts test with " << seed << std::endl;
