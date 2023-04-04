@@ -1,4 +1,10 @@
 #include "../include/graph_tiers.h"
+#include <chrono>
+
+long lct_time = 0;
+long ett_time = 0;
+long sketch_time = 0;
+long tiers_grown = 0;
 
 GraphTiers::GraphTiers(node_id_t num_nodes) :
 	link_cut_tree(num_nodes) {
@@ -25,12 +31,16 @@ GraphTiers::GraphTiers(node_id_t num_nodes) :
 GraphTiers::~GraphTiers() {}
 
 void GraphTiers::update(GraphUpdate update) {
+	auto start = std::chrono::high_resolution_clock::now();
 	edge_id_t edge = (((edge_id_t)update.edge.src)<<32) + ((edge_id_t)update.edge.dst);
 	// Update the sketches of both endpoints of the edge in all tiers
 	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
 		ett_nodes[i][update.edge.src].update_sketch((vec_t)edge);
 		ett_nodes[i][update.edge.dst].update_sketch((vec_t)edge);
 	}
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+	sketch_time += duration.count();
 	// Refresh the data structure
 	refresh(update);
 }
@@ -58,6 +68,9 @@ bool GraphTiers::is_connected(node_id_t a, node_id_t b) {
 }
 
 void GraphTiers::refresh(GraphUpdate update) {
+	auto start = std::chrono::high_resolution_clock::now();
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
@@ -65,32 +78,57 @@ void GraphTiers::refresh(GraphUpdate update) {
 
 			// Check if the tree containing this endpoint is isolated
 			if (ett_nodes[tier][v].get_size() == ett_nodes[tier+1][v].get_size()) {
-				 std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
-				 if (query_result.second == GOOD) {
-				 	edge_id_t edge = query_result.first;
+				start = std::chrono::high_resolution_clock::now();
+				std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
+				if (query_result.second == GOOD) {
+					tiers_grown++;
+					edge_id_t edge = query_result.first;
 					node_id_t a = (node_id_t)edge;
 					node_id_t b = (node_id_t)(edge>>32);
+					stop = std::chrono::high_resolution_clock::now();
+					duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+					sketch_time += duration.count();
 
 					// Check if a path exists between the edge's endpoints
+					start = std::chrono::high_resolution_clock::now();
 					if (link_cut_tree.find_root(a) == link_cut_tree.find_root(b)) {
 						// Find the maximum tier edge on the path and what tier it first appeared on
 						std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(a,b);
 						node_id_t c = (node_id_t)max.first;
 						node_id_t d = (node_id_t)(max.first>>32);
+						stop = std::chrono::high_resolution_clock::now();
+						duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+						lct_time += duration.count();
 
 						// Remove the maximum tier edge on all paths where it exists
+						start = std::chrono::high_resolution_clock::now();
 						for (uint32_t i = max.second; i < ett_nodes.size(); i++) {
 							ett_nodes[i][c].cut(ett_nodes[i][d]);
 						}
+						stop = std::chrono::high_resolution_clock::now();
+						duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+						ett_time += duration.count();
+						start = std::chrono::high_resolution_clock::now();
 						link_cut_tree.cut(c,d);
+						stop = std::chrono::high_resolution_clock::now();
+						duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+						lct_time += duration.count();
 					}
 
 					// Join the ETTs for the endpoints of the edge on all tiers above the current
+					start = std::chrono::high_resolution_clock::now();
 					for (uint32_t i = tier+1; i < ett_nodes.size(); i++) {
 						ett_nodes[i][a].link(ett_nodes[i][b]);
 					}
+					stop = std::chrono::high_resolution_clock::now();
+					duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+					ett_time += duration.count();
+					start = std::chrono::high_resolution_clock::now();
 					link_cut_tree.link(a,b, tier+1);
-				 }
+					stop = std::chrono::high_resolution_clock::now();
+					duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+					lct_time += duration.count();
+				}
 			}
 		}
 	}
