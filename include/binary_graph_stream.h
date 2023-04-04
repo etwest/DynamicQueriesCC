@@ -3,7 +3,7 @@
 #include <cstring>
 #include <unistd.h> //open and close
 #include <fcntl.h>
-#include "graph.h"
+//#include "graph.h"
 
 class BadStreamException : public std::exception {
   virtual const char* what() const throw() {
