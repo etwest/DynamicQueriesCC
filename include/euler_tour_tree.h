@@ -13,8 +13,8 @@ class EulerTourTree {
   
 
   SplayTreeNode* allowed_caller = nullptr;
-  long seed = 0;
   std::unique_ptr<Sketch> sketch = nullptr;
+  long seed = 0;
 
   //TODO: implement these
   Sptr make_edge(EulerTourTree* other);

@@ -1,11 +1,12 @@
 #include <gtest/gtest.h>
 #include <chrono>
+#include <signal.h>
 #include "graph_tiers.h"
 #include "binary_graph_stream.h"
 
-TEST(GraphTiersSuite, read_from_binary) {
-    BinaryGraphStream stream("kron_13_stream_binary", 100000);
-}
+auto start = std::chrono::high_resolution_clock::now();
+auto stop = std::chrono::high_resolution_clock::now();
+auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
 // TEST(GraphTiersSuite, cc_correctness_test) {
 //     BinaryGraphStream stream("kron_13_stream_binary", 100000);
@@ -28,30 +29,41 @@ TEST(GraphTiersSuite, read_from_binary) {
 //     }
 // }
 
-TEST(GraphTiersSuite, cc_speed_test) {
-    BinaryGraphStream stream("kron_13_stream_binary", 100000);
-    GraphTiers gt(stream.nodes());
-    int edgecount = stream.edges();
-    //edgecount = 100000;
-    auto start = std::chrono::high_resolution_clock::now();
-
-    for (int i = 0; i < edgecount; i++) {
-        GraphUpdate update = stream.get_edge();
-        gt.update(update);
-        unlikely_if (i % 10000 == 0) {
-            auto stop = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-            std::cout << "Update " << i << ", Time:  " << duration.count() << "\n";
-        }
-    }
-
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Time for " << edgecount << " updates (ms): " << duration.count() << std::endl;
-    std::cout << "Total time in Sketch updates (ms): " << sketch_time/1000 << std::endl;
-    std::cout << "Total time in Refresh function (ms): " << refresh_time/1000 << std::endl;
-    std::cout << "\tTime in Sketch queries (ms): " << sketch_query/1000 << std::endl;
-    std::cout << "\tTime in LCT operations (ms): " << lct_time/1000 << std::endl;
-    std::cout << "\tTime in ETT operations (ms): " << ett_time/1000 << std::endl;
+static void print_metrics(int signum) {
+    stop = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << "\nTotal time for all updates performed (ms): " << duration.count() << std::endl;
+    std::cout << "\tTotal time in Sketch update (ms): " << sketch_time/1000 << std::endl;
+    std::cout << "\tTotal time in Refresh function (ms): " << refresh_time/1000 << std::endl;
+    std::cout << "\t\tTime in Sketch queries (ms): " << sketch_query/1000 << std::endl;
+    std::cout << "\t\tTime in LCT operations (ms): " << lct_time/1000 << std::endl;
+    std::cout << "\t\tTime in ETT operations (ms): " << ett_time/1000 << std::endl;
     std::cout << "Total number of tiers grown: " << tiers_grown << std::endl;
+    exit(signum);
+}
+
+TEST(GraphTiersSuite, cc_speed_test) {
+    try {
+
+        signal(SIGINT, print_metrics);
+        BinaryGraphStream stream("kron_13_stream_binary", 100000);
+        GraphTiers gt(stream.nodes());
+        int edgecount = stream.edges();
+        start = std::chrono::high_resolution_clock::now();
+
+        for (int i = 0; i < edgecount; i++) {
+            GraphUpdate update = stream.get_edge();
+            gt.update(update);
+            unlikely_if (i % 10000 == 0) {
+                auto stop = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                std::cout << "Update " << i << ", Time:  " << duration.count() << "\n";
+            }
+        }
+
+        print_metrics(0);
+
+    } catch (BadStreamException& e) {
+        std::cout << "ERROR: Stream binary file not found." << std::endl;
+    }
 }

@@ -121,7 +121,7 @@ void SplayTreeNode::inorder(SplayTreeNode* node, std::set<EulerTourTree*>& nodes
 
 std::set<EulerTourTree*> SplayTreeNode::get_component(SplayTreeNode* node) {
     SplayTreeNode* curr = node;
-    SplayTreeNode* root;
+    SplayTreeNode* root = curr;
     while (curr) {
         if (curr->get_parent() == nullptr) root = curr;
         curr = curr->get_parent().get();
