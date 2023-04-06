@@ -46,6 +46,8 @@ public:
   
   //Rebuilds our aggregate, then recursively rebuilds our parents aggregate
   void rebuild_agg();
+  //Update all the agg sketches from the current node to the root
+  void update_path_agg(vec_t update_idx);
 
   bool isvalid() const;
   const SplayTreeNode* next() const;

@@ -11,7 +11,9 @@
 #define TIME_VARIABLES
 extern long lct_time;
 extern long ett_time;
+extern long sketch_query;
 extern long sketch_time;
+extern long refresh_time;
 extern long tiers_grown;
 #endif
 

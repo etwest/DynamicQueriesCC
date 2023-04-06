@@ -32,7 +32,7 @@ TEST(GraphTiersSuite, cc_speed_test) {
     BinaryGraphStream stream("kron_13_stream_binary", 100000);
     GraphTiers gt(stream.nodes());
     int edgecount = stream.edges();
-    //edgecount = 300000;
+    //edgecount = 100000;
     auto start = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < edgecount; i++) {
@@ -47,9 +47,11 @@ TEST(GraphTiersSuite, cc_speed_test) {
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Total time for " << edgecount << " updates (ms): " << duration.count() << std::endl;
+    std::cout << "Time for " << edgecount << " updates (ms): " << duration.count() << std::endl;
     std::cout << "Total time in Sketch updates (ms): " << sketch_time/1000 << std::endl;
-    std::cout << "Total time in LCT operations (ms): " << lct_time/1000 << std::endl;
-    std::cout << "Total time in ETT operations (ms): " << ett_time/1000 << std::endl;
+    std::cout << "Total time in Refresh function (ms): " << refresh_time/1000 << std::endl;
+    std::cout << "\tTime in Sketch queries (ms): " << sketch_query/1000 << std::endl;
+    std::cout << "\tTime in LCT operations (ms): " << lct_time/1000 << std::endl;
+    std::cout << "\tTime in ETT operations (ms): " << ett_time/1000 << std::endl;
     std::cout << "Total number of tiers grown: " << tiers_grown << std::endl;
 }

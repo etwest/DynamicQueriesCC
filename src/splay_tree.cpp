@@ -219,6 +219,11 @@ void SplayTreeNode::rebuild_agg()
   rebuild_one();
 }
 
+void SplayTreeNode::update_path_agg(vec_t update_idx) {
+  this->sketch_agg.get()->update(update_idx);
+  if (!this->parent.expired()) this->get_parent()->update_path_agg(update_idx);
+}
+
 Sketch* SplayTreeNode::get_sketch()
 {
   if (!node)
