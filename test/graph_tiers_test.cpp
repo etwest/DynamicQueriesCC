@@ -37,7 +37,9 @@ static void print_metrics(int signum) {
     std::cout << "\tTotal time in Refresh function (ms): " << refresh_time/1000 << std::endl;
     std::cout << "\t\tTime in Sketch queries (ms): " << sketch_query/1000 << std::endl;
     std::cout << "\t\tTime in LCT operations (ms): " << lct_time/1000 << std::endl;
-    std::cout << "\t\tTime in ETT operations (ms): " << ett_time/1000 << std::endl;
+    std::cout << "\t\tTime in ETT operations (ms): " << (ett_time+ett_find_root)/1000 << std::endl;
+    std::cout << "\t\t\tETT Split and Join (ms):" << ett_time/1000 << std::endl;
+    std::cout << "\t\t\tETT Find Tree Root (ms):" << ett_find_root/1000 << std::endl;
     std::cout << "Total number of tiers grown: " << tiers_grown << std::endl;
     exit(signum);
 }

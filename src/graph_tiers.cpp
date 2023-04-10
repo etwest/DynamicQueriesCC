@@ -3,6 +3,7 @@
 
 long lct_time = 0;
 long ett_time = 0;
+long ett_find_root = 0;
 long sketch_query = 0;
 long sketch_time = 0;
 long refresh_time = 0;
@@ -62,7 +63,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 			std::shared_ptr<Sketch> ett_agg = ett_nodes[tier][v].get_aggregate();
 			stop = std::chrono::high_resolution_clock::now();
 			duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-			ett_time += duration.count();
+			ett_find_root += duration.count();
 
 			// Check if the tree containing this endpoint is isolated
 			start = std::chrono::high_resolution_clock::now();
@@ -70,7 +71,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 			uint32_t next_size = ett_nodes[tier+1][v].get_size();
 			stop = std::chrono::high_resolution_clock::now();
 			duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-			ett_time += duration.count();
+			ett_find_root += duration.count();
 			if (tier_size == next_size) {
 				start = std::chrono::high_resolution_clock::now();
 				std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
