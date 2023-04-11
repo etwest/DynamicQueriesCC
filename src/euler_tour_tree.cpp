@@ -59,12 +59,16 @@ std::shared_ptr<Sketch> EulerTourTree::get_aggregate() {
   return SplayTree::get_root_aggregate(this->edges.begin()->second);
 }
 
+void* EulerTourTree::find_root() {
+  return this->edges.begin()->second->get_root();
+}
+
 uint32_t EulerTourTree::get_size() {
   return SplayTree::get_root_size(this->edges.begin()->second);
 }
 
 std::set<EulerTourTree*> EulerTourTree::get_component() {
-    return SplayTreeNode::get_component(this->edges.begin()->second.get());
+  return SplayTreeNode::get_component(this->edges.begin()->second.get());
 }
 
 bool EulerTourTree::link(EulerTourTree& other) {

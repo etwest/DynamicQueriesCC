@@ -38,6 +38,9 @@ void GraphTiers::update(GraphUpdate update) {
 	edge_id_t edge = (((edge_id_t)update.edge.src)<<32) + ((edge_id_t)update.edge.dst);
 	// Update the sketches of both endpoints of the edge in all tiers
 	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
+		if (update.type == DELETE && ett_nodes[i][update.edge.src].find_root() == ett_nodes[i][update.edge.dst].find_root()) {
+			ett_nodes[i][update.edge.src].cut(ett_nodes[i][update.edge.dst]);
+		}
 		ett_nodes[i][update.edge.src].update_sketch((vec_t)edge);
 		ett_nodes[i][update.edge.dst].update_sketch((vec_t)edge);
 	}

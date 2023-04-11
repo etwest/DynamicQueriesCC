@@ -111,6 +111,13 @@ uint32_t SplayTree::get_root_size(const Sptr& node) {
   return node->size;
 }
 
+void* SplayTreeNode::get_root() {
+  if (this->parent.expired()) {
+    return this;
+  }
+  return this->get_parent()->get_root();
+}
+
 void SplayTreeNode::inorder(SplayTreeNode* node, std::set<EulerTourTree*>& nodes) {
     if (node == nullptr) return;
     inorder(node->left.get(), nodes);

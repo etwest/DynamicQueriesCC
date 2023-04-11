@@ -43,6 +43,8 @@ public:
   SplayTreeNode(EulerTourTree* node);
 
   void splay();
+
+  void* get_root();
   
   //Rebuilds our aggregate, then recursively rebuilds our parents aggregate
   void rebuild_agg();
