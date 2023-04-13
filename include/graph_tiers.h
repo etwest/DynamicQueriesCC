@@ -34,7 +34,7 @@ public:
   void update(GraphUpdate update);
 
   // query for the connected components of the graph
-  std::vector<std::vector<node_id_t>> get_cc();
+  std::vector<std::set<node_id_t>> get_cc();
 
   // query for if a is connected to b
   bool is_connected(node_id_t a, node_id_t b);

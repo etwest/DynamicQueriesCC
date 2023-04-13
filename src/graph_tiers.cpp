@@ -142,16 +142,16 @@ void GraphTiers::refresh(GraphUpdate update) {
 	}
 }
 
-std::vector<std::vector<node_id_t>> GraphTiers::get_cc() {
-	std::vector<std::vector<node_id_t>> cc;
+std::vector<std::set<node_id_t>> GraphTiers::get_cc() {
+	std::vector<std::set<node_id_t>> cc;
 	std::set<EulerTourTree*> visited;
 	int top = ett_nodes.size()-1;
 	for (uint32_t i = 0; i < ett_nodes[top].size(); i++) {
 		if (visited.find(&ett_nodes[top][i]) == visited.end()) {
 			std::set<EulerTourTree*> pointer_component = ett_nodes[top][i].get_component();
-			std::vector<node_id_t> component;
+			std::set<node_id_t> component;
 			for (auto pointer : pointer_component) {
-				component.push_back(pointer-&ett_nodes[top][0]);
+				component.insert(pointer-&ett_nodes[top][0]);
 				visited.insert(pointer);
 			}
 			cc.push_back(component);
