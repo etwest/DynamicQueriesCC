@@ -23,16 +23,34 @@ TEST(GraphTiersSuite, cc_correctness_test) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
             gv.edge_update(update.edge.src, update.edge.dst);
-
-            // std::cout << "Update " << i << ", Components:  " << "\n";
-            std::vector<std::set<node_id_t>> cc = gt.get_cc();
-            gv.verify_soln(cc);
-            // for (auto component : cc) {
-            //     for (auto node : component) {
-            //         std::cout << node << " ";
-            //     }
-            //     std::cout << "\n";
-            // }
+            unlikely_if(i%1000 == 0) {
+                gv.reset_cc_state();
+                std::vector<std::set<node_id_t>> cc = gt.get_cc();
+                try {
+                    gv.verify_soln(cc);
+                    std::cout << "Update " << i << ", CC correct.\n";
+                } catch (IncorrectCCException e) {
+                    std::cout << "Incorrect connected components!" << "\n";
+                    std::cout << "Update " << i << " " << update.edge.src << " " << update.edge.dst << " "
+                    << (update.type ? "DELETE" : "INSERT") << "\n";
+                    for (auto component : cc) {
+                        std::cout << "[";
+                        for (auto node : component) {
+                            std::cout << node << " ";
+                        }
+                        std::cout << "] ";
+                    }
+                    // std::cout << "\nGround truth components:\n";
+                    // for (auto component : gv.kruskal_ref) {
+                    //     std::cout << "[";
+                    //     for (auto node : component) {
+                    //         std::cout << node << " ";
+                    //     }
+                    //     std::cout << "] ";
+                    // }
+                    FAIL();
+                }
+            }
         }
 
     } catch (BadStreamException& e) {

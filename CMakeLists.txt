@@ -27,13 +27,13 @@ endif()
 
 # Install GraphZeppelin Project
 FetchContent_Declare(
-  GraphZeppelin
+  GraphZeppelinVerifyCC
 
   GIT_REPOSITORY      https://github.com/GraphStreamingProject/GraphZeppelin
   GIT_TAG             main
 )
 
-FetchContent_MakeAvailable(GraphZeppelin)
+FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
 
 
 add_executable(dynamicCC_tests
@@ -55,5 +55,5 @@ add_executable(dynamicCC_tests
 )
 
 target_include_directories(dynamicCC_tests PUBLIC include)
-add_dependencies(dynamicCC_tests GraphZeppelin)
-target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelin)
+add_dependencies(dynamicCC_tests GraphZeppelinVerifyCC)
+target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelinVerifyCC)
