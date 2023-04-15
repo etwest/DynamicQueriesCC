@@ -44,7 +44,7 @@ public:
 
   void splay();
 
-  void* get_root();
+  uint32_t get_root_size();
   
   //Rebuilds our aggregate, then recursively rebuilds our parents aggregate
   void rebuild_agg();
@@ -73,7 +73,6 @@ class SplayTree {
     static Sptr split_left(const Sptr& node);
     static Sptr split_right(const Sptr& node);
     static std::shared_ptr<Sketch> get_root_aggregate(const Sptr& node);
-    static uint32_t get_root_size(const Sptr& node);
     static Sptr get_last(Sptr node);
 };
 

@@ -115,36 +115,6 @@ std::pair<vec_t, SampleSketchRet> Sketch::query() {
   return {0, FAIL};
 }
 
-std::pair<std::vector<vec_t>, SampleSketchRet> Sketch::exhaustive_query() {
-  std::vector<vec_t> ret;
-
-  unlikely_if (bucket_a[num_elems - 1] == 0 && bucket_c[num_elems - 1] == 0)
-    return {ret, ZERO}; // the "first" bucket is deterministic so if zero then no edges to return
-
-  unlikely_if (
-  Bucket_Boruvka::is_good(bucket_a[num_elems - 1], bucket_c[num_elems - 1], checksum_seed())) {
-    ret.push_back(bucket_a[num_elems - 1]);
-    return {ret, GOOD};
-  }
-  for (unsigned i = 0; i < num_columns; ++i) {
-    for (unsigned j = 0; j < num_guesses; ++j) {
-      unsigned bucket_id = i * num_guesses + j;
-      unlikely_if (
-      Bucket_Boruvka::is_good(bucket_a[bucket_id], bucket_c[bucket_id], checksum_seed())) {
-        ret.push_back(bucket_a[bucket_id]);
-        update(bucket_a[bucket_id]);
-      }
-    }
-  }
-  unlikely_if (already_queried)
-    throw MultipleQueryException();
-  already_queried = true;
-
-  unlikely_if (ret.size() == 0)
-    return {ret, FAIL};
-  return {ret, GOOD};
-}
-
 Sketch &operator+= (Sketch &sketch1, const Sketch &sketch2) {
   assert (sketch1.seed == sketch2.seed);
   sketch1.already_queried = sketch1.already_queried || sketch2.already_queried;

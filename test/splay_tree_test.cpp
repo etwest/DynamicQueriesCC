@@ -110,7 +110,7 @@ TEST(SplayTreeSuite, random_splays) {
   long nnodes = root->count_children();
   if(nnodes != n)
     FAIL() << "Expected " << n << " nodes, found " << nnodes << std::endl;
-  ASSERT_EQ(*agg, *root->sketch_agg);
+  ASSERT_EQ(*agg, *SplayTree::get_root_aggregate(root));
   free(sketch_space);
 }
 

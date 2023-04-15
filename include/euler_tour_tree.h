@@ -31,8 +31,8 @@ public:
   void update_sketch(vec_t update_idx);
 
   std::shared_ptr<Sketch> get_aggregate();
-  void* find_root();
   uint32_t get_size();
+  bool has_edge_to(EulerTourTree* other);
 
   std::set<EulerTourTree*> get_component();
 

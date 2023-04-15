@@ -19,20 +19,20 @@ void SplayTreeNode::rotate_up() {
   const Sptr& parent = this->get_parent();
   const Sptr& grandparent = parent->get_parent();
 
-  if (grandparent == nullptr) {
-    this->parent = Wptr();
-  } else if (grandparent->left == parent) {
-    grandparent->link_left(shared_from_this());
-  } else {
-    grandparent->link_right(shared_from_this());
-  }
-
   if (parent->left.get() == this) {
     parent->link_left(this->right);
     this->link_right(parent);
   } else {
     parent->link_right(this->left);
     this->link_left(parent);
+  }
+
+  if (grandparent == nullptr) {
+    this->parent = Wptr();
+  } else if (grandparent->left == parent) {
+    grandparent->link_left(shared_from_this());
+  } else {
+    grandparent->link_right(shared_from_this());
   }
 }
 
@@ -53,7 +53,6 @@ void SplayTreeNode::splay() {
       this->rotate_up();
     }
   }
-  rebuild_agg();
 }
 
 void SplayTreeNode::link_left(const Sptr& other) {
@@ -63,6 +62,9 @@ void SplayTreeNode::link_left(const Sptr& other) {
 
   }
   needs_rebuilding = true;
+  size = 1;
+  if (left) size += left->size;
+  if (right) size += right->size;
 }
 
 void SplayTreeNode::link_right(const Sptr& other) {
@@ -71,6 +73,9 @@ void SplayTreeNode::link_right(const Sptr& other) {
     other->parent = shared_from_this();
   }
   needs_rebuilding = true;
+  size = 1;
+  if (left) size += left->size;
+  if (right) size += right->size;
 }
 
 std::shared_ptr<SplayTreeNode> SplayTree::get_last(Sptr node) {
@@ -87,7 +92,7 @@ std::shared_ptr<SplayTreeNode> SplayTree::split_left(const Sptr& node) {
   if (ret != nullptr) {
     ret->parent = Wptr();
   }
-  node->left = nullptr;
+  node->link_left(nullptr);
   return ret;
 }
 
@@ -97,25 +102,19 @@ std::shared_ptr<SplayTreeNode> SplayTree::split_right(const Sptr& node) {
   if (ret != nullptr) {
     ret->parent = Wptr();
   }
-  node->right = nullptr;
+  node->link_right(nullptr);
   return ret;
 }
 
 std::shared_ptr<Sketch> SplayTree::get_root_aggregate(const Sptr& node) {
   node->splay();
+  node->rebuild_agg();
   return std::shared_ptr<Sketch>(node->sketch_agg);
 }
 
-uint32_t SplayTree::get_root_size(const Sptr& node) {
-  node->splay();
-  return node->size;
-}
-
-void* SplayTreeNode::get_root() {
-  if (this->parent.expired()) {
-    return this;
-  }
-  return this->get_parent()->get_root();
+uint32_t SplayTreeNode::get_root_size() {
+  this->splay();
+  return this->size;
 }
 
 void SplayTreeNode::inorder(SplayTreeNode* node, std::set<EulerTourTree*>& nodes) {
@@ -140,7 +139,6 @@ std::set<EulerTourTree*> SplayTreeNode::get_component(SplayTreeNode* node) {
 
 long SplayTreeNode::count_children()
 {
-  assert(!needs_rebuilding);
 	long count = 1;
 	if (right)
 		count += right->count_children();
@@ -204,11 +202,6 @@ void SplayTreeNode::rebuild_one()
     *sketch_agg += *left->sketch_agg;
   if (right)
     *sketch_agg += *right->sketch_agg;
-
-  // Update node size aggregate
-  size = 1;
-  if (left) size += left->size;
-  if (right) size += right->size;
 
   needs_rebuilding = false;
 }

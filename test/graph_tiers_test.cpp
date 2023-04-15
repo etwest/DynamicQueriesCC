@@ -15,7 +15,6 @@ TEST(GraphTiersSuite, cc_correctness_test) {
         BinaryGraphStream stream("kron_13_stream_binary", 100000);
         GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
-        edgecount = 10000;
 
         MatGraphVerifier gv(stream.nodes());
 
@@ -23,23 +22,23 @@ TEST(GraphTiersSuite, cc_correctness_test) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%1000 == 0) {
+            unlikely_if(i%100000 == 0 || i == edgecount-1) {
                 gv.reset_cc_state();
                 std::vector<std::set<node_id_t>> cc = gt.get_cc();
                 try {
                     gv.verify_soln(cc);
                     std::cout << "Update " << i << ", CC correct.\n";
-                } catch (IncorrectCCException e) {
+                } catch (IncorrectCCException& e) {
                     std::cout << "Incorrect connected components!" << "\n";
                     std::cout << "Update " << i << " " << update.edge.src << " " << update.edge.dst << " "
                     << (update.type ? "DELETE" : "INSERT") << "\n";
-                    for (auto component : cc) {
-                        std::cout << "[";
-                        for (auto node : component) {
-                            std::cout << node << " ";
-                        }
-                        std::cout << "] ";
-                    }
+                    // for (auto component : cc) {
+                    //     std::cout << "[";
+                    //     for (auto node : component) {
+                    //         std::cout << node << " ";
+                    //     }
+                    //     std::cout << "] ";
+                    // }
                     // std::cout << "\nGround truth components:\n";
                     // for (auto component : gv.kruskal_ref) {
                     //     std::cout << "[";
@@ -85,7 +84,7 @@ TEST(GraphTiersSuite, cc_speed_test) {
         for (int i = 0; i < edgecount; i++) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
-            unlikely_if (i % 10000 == 0) {
+            unlikely_if (i % 100000 == 0) {
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
                 std::cout << "Update " << i << ", Time:  " << duration.count() << "\n";

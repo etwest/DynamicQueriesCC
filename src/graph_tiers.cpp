@@ -38,7 +38,7 @@ void GraphTiers::update(GraphUpdate update) {
 	edge_id_t edge = (((edge_id_t)update.edge.src)<<32) + ((edge_id_t)update.edge.dst);
 	// Update the sketches of both endpoints of the edge in all tiers
 	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
-		if (update.type == DELETE && ett_nodes[i][update.edge.src].find_root() == ett_nodes[i][update.edge.dst].find_root()) {
+		if (update.type == DELETE && ett_nodes[i][update.edge.src].has_edge_to(&ett_nodes[i][update.edge.dst])) {
 			ett_nodes[i][update.edge.src].cut(ett_nodes[i][update.edge.dst]);
 		}
 		ett_nodes[i][update.edge.src].update_sketch((vec_t)edge);
@@ -62,12 +62,6 @@ void GraphTiers::refresh(GraphUpdate update) {
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
-			start = std::chrono::high_resolution_clock::now();
-			std::shared_ptr<Sketch> ett_agg = ett_nodes[tier][v].get_aggregate();
-			stop = std::chrono::high_resolution_clock::now();
-			duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-			ett_find_root += duration.count();
-
 			// Check if the tree containing this endpoint is isolated
 			start = std::chrono::high_resolution_clock::now();
 			uint32_t tier_size = ett_nodes[tier][v].get_size();
@@ -76,6 +70,11 @@ void GraphTiers::refresh(GraphUpdate update) {
 			duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
 			ett_find_root += duration.count();
 			if (tier_size == next_size) {
+				start = std::chrono::high_resolution_clock::now();
+				std::shared_ptr<Sketch> ett_agg = ett_nodes[tier][v].get_aggregate();
+				stop = std::chrono::high_resolution_clock::now();
+				duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+				ett_find_root += duration.count();
 				start = std::chrono::high_resolution_clock::now();
 				std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
 				stop = std::chrono::high_resolution_clock::now();

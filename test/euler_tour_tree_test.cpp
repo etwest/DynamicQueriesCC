@@ -157,6 +157,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
     sentinel->splay();
     SplayTreeNode *aux_root = sentinel;
+    aux_root->rebuild_agg();
     ASSERT_FALSE(aux_root->needs_rebuilding)
       << "Found node " << i << " in incomplete state!"
       << std::endl
@@ -198,7 +199,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   free(cc_sketch_space);
   for (auto size: sizes) {
     // Euler tour has length 2n-1
-    EXPECT_EQ(size.second, 2*naive_sizes[size.first]-1);
+    ASSERT_EQ(size.second, 2*naive_sizes[size.first]-1);
   }
 }
 
