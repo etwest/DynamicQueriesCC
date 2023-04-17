@@ -4,6 +4,7 @@
 long lct_time = 0;
 long ett_time = 0;
 long ett_find_root = 0;
+long ett_get_agg = 0;
 long sketch_query = 0;
 long sketch_time = 0;
 long refresh_time = 0;
@@ -74,7 +75,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 				std::shared_ptr<Sketch> ett_agg = ett_nodes[tier][v].get_aggregate();
 				stop = std::chrono::high_resolution_clock::now();
 				duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-				ett_find_root += duration.count();
+				ett_get_agg += duration.count();
 				start = std::chrono::high_resolution_clock::now();
 				std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
 				stop = std::chrono::high_resolution_clock::now();

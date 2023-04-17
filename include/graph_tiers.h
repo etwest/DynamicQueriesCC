@@ -12,6 +12,7 @@
 extern long lct_time;
 extern long ett_time;
 extern long ett_find_root;
+extern long ett_get_agg;
 extern long sketch_query;
 extern long sketch_time;
 extern long refresh_time;
