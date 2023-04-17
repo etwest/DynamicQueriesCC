@@ -18,39 +18,18 @@ TEST(GraphTiersSuite, cc_correctness_test) {
 
         MatGraphVerifier gv(stream.nodes());
 
-        int deletions = 0;
-
         for (int i = 0; i < edgecount; i++) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
-            deletions += update.type;
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%100000 == 0 || update.type || i == edgecount-1) {
+            unlikely_if(i%100000 == 0 || i == edgecount-1) {
                 gv.reset_cc_state();
                 std::vector<std::set<node_id_t>> cc = gt.get_cc();
-                std::cout << "Total deletions: " << deletions << std::endl;
                 try {
                     gv.verify_soln(cc);
-                    std::cout << "Update " << i << ", CCs correct.\n";
+                    std::cout << "Update " << i << ", CCs correct." << std::endl;
                 } catch (IncorrectCCException& e) {
-                    std::cout << "Incorrect connected components!" << "\n";
-                    std::cout << "Update " << i << " " << update.edge.src << " " << update.edge.dst << " "
-                    << (update.type ? "DELETE" : "INSERT") << "\n";
-                    // for (auto component : cc) {
-                    //     std::cout << "[";
-                    //     for (auto node : component) {
-                    //         std::cout << node << " ";
-                    //     }
-                    //     std::cout << "] ";
-                    // }
-                    // std::cout << "\nGround truth components:\n";
-                    // for (auto component : gv.kruskal_ref) {
-                    //     std::cout << "[";
-                    //     for (auto node : component) {
-                    //         std::cout << node << " ";
-                    //     }
-                    //     std::cout << "] ";
-                    // }
+                    std::cout << "Incorrect connected components found at update "  << i << std::endl;
                     FAIL();
                 }
             }

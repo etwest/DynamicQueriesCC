@@ -13,8 +13,8 @@ long tiers_grown = 0;
 GraphTiers::GraphTiers(node_id_t num_nodes) :
 	link_cut_tree(num_nodes) {
 	// Algorithm parameters
-	vec_t sketch_len = num_nodes;
-	vec_t sketch_err = 100;
+	vec_t sketch_len = num_nodes*num_nodes;
+	vec_t sketch_err = 4;
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 	int seed = time(NULL);
 
@@ -38,6 +38,9 @@ void GraphTiers::update(GraphUpdate update) {
 	auto start = std::chrono::high_resolution_clock::now();
 	edge_id_t edge = (((edge_id_t)update.edge.src)<<32) + ((edge_id_t)update.edge.dst);
 	// Update the sketches of both endpoints of the edge in all tiers
+	if (update.type == DELETE && ett_nodes[ett_nodes.size()-1][update.edge.src].has_edge_to(&ett_nodes[ett_nodes.size()-1][update.edge.dst])) {
+		link_cut_tree.cut(update.edge.src, update.edge.dst);
+	}
 	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
 		if (update.type == DELETE && ett_nodes[i][update.edge.src].has_edge_to(&ett_nodes[i][update.edge.dst])) {
 			ett_nodes[i][update.edge.src].cut(ett_nodes[i][update.edge.dst]);
