@@ -51,7 +51,7 @@ Sketch* EulerTourTree::get_sketch(SplayTreeNode* caller) {
 void EulerTourTree::update_sketch(vec_t update_idx) {
   assert(allowed_caller);
   this->sketch.get()->update(update_idx);
-  this->allowed_caller->update_path_agg(update_idx);
+  this->allowed_caller->splay();
 }
 
 //Get the aggregate sketch at the root of the ETT for this node
@@ -60,7 +60,7 @@ std::shared_ptr<Sketch> EulerTourTree::get_aggregate() {
 }
 
 uint32_t EulerTourTree::get_size() {
-  return this->edges.begin()->second->get_root_size();
+  return this->allowed_caller->get_root_size();
 }
 
 bool EulerTourTree::has_edge_to(EulerTourTree* other) {
