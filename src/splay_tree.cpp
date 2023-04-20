@@ -18,6 +18,7 @@ void SplayTreeNode::rotate_up() {
   assert(!this->parent.expired());
   const Sptr& parent = this->get_parent();
   const Sptr& grandparent = parent->get_parent();
+  assert(this->node->tier == parent->node->tier && (!grandparent || this->node->tier == grandparent->node->tier));
 
   if (parent->left.get() == this) {
     parent->link_left(this->right);
@@ -40,6 +41,7 @@ void SplayTreeNode::splay() {
   while (!this->parent.expired()) {
     const Sptr& parent = this->get_parent();
     const Sptr& grandparent = parent->get_parent();
+    assert(this->node->tier == parent->node->tier && (!grandparent || this->node->tier == grandparent->node->tier));
     if (grandparent == nullptr) {
       // zig
       this->rotate_up();
@@ -53,9 +55,11 @@ void SplayTreeNode::splay() {
       this->rotate_up();
     }
   }
+  needs_rebuilding = true;
 }
 
 void SplayTreeNode::link_left(const Sptr& other) {
+  assert(!other || this->node->tier == other->node->tier);
   this->left = other;
   if (other != nullptr) {
     other->parent = shared_from_this();
@@ -68,6 +72,7 @@ void SplayTreeNode::link_left(const Sptr& other) {
 }
 
 void SplayTreeNode::link_right(const Sptr& other) {
+  assert(!other || this->node->tier == other->node->tier);
   this->right = other;
   if (other != nullptr) {
     other->parent = shared_from_this();
@@ -106,10 +111,10 @@ std::shared_ptr<SplayTreeNode> SplayTree::split_right(const Sptr& node) {
   return ret;
 }
 
-std::shared_ptr<Sketch> SplayTree::get_root_aggregate(const Sptr& node) {
-  node->splay();
-  node->rebuild_agg();
-  return std::shared_ptr<Sketch>(node->sketch_agg);
+std::shared_ptr<Sketch> SplayTreeNode::get_root_aggregate() {
+  this->splay();
+  this->rebuild_agg();
+  return std::shared_ptr<Sketch>(this->sketch_agg);
 }
 
 uint32_t SplayTreeNode::get_root_size() {
@@ -179,6 +184,7 @@ std::shared_ptr<SplayTreeNode> SplayTreeNode::splay_random_child()
 }
 
 const std::shared_ptr<SplayTreeNode>& SplayTree::join(const Sptr& left, const Sptr& right) {
+  assert(!left || !right || left->node->tier == right->node->tier);
   if (left == nullptr) {
     return right;
   }

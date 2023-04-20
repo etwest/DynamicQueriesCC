@@ -20,6 +20,10 @@ class EulerTourTree {
   Sptr make_edge(EulerTourTree* other);
   void delete_edge(EulerTourTree* other);
 public:
+
+  uint32_t tier = 0;
+
+  EulerTourTree(long seed, uint32_t tier);
   EulerTourTree(long seed);
   EulerTourTree(Sketch* sketch, long seed);
   bool link(EulerTourTree& other);

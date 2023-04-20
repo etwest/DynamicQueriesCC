@@ -33,7 +33,7 @@ GraphTiers::GraphTiers(node_id_t num_nodes) :
 		ett_nodes.emplace_back();
 		ett_nodes[i].reserve(num_nodes);
 		for (node_id_t j = 0; j < num_nodes; j++) {
-			ett_nodes[i].emplace_back(seed);
+			ett_nodes[i].emplace_back(seed, i);
 		}
 	}
 }
@@ -50,6 +50,7 @@ void GraphTiers::update(GraphUpdate update) {
 		STOP(del1_time, del);
 		ndel1++;
 	}
+	//#pragma omp parallel
 	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
 		if (update.type == DELETE && ett_nodes[i][update.edge.src].has_edge_to(&ett_nodes[i][update.edge.dst])) {
 			START(del);

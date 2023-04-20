@@ -4,6 +4,14 @@
 
 using Sptr = std::shared_ptr<SplayTreeNode>;
 
+EulerTourTree::EulerTourTree(long seed, uint32_t tier) :
+    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed), tier(tier) {
+  // Initialize sentinel
+  this->make_edge(nullptr);
+  // Initialize sketch
+  Sketch::makeSketch((char*)sketch.get(), seed);
+}
+
 EulerTourTree::EulerTourTree(long seed) :
     sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed) {
   // Initialize sentinel
@@ -13,12 +21,13 @@ EulerTourTree::EulerTourTree(long seed) :
 }
 
 EulerTourTree::EulerTourTree(Sketch* sketch, long seed) :
-  sketch(sketch), seed(seed){
+  sketch(sketch), seed(seed) {
   // Initialize sentinel
   this->make_edge(nullptr);
 }
 
 Sptr EulerTourTree::make_edge(EulerTourTree* other) {
+  assert(!other || this->tier == other->tier);
   //Constructing a new SplayTreeNode with pointer to this ETT object
   Sptr node = std::make_shared<SplayTreeNode>(*this);
   if (allowed_caller == nullptr) {
@@ -30,6 +39,7 @@ Sptr EulerTourTree::make_edge(EulerTourTree* other) {
 }
 
 void EulerTourTree::delete_edge(EulerTourTree* other) {
+  assert(!other || this->tier == other->tier);
   bool deleting_allowed = this->edges[other].get() == allowed_caller;
   this->edges.erase(other);
   if (deleting_allowed) {
@@ -56,7 +66,8 @@ void EulerTourTree::update_sketch(vec_t update_idx) {
 
 //Get the aggregate sketch at the root of the ETT for this node
 std::shared_ptr<Sketch> EulerTourTree::get_aggregate() {
-  return SplayTree::get_root_aggregate(this->edges.begin()->second);
+  assert(allowed_caller);
+  return this->allowed_caller->get_root_aggregate();
 }
 
 uint32_t EulerTourTree::get_size() {
@@ -72,6 +83,7 @@ std::set<EulerTourTree*> EulerTourTree::get_component() {
 }
 
 bool EulerTourTree::link(EulerTourTree& other) {
+  assert(this->tier == other.tier);
   Sptr this_sentinel = SplayTree::get_last(this->edges.begin()->second);
   Sptr other_sentinel = SplayTree::get_last(other.edges.begin()->second);
 
@@ -123,6 +135,7 @@ bool EulerTourTree::link(EulerTourTree& other) {
 }
 
 bool EulerTourTree::cut(EulerTourTree& other) {
+  assert(this->tier == other.tier);
   if (this->edges.find(&other) == this->edges.end()) {
     assert(other.edges.find(this) == other.edges.end());
     return false;

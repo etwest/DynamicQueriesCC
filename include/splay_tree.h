@@ -51,6 +51,8 @@ public:
   //Update all the agg sketches from the current node to the root
   void update_path_agg(vec_t update_idx);
 
+  std::shared_ptr<Sketch> get_root_aggregate();
+
   bool isvalid() const;
   const SplayTreeNode* next() const;
 
@@ -72,7 +74,6 @@ class SplayTree {
     static const Sptr& join(const Sptr& head, const T&... tail);
     static Sptr split_left(const Sptr& node);
     static Sptr split_right(const Sptr& node);
-    static std::shared_ptr<Sketch> get_root_aggregate(const Sptr& node);
     static Sptr get_last(Sptr node);
 };
 
