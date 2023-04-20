@@ -17,6 +17,12 @@ extern long sketch_query;
 extern long sketch_time;
 extern long refresh_time;
 extern long tiers_grown;
+
+extern long ndel1;
+extern long del1_time;
+
+extern long ndel2;
+extern long del2_time;
 #endif
 
 // maintains the tiers of the algorithm

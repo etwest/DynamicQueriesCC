@@ -45,10 +45,14 @@ static void print_metrics(int signum) {
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     std::cout << "\nTotal time for all updates performed (ms): " << duration.count() << std::endl;
     std::cout << "\tTotal time in Sketch update (ms): " << sketch_time/1000 << std::endl;
+    std::cout << "\t\tNumber of deletions 1: " << ndel1 << std::endl;
+    std::cout << "\t\tDeletion 1 time (ms): " << del1_time/1000 << std::endl;
+    std::cout << "\t\tNumber of deletions 2: " << ndel2 << std::endl;
+    std::cout << "\t\tDeletion 2 time (ms): " << del2_time/1000 << std::endl;
     std::cout << "\tTotal time in Refresh function (ms): " << refresh_time/1000 << std::endl;
     std::cout << "\t\tTime in Sketch queries (ms): " << sketch_query/1000 << std::endl;
     std::cout << "\t\tTime in LCT operations (ms): " << lct_time/1000 << std::endl;
-    std::cout << "\t\tTime in ETT operations (ms): " << (ett_time+ett_find_root)/1000 << std::endl;
+    std::cout << "\t\tTime in ETT operations (ms): " << (ett_time+ett_find_root+ett_get_agg)/1000 << std::endl;
     std::cout << "\t\t\tETT Split and Join (ms): " << ett_time/1000 << std::endl;
     std::cout << "\t\t\tETT Find Tree Root (ms): " << ett_find_root/1000 << std::endl;
     std::cout << "\t\t\tETT Get Aggregate (ms): " << ett_get_agg/1000 << std::endl;
