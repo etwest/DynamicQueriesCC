@@ -1,3 +1,4 @@
+
 #include "../include/graph_tiers.h"
 #include "timer.h"
 
@@ -50,7 +51,7 @@ void GraphTiers::update(GraphUpdate update) {
 		STOP(del1_time, del);
 		ndel1++;
 	}
-	//#pragma omp parallel
+	#pragma omp parallel for
 	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
 		if (update.type == DELETE && ett_nodes[i][update.edge.src].has_edge_to(&ett_nodes[i][update.edge.dst])) {
 			START(del);
