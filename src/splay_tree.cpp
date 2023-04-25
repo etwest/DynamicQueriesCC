@@ -56,6 +56,7 @@ void SplayTreeNode::splay() {
     }
   }
   needs_rebuilding = true;
+  rebuild_agg();
 }
 
 void SplayTreeNode::link_left(const Sptr& other) {
@@ -66,6 +67,7 @@ void SplayTreeNode::link_left(const Sptr& other) {
 
   }
   needs_rebuilding = true;
+  rebuild_agg();
   size = 1;
   if (left) size += left->size;
   if (right) size += right->size;
@@ -78,6 +80,7 @@ void SplayTreeNode::link_right(const Sptr& other) {
     other->parent = shared_from_this();
   }
   needs_rebuilding = true;
+  rebuild_agg();
   size = 1;
   if (left) size += left->size;
   if (right) size += right->size;
