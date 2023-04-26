@@ -71,7 +71,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 				continue;
 
 			START(agg);
-			std::shared_ptr<Sketch> ett_agg = ett_nodes[tier][v].get_aggregate();
+			Sketch* ett_agg = ett_nodes[tier][v].get_aggregate();
 			STOP(ett_get_agg, agg);
 			START(sq);
 			std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();

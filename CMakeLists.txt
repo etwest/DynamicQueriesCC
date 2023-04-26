@@ -39,11 +39,8 @@ FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
 add_executable(dynamicCC_tests
   test/test_runner.cpp
   test/euler_tour_tree_test.cpp
-  test/splay_tree_test.cpp
   test/link_cut_tree_test.cpp
   test/graph_tiers_test.cpp
-
-  src/splay_tree.cpp
 
   src/euler_tour_tree.cpp
 

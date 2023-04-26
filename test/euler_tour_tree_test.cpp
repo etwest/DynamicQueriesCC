@@ -21,17 +21,13 @@ bool EulerTourTree::isvalid() const {
     // validate node itself
     EXPECT_TRUE(v->isvalid()) << (invalid = true, "");
     if (invalid) return false;
-    if (k == nullptr) {
-      // node is sentinel, expect next to be null
-      EXPECT_EQ(v->next(), nullptr) << (invalid = true, "");
-      if (invalid) return false;
-    } else {
+    if (k != nullptr) {
       // node is not sentinel, expect next to be valid
       EXPECT_EQ(v->next()->node, k) << (invalid = true, "");
       if (invalid) return false;
     }
     // check allowed_caller
-    if (v.get() == allowed_caller) {
+    if (v == allowed_caller) {
       // make sure there's only one allowed
       EXPECT_FALSE(allowed_valid) << (invalid = true, "");
       if (invalid) return false;
@@ -141,43 +137,36 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
         << nodes;
   }
 
-  std::unordered_set<SplayTreeNode*> sentinels;
+  std::unordered_set<SkipListNode*> sentinels;
   for (int i = 0; i < nodecount; i++)
   {
-    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    SkipListNode *sentinel = SkipList::get_last(nodes[i].edges.begin()->second);
     sentinels.insert(sentinel);
   }
   void *cc_sketch_space = malloc(space * sentinels.size());
 
   // Walk up from an occurrence of each node to the root of its auxiliary tre
-  std::unordered_map<SplayTreeNode*, Sketch*> aggs;
-  std::unordered_map<SplayTreeNode*, uint32_t> sizes;
+  std::unordered_map<SkipListNode*, Sketch*> aggs;
+  std::unordered_map<SkipListNode*, uint32_t> sizes;
   for (int i = 0; i < nodecount; i++)
   {
-    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
-    sentinel->splay();
-    SplayTreeNode *aux_root = sentinel;
-    aux_root->rebuild_agg();
-    ASSERT_FALSE(aux_root->needs_rebuilding)
-      << "Found node " << i << " in incomplete state!"
-      << std::endl
-      << nodes;
+    SkipListNode *sentinel = SkipList::get_last(nodes[i].edges.begin()->second);
     if (aggs.find(sentinel) == aggs.end())
     {
       char *location = (char*)cc_sketch_space + space*aggs.size();
       aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
-      *aggs[sentinel] += *aux_root->sketch_agg;
-      sizes[sentinel] = aux_root->size;
+      *aggs[sentinel] += *sentinel->get_list_aggregate();
+      sizes[sentinel] = sentinel->get_list_size();
     }
   }
 
   void *naive_cc_sketch_space = malloc(space * sentinels.size());
-  std::unordered_map<SplayTreeNode*, Sketch*> naive_aggs;
-  std::unordered_map<SplayTreeNode*, uint32_t> naive_sizes;
+  std::unordered_map<SkipListNode*, Sketch*> naive_aggs;
+  std::unordered_map<SkipListNode*, uint32_t> naive_sizes;
   // Naively compute aggregates for each connected component
   for (int i = 0; i < nodecount; i++)
   {
-    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    SkipListNode* sentinel = SkipList::get_last(nodes[i].edges.begin()->second);
     if (naive_aggs.find(sentinel) != naive_aggs.end())
     {
       *naive_aggs[sentinel] += *nodes[i].sketch;
@@ -234,6 +223,6 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   }
 
   // Check that the ETT aggregate is properly maintained and gotten
-  std::shared_ptr<Sketch> aggregate = nodes[0].get_aggregate();
+  Sketch* aggregate = nodes[0].get_aggregate();
   ASSERT_TRUE(*aggregate == *true_aggregate);
 }
