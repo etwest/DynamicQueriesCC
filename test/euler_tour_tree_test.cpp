@@ -140,7 +140,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   std::unordered_set<SkipListNode*> sentinels;
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode *sentinel = SkipList::get_last(nodes[i].edges.begin()->second);
+    SkipListNode *sentinel = nodes[i].edges.begin()->second->get_last();
     sentinels.insert(sentinel);
   }
   void *cc_sketch_space = malloc(space * sentinels.size());
@@ -150,7 +150,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   std::unordered_map<SkipListNode*, uint32_t> sizes;
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode *sentinel = SkipList::get_last(nodes[i].edges.begin()->second);
+    SkipListNode *sentinel = nodes[i].edges.begin()->second->get_last();
     if (aggs.find(sentinel) == aggs.end())
     {
       char *location = (char*)cc_sketch_space + space*aggs.size();
@@ -166,7 +166,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   // Naively compute aggregates for each connected component
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode* sentinel = SkipList::get_last(nodes[i].edges.begin()->second);
+    SkipListNode* sentinel = nodes[i].edges.begin()->second->get_last();
     if (naive_aggs.find(sentinel) != naive_aggs.end())
     {
       *naive_aggs[sentinel] += *nodes[i].sketch;

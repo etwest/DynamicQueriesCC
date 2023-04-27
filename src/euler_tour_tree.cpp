@@ -78,8 +78,8 @@ std::set<EulerTourTree*> EulerTourTree::get_component() {
 
 bool EulerTourTree::link(EulerTourTree& other) {
   assert(this->tier == other.tier);
-  SkipListNode* this_sentinel = SkipList::get_last(this->edges.begin()->second);
-  SkipListNode* other_sentinel = SkipList::get_last(other.edges.begin()->second);
+  SkipListNode* this_sentinel = this->edges.begin()->second->get_last();
+  SkipListNode* other_sentinel = other.edges.begin()->second->get_last();
 
   // There should always be a sentinel
   assert(this_sentinel == this_sentinel->node->edges.at(nullptr));
@@ -100,10 +100,10 @@ bool EulerTourTree::link(EulerTourTree& other) {
   // '--------------------'--- might be null
 
   SkipListNode* aux_this_right = this->edges.begin()->second;
-  SkipListNode* aux_this_left = SkipList::split_left(aux_this_right);
+  SkipListNode* aux_this_left = SkipListNode::split_left(aux_this_right);
 
   // Unlink and destory other_sentinel
-  SkipListNode* aux_other = SkipList::split_left(other_sentinel);
+  SkipListNode* aux_other = SkipListNode::split_left(other_sentinel);
   other_sentinel->node->delete_edge(nullptr);
 
   SkipListNode* aux_other_left, *aux_other_right;
@@ -111,7 +111,7 @@ bool EulerTourTree::link(EulerTourTree& other) {
     aux_other_right = aux_other_left = nullptr;
   } else {
     aux_other_right = other.edges.begin()->second;
-    aux_other_left = SkipList::split_left(aux_other_right);
+    aux_other_left = SkipListNode::split_left(aux_other_right);
   }
 
   // reroot other tree
@@ -122,7 +122,7 @@ bool EulerTourTree::link(EulerTourTree& other) {
   SkipListNode* aux_edge_left = this->make_edge(&other);
   SkipListNode* aux_edge_right = other.make_edge(this);
 
-  SkipList::join(aux_this_left, aux_edge_left, aux_other_right,
+  SkipListNode::join(aux_this_left, aux_edge_left, aux_other_right,
       aux_other_left, aux_edge_right, aux_this_right);
 
   return true;
@@ -137,26 +137,26 @@ bool EulerTourTree::cut(EulerTourTree& other) {
   SkipListNode* e1 = this->edges[&other];
   SkipListNode* e2 = other.edges[this];
 
-  SkipListNode* frag1r = SkipList::split_right(e1);
-  bool order_is_e1e2 = SkipList::get_last(e2) != e1;
-  SkipListNode* frag1l = SkipList::split_left(e1);
+  SkipListNode* frag1r = SkipListNode::split_right(e1);
+  bool order_is_e1e2 = e2->get_last() != e1;
+  SkipListNode* frag1l = SkipListNode::split_left(e1);
   this->delete_edge(&other);
-  SkipListNode* frag2r = SkipList::split_right(e2);
-  SkipListNode* frag2l = SkipList::split_left(e2);
+  SkipListNode* frag2r = SkipListNode::split_right(e2);
+  SkipListNode* frag2l = SkipListNode::split_left(e2);
   other.delete_edge(this);
 
   if (order_is_e1e2) {
     // e1 is to the left of e2
     // e2 should be made into a sentinel
     SkipListNode* sentinel = other.make_edge(nullptr);
-    SkipList::join(frag2l, sentinel);
-    SkipList::join(frag1l, frag2r);
+    SkipListNode::join(frag2l, sentinel);
+    SkipListNode::join(frag1l, frag2r);
   } else {
     // e2 is to the left of e1
     // e1 should be made into a sentinel
     SkipListNode* sentinel = this->make_edge(nullptr);
-    SkipList::join(frag2r, sentinel);
-    SkipList::join(frag2l, frag1r);
+    SkipListNode::join(frag2r, sentinel);
+    SkipListNode::join(frag2l, frag1r);
   }
 
   return true;
