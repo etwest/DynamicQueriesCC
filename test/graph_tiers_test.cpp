@@ -1,9 +1,11 @@
+
 #include <gtest/gtest.h>
 #include <chrono>
 #include <signal.h>
 #include "graph_tiers.h"
 #include "binary_graph_stream.h"
 #include "mat_graph_verifier.h"
+#include <omp.h>
 
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
@@ -26,6 +28,7 @@ static void print_metrics(int signum) {
 }
 
 TEST(GraphTiersSuite, cc_correctness_test) {
+omp_set_dynamic(1);    
     try {
 
         BinaryGraphStream stream("kron_13_stream_binary", 100000);
@@ -38,7 +41,7 @@ TEST(GraphTiersSuite, cc_correctness_test) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%100000 == 0 || i == edgecount-1) {
+            unlikely_if(i%10000 == 0 || i == edgecount-1) {
                 gv.reset_cc_state();
                 std::vector<std::set<node_id_t>> cc = gt.get_cc();
                 try {
@@ -46,6 +49,7 @@ TEST(GraphTiersSuite, cc_correctness_test) {
                     std::cout << "Update " << i << ", CCs correct." << std::endl;
                 } catch (IncorrectCCException& e) {
                     std::cout << "Incorrect connected components found at update "  << i << std::endl;
+		    std::cout << "GOT: " << cc.size() << std::endl;
                     FAIL();
                 }
             }
@@ -59,6 +63,7 @@ TEST(GraphTiersSuite, cc_correctness_test) {
 }
 
 TEST(GraphTiersSuite, cc_speed_test) {
+omp_set_dynamic(1);    
     try {
 
         signal(SIGINT, print_metrics);
@@ -70,7 +75,7 @@ TEST(GraphTiersSuite, cc_speed_test) {
         for (int i = 0; i < edgecount; i++) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
-            unlikely_if (i % 100000 == 0) {
+            unlikely_if (i % 10000 == 0) {
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
                 std::cout << "Update " << i << ", Time:  " << duration.count() << std::endl;
