@@ -28,7 +28,7 @@ GraphTiers::GraphTiers(node_id_t num_nodes) :
 		ett_nodes.emplace_back();
 		ett_nodes[i].reserve(num_nodes);
 		for (node_id_t j = 0; j < num_nodes; j++) {
-			ett_nodes[i].emplace_back(seed, i);
+			ett_nodes[i].emplace_back(seed, j, i);
 		}
 	}
 }

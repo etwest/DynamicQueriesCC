@@ -3,8 +3,8 @@
 #include <euler_tour_tree.h>
 
 
-EulerTourTree::EulerTourTree(long seed, uint32_t tier) :
-    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed), tier(tier) {
+EulerTourTree::EulerTourTree(long seed, uint32_t vertex, uint32_t tier) :
+    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed), vertex(vertex), tier(tier) {
   // Initialize sentinel
   this->make_edge(nullptr);
   // Initialize sketch
@@ -28,7 +28,7 @@ EulerTourTree::EulerTourTree(Sketch* sketch, long seed) :
 SkipListNode* EulerTourTree::make_edge(EulerTourTree* other) {
   assert(!other || this->tier == other->tier);
   //Constructing a new SkipListNode with pointer to this ETT object
-  SkipListNode* node = new SkipListNode(this);
+  SkipListNode* node = SkipListNode::init_element(this);
   if (allowed_caller == nullptr) {
     allowed_caller = node;
     node->update_path_agg(this->sketch);

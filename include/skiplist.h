@@ -11,16 +11,16 @@ class SkipListNode {
   SkipListNode* left, *right, *up, *down;
   SkipListNode& get_parent();
 
-  Sketch* sketch_agg = nullptr;
+  Sketch* sketch_agg;
 
   uint32_t size = 1;
 
 public:
-  SkipListNode();
-  ~SkipListNode();
-  SkipListNode(EulerTourTree* node);
+  EulerTourTree* node;
 
-  EulerTourTree* node = nullptr;
+  SkipListNode(EulerTourTree* node, long seed);
+  ~SkipListNode();
+  static SkipListNode* init_element(EulerTourTree* node);
 
   uint32_t get_list_size();
   Sketch* get_list_aggregate();

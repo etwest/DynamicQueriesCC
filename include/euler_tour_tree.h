@@ -19,9 +19,10 @@ class EulerTourTree {
   void delete_edge(EulerTourTree* other);
 public:
 
+  uint32_t vertex = 0;
   uint32_t tier = 0;
 
-  EulerTourTree(long seed, uint32_t tier);
+  EulerTourTree(long seed, uint32_t vertex, uint32_t tier);
   EulerTourTree(long seed);
   EulerTourTree(Sketch* sketch, long seed);
   bool link(EulerTourTree& other);
