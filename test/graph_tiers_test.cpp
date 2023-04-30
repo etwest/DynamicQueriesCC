@@ -32,7 +32,7 @@ omp_set_dynamic(1);
     try {
 
         BinaryGraphStream stream("kron_13_stream_binary", 100000);
-        GraphTiers gt(stream.nodes());
+        GraphTiers gt(stream.nodes(), true);
         int edgecount = stream.edges();
         MatGraphVerifier gv(stream.nodes());
         start = std::chrono::high_resolution_clock::now();
@@ -62,13 +62,13 @@ omp_set_dynamic(1);
     }
 }
 
-TEST(GraphTiersSuite, cc_speed_test) {
+TEST(GraphTiersSuite, update_speed_test) {
 omp_set_dynamic(1);    
     try {
 
         signal(SIGINT, print_metrics);
         BinaryGraphStream stream("kron_13_stream_binary", 100000);
-        GraphTiers gt(stream.nodes());
+        GraphTiers gt(stream.nodes(), false);
         int edgecount = stream.edges();
         start = std::chrono::high_resolution_clock::now();
 
@@ -83,6 +83,45 @@ omp_set_dynamic(1);
         }
 
         print_metrics(0);
+
+    } catch (BadStreamException& e) {
+        std::cout << "ERROR: Stream binary file not found." << std::endl;
+    }
+}
+
+TEST(GraphTiersSuite, query_speed_test) {
+    omp_set_dynamic(1);    
+    try {
+        BinaryGraphStream stream("kron_13_stream_binary", 100000);
+        int nodecount = stream.nodes();
+        GraphTiers gt(nodecount, true);
+        int edgecount = 150000;
+
+        std::cout << "Building up graph..." <<  std::endl;
+        for (int i = 0; i < edgecount; i++) {
+            GraphUpdate update = stream.get_edge();
+            gt.update(update);
+        }
+
+        int querycount = 1000000;
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "Performing queries..." << std::endl;
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < querycount; i++) {
+            gt.is_connected(rand()%nodecount, rand()%nodecount);
+        }
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+        std::cout << querycount << " Connectivity Queries, Time:  " << duration.count() << std::endl;
+        start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < querycount/100; i++) {
+            gt.get_cc();
+        }
+        stop = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+        std::cout << querycount/100 << " Connected Components Queries, Time:  " << duration.count() << std::endl;
+
 
     } catch (BadStreamException& e) {
         std::cout << "ERROR: Stream binary file not found." << std::endl;
