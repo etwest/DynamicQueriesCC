@@ -30,7 +30,7 @@ private:
   bool use_parallelism;
 
 public:
-  GraphTiers(node_id_t num_nodes, bool use_parallelism=false);
+  GraphTiers(node_id_t num_nodes, bool use_parallelism);
   ~GraphTiers();
 
   // apply an edge update

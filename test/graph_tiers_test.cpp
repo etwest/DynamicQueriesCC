@@ -27,7 +27,42 @@ static void print_metrics(int signum) {
     exit(signum);
 }
 
-TEST(GraphTiersSuite, cc_correctness_test) {
+TEST(GraphTiersSuite, mini_correctness_test) {
+    node_id_t numnodes = 10;
+    GraphTiers gt(numnodes, false);
+    MatGraphVerifier gv(numnodes);
+
+    // Link all of the nodes into 1 connected component
+    for (node_id_t i = 0; i < numnodes-1; i++) {
+        gt.update({{i, i+1}, INSERT});
+        gv.edge_update(i,i+1);
+        std::vector<std::set<node_id_t>> cc = gt.get_cc();
+        try {
+            gv.reset_cc_state();
+            gv.verify_soln(cc);
+        } catch (IncorrectCCException& e) {
+            std::cout << "Incorrect cc found while linking nodes " << i << " and " << i+1 << std::endl;
+            std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << numnodes-i-1 << " components" << std::endl;
+            FAIL();
+        }
+    }
+    // One by one cut all of the nodes into singletons
+    for (node_id_t i = 0; i < numnodes-1; i++) {
+        gt.update({{i, i+1}, DELETE});
+        gv.edge_update(i,i+1);
+        std::vector<std::set<node_id_t>> cc = gt.get_cc();
+        try {
+            gv.reset_cc_state();
+            gv.verify_soln(cc);
+        } catch (IncorrectCCException& e) {
+            std::cout << "Incorrect cc found while cutting nodes " << i << " and " << i+1 << std::endl;
+            std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << i+2 << " components" << std::endl;
+            FAIL();
+        }
+    }
+}
+
+TEST(GraphTiersSuite, full_correctness_test) {
 omp_set_dynamic(1);    
     try {
 
@@ -42,14 +77,14 @@ omp_set_dynamic(1);
             gt.update(update);
             gv.edge_update(update.edge.src, update.edge.dst);
             unlikely_if(i%10000 == 0 || i == edgecount-1) {
-                gv.reset_cc_state();
                 std::vector<std::set<node_id_t>> cc = gt.get_cc();
                 try {
+                    gv.reset_cc_state();
                     gv.verify_soln(cc);
                     std::cout << "Update " << i << ", CCs correct." << std::endl;
                 } catch (IncorrectCCException& e) {
                     std::cout << "Incorrect connected components found at update "  << i << std::endl;
-		    std::cout << "GOT: " << cc.size() << std::endl;
+		            std::cout << "GOT: " << cc.size() << std::endl;
                     FAIL();
                 }
             }

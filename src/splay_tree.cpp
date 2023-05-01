@@ -7,10 +7,8 @@
 SplayTreeNode::SplayTreeNode(EulerTourTree* node) :
   sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())),
   node(node) {
-  Sketch::makeSketch((char*)sketch_agg.get(), node ? node->get_seed() : 0);
+  Sketch::makeSketch((char*)sketch_agg.get(), node->get_seed());
 }
-
-SplayTreeNode::SplayTreeNode() : SplayTreeNode(nullptr) {}
 
 SplayTreeNode::SplayTreeNode(EulerTourTree& node) : SplayTreeNode(&node) {}
 
@@ -55,6 +53,8 @@ void SplayTreeNode::splay() {
       this->rotate_up();
     }
   }
+  needs_rebuilding = true;
+  rebuild_one();
 }
 
 void SplayTreeNode::link_left(const Sptr& other) {
