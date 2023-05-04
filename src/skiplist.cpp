@@ -37,6 +37,44 @@ SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	return root->get_last();
 }
 
+SkipListNode* SkipListNode::get_parent() {
+	SkipListNode* curr = this;
+	while (curr && !curr->up) {
+		curr = curr->left;
+	}
+	return curr ? curr->up : nullptr;
+}
+
+SkipListNode* SkipListNode::get_root() {
+	SkipListNode* prev = nullptr;
+	SkipListNode* curr = this;
+	while (curr) {
+		prev = curr;
+		curr = prev->get_parent();
+	}
+	return prev;
+}
+
+SkipListNode* SkipListNode::get_first() {
+	SkipListNode* prev = nullptr;
+	SkipListNode* curr = this->get_root();
+	while (curr) {
+		prev = curr;
+		curr = prev->down;
+	}
+	return prev;
+}
+
+SkipListNode* SkipListNode::get_last() {
+	SkipListNode* prev = nullptr;
+	SkipListNode* curr = this->get_root();
+	while (curr) {
+		prev = curr;
+		curr = prev->right ? prev->right : prev->down;
+	}
+	return prev;
+}
+
 SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	assert(left && right);
 	SkipListNode* l_curr = left->get_last();
@@ -53,7 +91,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		l_prev = l_curr;
 		r_prev = r_curr;
 		l_curr = l_prev->get_parent();
-		r_curr = r_prev->get_parent();
+		r_curr = r_prev->up;
 	}
 	// If left list was taller add the root agg in right to the rest in left
 	while (l_curr) {
@@ -73,7 +111,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		if (r_prev) delete r_prev; // Delete old boundary nodes
 		l_prev = l_curr;
 		r_prev = r_curr;
-		r_curr = r_prev->get_parent();
+		r_curr = r_prev->up;
 	}
 	delete r_prev;
 	// Returns the root of the joined list
@@ -105,7 +143,7 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 			*new_bdry->sketch_agg += *r_curr->sketch_agg;
 			r_curr = r_curr->right;
 		}
-		r_curr = r_curr ? r_curr->up : r_curr;
+		r_curr = r_curr ? r_curr->up : nullptr;
 		new_bdry->down = bdry;
 		bdry->up = new_bdry;
 		bdry = new_bdry;
@@ -122,7 +160,7 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	while (l_prev && (!l_curr || !l_curr->right)) {
 		delete l_prev;
 		l_prev = l_curr;
-		l_curr = l_prev ? l_prev->down : l_prev;
+		l_curr = l_prev ? l_prev->down : nullptr;
 	}
 	if (l_curr) l_curr->up = nullptr;
 	// Returns the root of left list
