@@ -4,7 +4,6 @@
 #include "sketch.h"
 
 class EulerTourTree;
-class SkipList;
 
 class SkipListNode {
 

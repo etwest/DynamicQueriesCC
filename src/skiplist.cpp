@@ -75,6 +75,24 @@ SkipListNode* SkipListNode::get_last() {
 	return prev;
 }
 
+uint32_t SkipListNode::get_list_size() {
+	return this->get_root()->size;
+}
+
+Sketch* SkipListNode::get_list_aggregate() {
+	return this->get_root()->sketch_agg;
+}
+
+void SkipListNode::update_path_agg(vec_t update_idx) {
+	SkipListNode* curr = this;
+	while (curr) curr->sketch_agg->update(update_idx);
+}
+
+void SkipListNode::update_path_agg(Sketch* sketch) {
+	SkipListNode* curr = this;
+	while (curr) *curr->sketch_agg += *sketch;
+}
+
 SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	assert(left && right);
 	SkipListNode* l_curr = left->get_last();
@@ -165,4 +183,11 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	if (l_curr) l_curr->up = nullptr;
 	// Returns the root of left list
 	return l_prev;
+}
+
+SkipListNode* SkipListNode::split_right(SkipListNode* node) {
+	assert(node);
+	SkipListNode* right = node->right;
+	SkipListNode::split_left(right);
+	return right->get_root();
 }

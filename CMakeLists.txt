@@ -49,6 +49,8 @@ add_executable(dynamicCC_tests
   src/graph_tiers.cpp
 
   src/sketch.cpp
+
+  src/skiplist.cpp
 )
 
 target_include_directories(dynamicCC_tests PUBLIC include)
