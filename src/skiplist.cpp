@@ -6,19 +6,23 @@
 
 
 SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
-	sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())),
- 	node(node) {
+	sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())), node(node) {
  	Sketch::makeSketch((char*)sketch_agg, seed);
  }
 
+ SkipListNode::~SkipListNode() {
+ 	delete sketch_agg;
+ }
+
 SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
-	uint64_t element_height = __builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), node->get_seed()))+1;
+	long seed = node->get_seed();
+	uint64_t element_height = __builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), seed))+1;
 	SkipListNode* list_node, *bdry_node, *list_prev, *bdry_prev;
 	list_node = bdry_node = list_prev = bdry_prev = nullptr;
 	// Add skiplist and boundary nodes up to the random height
 	for (uint64_t i = 0; i < element_height; i++) {
-		list_node = new SkipListNode(node, node->get_seed());
-		bdry_node = new SkipListNode(nullptr, node->get_seed());
+		list_node = new SkipListNode(node, seed);
+		bdry_node = new SkipListNode(nullptr, seed);
 		list_node->left = bdry_node;
 		bdry_node->right = list_node;
 		if (list_prev) {
@@ -29,11 +33,14 @@ SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 			bdry_node->down = bdry_prev;
 			bdry_prev->up = bdry_node;
 		}
+		list_prev = list_node;
+		bdry_prev = bdry_node;
 	}
 	// Add one more boundary node at height+1
-	SkipListNode* root = new SkipListNode(nullptr, node->get_seed());
+	SkipListNode* root = new SkipListNode(nullptr, seed);
 	root->down = bdry_prev;
 	bdry_prev->up = root;
+	assert(root->get_root()->right == nullptr);
 	return root->get_last();
 }
 
@@ -85,19 +92,41 @@ Sketch* SkipListNode::get_list_aggregate() {
 
 void SkipListNode::update_path_agg(vec_t update_idx) {
 	SkipListNode* curr = this;
-	while (curr) curr->sketch_agg->update(update_idx);
+	while (curr) {
+		curr->sketch_agg->update(update_idx);
+		curr = curr->get_parent();
+	}
 }
 
 void SkipListNode::update_path_agg(Sketch* sketch) {
 	SkipListNode* curr = this;
-	while (curr) *curr->sketch_agg += *sketch;
+	while (curr) {
+		*curr->sketch_agg += *sketch;
+		curr = curr->get_parent();
+	}
+}
+
+SkipListNode* SkipListNode::next() {
+	return this->right;
+}
+
+std::set<EulerTourTree*> SkipListNode::get_component() {
+	std::set<EulerTourTree*> nodes;
+	SkipListNode* curr = this->get_first();
+	while (curr) {
+		nodes.insert(curr->node);
+		curr = curr->right;
+	}
+	return nodes;
 }
 
 SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
-	assert(left && right);
+	assert(left || right);
+	if (!left) return right->get_root();
+	if (!right) return left->get_root();
+	long seed = left->sketch_agg->get_seed();
 	SkipListNode* l_curr = left->get_last();
 	SkipListNode* r_curr = right->get_first();
-	long seed = l_curr->node->get_seed();
 	SkipListNode* l_prev = nullptr;
 	SkipListNode* r_prev = nullptr;
 	// Go up levels. link pointers, add aggregates
@@ -133,11 +162,17 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	}
 	delete r_prev;
 	// Returns the root of the joined list
+	assert(l_prev->get_root()->right == nullptr);
 	return l_prev;
 }
 
 SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	assert(node && node->left && !node->down);
+	assert(node->get_root()->right == nullptr);
+	// If just splitting off the boundary nodes do nothing instead
+	if (!node->left->left) {
+		return nullptr;
+	}
 	long seed = node->node->get_seed();
 	// Construct new boundary nodes with correct aggregates for the right component
 	// New aggs will be sum of all aggs on each level in the right path
@@ -147,7 +182,6 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	SkipListNode* l_curr = node->left;
 	SkipListNode* bdry = new SkipListNode(nullptr, seed);
 	SkipListNode* new_bdry;
-	bool at_left_boundary = false;
 	while (r_curr) {
 		r_curr->left = bdry;
 		bdry->right = r_curr;
@@ -167,7 +201,7 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 		bdry = new_bdry;
 	}
 	// Subtract the final right agg from the rest of the aggs on left path
-	SkipListNode* l_prev;
+	SkipListNode* l_prev = nullptr;
 	while (l_curr) {
 		*l_curr->sketch_agg += *bdry->sketch_agg; // XOR addition same as subtraction
 		l_prev  = l_curr;
@@ -175,13 +209,15 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	}
 	// Trim extra boundary nodes on the left list
 	l_curr = l_prev->down;
-	while (l_prev && (!l_curr || !l_curr->right)) {
+	while (!l_curr->right) {
 		delete l_prev;
 		l_prev = l_curr;
-		l_curr = l_prev ? l_prev->down : nullptr;
+		l_curr = l_prev->down;
 	}
-	if (l_curr) l_curr->up = nullptr;
+	l_curr->up = nullptr;
 	// Returns the root of left list
+	assert(l_prev->get_root()->right == nullptr);
+	assert(bdry->get_root()->right == nullptr);
 	return l_prev;
 }
 
@@ -190,4 +226,21 @@ SkipListNode* SkipListNode::split_right(SkipListNode* node) {
 	SkipListNode* right = node->right;
 	SkipListNode::split_left(right);
 	return right->get_root();
+}
+
+bool SkipListNode::isvalid() {
+	bool valid = true;
+	if (this->up && this->up->down != this) {
+		valid = false;
+	}
+	if (this->down && this->down->up != this) {
+		valid = false;
+	}
+	if (this->left && this->left->right != this) {
+		valid = false;
+	}
+	if (this->right && this->right->left != this) {
+		valid = false;
+	}
+	return valid;
 }

@@ -7,7 +7,10 @@ class EulerTourTree;
 
 class SkipListNode {
 
-  SkipListNode* left, *right, *up, *down;
+  SkipListNode* left = nullptr;
+  SkipListNode* right = nullptr;
+  SkipListNode* up = nullptr;
+  SkipListNode* down = nullptr;
 
   Sketch* sketch_agg;
 
@@ -30,16 +33,16 @@ public:
   void update_path_agg(vec_t update_idx);
   void update_path_agg(Sketch* sketch);
 
-  std::set<EulerTourTree*> get_component();
-
-  bool isvalid();
   SkipListNode* next();
+  std::set<EulerTourTree*> get_component();
 
   static SkipListNode* join(SkipListNode* left, SkipListNode* right);
   template <typename... T>
   static SkipListNode* join(SkipListNode* head, T*... tail);
   static SkipListNode* split_left(SkipListNode* node);
   static SkipListNode* split_right(SkipListNode* node);
+
+  bool isvalid();
 };
 
 template <typename... T>

@@ -5,18 +5,18 @@
 
 EulerTourTree::EulerTourTree(long seed, node_id_t vertex, uint32_t tier) :
     sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed), vertex(vertex), tier(tier) {
-  // Initialize sentinel
-  this->make_edge(nullptr);
   // Initialize sketch
   Sketch::makeSketch((char*)sketch, seed);
+  // Initialize sentinel
+  this->make_edge(nullptr);
 }
 
 EulerTourTree::EulerTourTree(long seed) :
     sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed) {
-  // Initialize sentinel
-  this->make_edge(nullptr);
   // Initialize sketch
   Sketch::makeSketch((char*)sketch, seed);
+  // Initialize sentinel
+  this->make_edge(nullptr);
 }
 
 EulerTourTree::EulerTourTree(Sketch* sketch, long seed) :

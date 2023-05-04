@@ -72,6 +72,7 @@ TEST(EulerTourTreeSuite, stress_test) {
   int n = 100000;
 
   int seed = time(NULL);
+  srand(seed);
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
 
