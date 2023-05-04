@@ -16,14 +16,14 @@ class EulerTourTree {
   std::unique_ptr<Sketch> sketch = nullptr;
   long seed = 0;
 
-  //TODO: implement these
   Sptr make_edge(EulerTourTree* other);
   void delete_edge(EulerTourTree* other);
 public:
 
+  node_id_t vertex = 0;
   uint32_t tier = 0;
 
-  EulerTourTree(long seed, uint32_t tier);
+  EulerTourTree(long seed, node_id_t vertex, uint32_t tier);
   EulerTourTree(long seed);
   EulerTourTree(Sketch* sketch, long seed);
   bool link(EulerTourTree& other);

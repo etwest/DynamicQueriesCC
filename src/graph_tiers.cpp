@@ -32,7 +32,7 @@ GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
 		ett_nodes.emplace_back();
 		ett_nodes[i].reserve(num_nodes);
 		for (node_id_t j = 0; j < num_nodes; j++) {
-			ett_nodes[i].emplace_back(seed, i);
+			ett_nodes[i].emplace_back(seed, j, i);
 		}
 	}
 }
@@ -41,7 +41,7 @@ GraphTiers::~GraphTiers() {}
 
 void GraphTiers::update(GraphUpdate update) {
 	START(su);
-	edge_id_t edge = (((edge_id_t)update.edge.src)<<32) + ((edge_id_t)update.edge.dst);
+	edge_id_t edge = vertices_to_edge(update.edge.src, update.edge.dst);
 	// Update the sketches of both endpoints of the edge in all tiers
 	if (update.type == DELETE && ett_nodes[ett_nodes.size()-1][update.edge.src].has_edge_to(&ett_nodes[ett_nodes.size()-1][update.edge.dst])) {
 		link_cut_tree.cut(update.edge.src, update.edge.dst);
@@ -138,7 +138,7 @@ std::vector<std::set<node_id_t>> GraphTiers::get_cc() {
 			std::set<EulerTourTree*> pointer_component = ett_nodes[top][i].get_component();
 			std::set<node_id_t> component;
 			for (auto pointer : pointer_component) {
-				component.insert(pointer-&ett_nodes[top][0]);
+				component.insert(pointer->vertex);
 				visited.insert(pointer);
 			}
 			cc.push_back(component);
