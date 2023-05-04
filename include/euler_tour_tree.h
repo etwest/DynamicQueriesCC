@@ -19,7 +19,7 @@ class EulerTourTree {
   void delete_edge(EulerTourTree* other);
 public:
 
-  uint32_t vertex = 0;
+  node_id_t vertex = 0;
   uint32_t tier = 0;
 
   EulerTourTree(long seed, uint32_t vertex, uint32_t tier);

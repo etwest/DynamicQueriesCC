@@ -3,7 +3,7 @@
 #include <euler_tour_tree.h>
 
 
-EulerTourTree::EulerTourTree(long seed, uint32_t vertex, uint32_t tier) :
+EulerTourTree::EulerTourTree(long seed, node_id_t vertex, uint32_t tier) :
     sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed), vertex(vertex), tier(tier) {
   // Initialize sentinel
   this->make_edge(nullptr);
