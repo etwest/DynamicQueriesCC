@@ -184,7 +184,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   free(cc_sketch_space);
   for (auto size: sizes) {
     // Euler tour has length 2n-1
-    ASSERT_EQ(size.second, 2*naive_sizes[size.first]-1);
+    ASSERT_EQ(size.second-1, 2*naive_sizes[size.first]-1);
   }
 }
 

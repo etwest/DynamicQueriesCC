@@ -16,6 +16,7 @@ SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
 
 SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	long seed = node->get_seed();
+	// NOTE: WE SHOULD MAKE IT SO DIFFERENT SKIPLIST NODES FOR THE SAME ELEMENT CAN BE DIFFERENT HEIGHTS
 	uint64_t element_height = __builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), seed))+1;
 	SkipListNode* list_node, *bdry_node, *list_prev, *bdry_prev;
 	list_node = bdry_node = list_prev = bdry_prev = nullptr;
@@ -40,7 +41,7 @@ SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	SkipListNode* root = new SkipListNode(nullptr, seed);
 	root->down = bdry_prev;
 	bdry_prev->up = root;
-	assert(root->get_root()->right == nullptr);
+	root->size = 2;
 	return root->get_last();
 }
 
@@ -130,6 +131,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		l_curr->right = r_curr->right;
 		if (r_curr->right) r_curr->right->left = l_curr;
 		*l_curr->sketch_agg += *r_curr->sketch_agg;
+		l_curr->size += r_curr->size-1;
 		if (r_prev) delete r_prev; // Delete old boundary nodes
 		l_prev = l_curr;
 		r_prev = r_curr;
@@ -139,6 +141,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	// If left list was taller add the root agg in right to the rest in left
 	while (l_curr) {
 		*l_curr->sketch_agg += *r_prev->sketch_agg;
+		l_curr->size += r_prev->size-1;
 		l_prev = l_curr;
 		l_curr = l_prev->get_parent();
 	}
@@ -150,7 +153,9 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		l_curr->right = r_curr->right;
 		if (r_curr->right) r_curr->right->left = l_curr;
 		*l_curr->sketch_agg += *l_prev->sketch_agg;
+		l_curr->size = l_prev->size;
 		*l_curr->sketch_agg += *r_curr->sketch_agg;
+		l_curr->size += r_curr->size-1;
 		if (r_prev) delete r_prev; // Delete old boundary nodes
 		l_prev = l_curr;
 		r_prev = r_curr;
@@ -158,13 +163,11 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	}
 	delete r_prev;
 	// Returns the root of the joined list
-	assert(l_prev->get_root()->right == nullptr);
 	return l_prev;
 }
 
 SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	assert(node && node->left && !node->down);
-	assert(node->get_root()->right == nullptr);
 	// If just splitting off the boundary nodes do nothing instead
 	if (!node->left->left) {
 		return nullptr;
@@ -183,12 +186,15 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 		bdry->right = r_curr;
 		l_curr->right = nullptr;
 		*l_curr->sketch_agg += *bdry->sketch_agg; // XOR addition same as subtraction
+		l_curr->size -= bdry->size-1;
 		// Get next l_curr, r_curr, and bdry
 		l_curr = l_curr->get_parent();
 		new_bdry = new SkipListNode(nullptr, seed);
 		*new_bdry->sketch_agg += *bdry->sketch_agg;
+		new_bdry->size = bdry->size;
 		while (r_curr && !r_curr->up) {
 			*new_bdry->sketch_agg += *r_curr->sketch_agg;
+			new_bdry->size += r_curr->size;
 			r_curr = r_curr->right;
 		}
 		r_curr = r_curr ? r_curr->up : nullptr;
@@ -200,6 +206,7 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	SkipListNode* l_prev = nullptr;
 	while (l_curr) {
 		*l_curr->sketch_agg += *bdry->sketch_agg; // XOR addition same as subtraction
+		l_curr->size -= bdry->size-1;
 		l_prev  = l_curr;
 		l_curr = l_curr->get_parent();
 	}
@@ -212,8 +219,6 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	}
 	l_prev->up = nullptr;
 	// Returns the root of left list
-	assert(l_prev->get_root()->right == nullptr);
-	assert(bdry->get_root()->right == nullptr);
 	return l_prev;
 }
 
