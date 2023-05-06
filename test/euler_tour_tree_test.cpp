@@ -21,11 +21,6 @@ bool EulerTourTree::isvalid() const {
     // validate node itself
     EXPECT_TRUE(v->isvalid()) << (invalid = true, "");
     if (invalid) return false;
-    if (k != nullptr) {
-      // node is not sentinel, expect next to be valid
-      EXPECT_EQ(v->next()->node, k) << (invalid = true, "");
-      if (invalid) return false;
-    }
     // check allowed_caller
     if (v == allowed_caller) {
       // make sure there's only one allowed
@@ -78,7 +73,7 @@ TEST(EulerTourTreeSuite, stress_test) {
 
   for (int i = 0; i < nodecount; i++)
   {
-    nodes.emplace_back(seed);
+    nodes.emplace_back(seed, rand(), 0);
   }
 
   std::cout << "Seeding stress test with " << seed << std::endl;

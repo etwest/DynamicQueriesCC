@@ -7,6 +7,7 @@
 class EulerTourTree {
   FRIEND_TEST(EulerTourTreeSuite, random_links_and_cuts);
   FRIEND_TEST(EulerTourTreeSuite, get_aggregate);
+  FRIEND_TEST(SkipListSuite, join_split_test);
   
   std::unordered_map<EulerTourTree*, SkipListNode*> edges;
 

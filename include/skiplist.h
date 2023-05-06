@@ -33,7 +33,6 @@ public:
   void update_path_agg(vec_t update_idx);
   void update_path_agg(Sketch* sketch);
 
-  SkipListNode* next();
   std::set<EulerTourTree*> get_component();
 
   static SkipListNode* join(SkipListNode* left, SkipListNode* right);

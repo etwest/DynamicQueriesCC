@@ -106,10 +106,6 @@ void SkipListNode::update_path_agg(Sketch* sketch) {
 	}
 }
 
-SkipListNode* SkipListNode::next() {
-	return this->right;
-}
-
 std::set<EulerTourTree*> SkipListNode::get_component() {
 	std::set<EulerTourTree*> nodes;
 	SkipListNode* curr = this->get_first();
@@ -214,7 +210,7 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 		l_prev = l_curr;
 		l_curr = l_prev->down;
 	}
-	l_curr->up = nullptr;
+	l_prev->up = nullptr;
 	// Returns the root of left list
 	assert(l_prev->get_root()->right == nullptr);
 	assert(bdry->get_root()->right == nullptr);
@@ -224,23 +220,7 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 SkipListNode* SkipListNode::split_right(SkipListNode* node) {
 	assert(node);
 	SkipListNode* right = node->right;
+	if (!right) return nullptr;
 	SkipListNode::split_left(right);
 	return right->get_root();
-}
-
-bool SkipListNode::isvalid() {
-	bool valid = true;
-	if (this->up && this->up->down != this) {
-		valid = false;
-	}
-	if (this->down && this->down->up != this) {
-		valid = false;
-	}
-	if (this->left && this->left->right != this) {
-		valid = false;
-	}
-	if (this->right && this->right->left != this) {
-		valid = false;
-	}
-	return valid;
 }

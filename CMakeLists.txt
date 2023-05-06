@@ -38,9 +38,12 @@ FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
 
 add_executable(dynamicCC_tests
   test/test_runner.cpp
+  test/skiplist_test.cpp
   test/euler_tour_tree_test.cpp
   test/link_cut_tree_test.cpp
   test/graph_tiers_test.cpp
+
+  src/skiplist.cpp
 
   src/euler_tour_tree.cpp
 
@@ -49,8 +52,6 @@ add_executable(dynamicCC_tests
   src/graph_tiers.cpp
 
   src/sketch.cpp
-
-  src/skiplist.cpp
 )
 
 target_include_directories(dynamicCC_tests PUBLIC include)
