@@ -14,6 +14,23 @@ SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
  	delete sketch_agg;
  }
 
+ void SkipListNode::uninit_element() {
+	SkipListNode* list_curr = this;
+	SkipListNode* list_prev;
+	SkipListNode* bdry_curr = this->left;
+	SkipListNode* bdry_prev;
+	while (list_curr) {
+		list_prev = list_curr;
+		list_curr = list_prev->up;
+		delete list_prev;
+	}
+	while (bdry_curr) {
+		bdry_prev = bdry_curr;
+		bdry_curr = bdry_prev->up;
+		delete bdry_prev;
+	}
+ }
+
 SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	long seed = node->get_seed();
 	// NOTE: WE SHOULD MAKE IT SO DIFFERENT SKIPLIST NODES FOR THE SAME ELEMENT CAN BE DIFFERENT HEIGHTS
@@ -109,7 +126,7 @@ void SkipListNode::update_path_agg(Sketch* sketch) {
 
 std::set<EulerTourTree*> SkipListNode::get_component() {
 	std::set<EulerTourTree*> nodes;
-	SkipListNode* curr = this->get_first();
+	SkipListNode* curr = this->get_first()->right;
 	while (curr) {
 		nodes.insert(curr->node);
 		curr = curr->right;
@@ -153,6 +170,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		l_curr->right = r_curr->right;
 		if (r_curr->right) r_curr->right->left = l_curr;
 		*l_curr->sketch_agg += *l_prev->sketch_agg;
+		*l_curr->sketch_agg += *r_prev->sketch_agg; // Avoid double adding entire right list
 		l_curr->size = l_prev->size;
 		*l_curr->sketch_agg += *r_curr->sketch_agg;
 		l_curr->size += r_curr->size-1;

@@ -41,6 +41,7 @@ SkipListNode* EulerTourTree::make_edge(EulerTourTree* other) {
 void EulerTourTree::delete_edge(EulerTourTree* other) {
   assert(!other || this->tier == other->tier);
   bool deleting_allowed = this->edges[other] == allowed_caller;
+  this->edges[other]->uninit_element();
   this->edges.erase(other);
   if (deleting_allowed) {
     if (this->edges.empty()) {

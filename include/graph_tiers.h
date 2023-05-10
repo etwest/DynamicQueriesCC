@@ -22,6 +22,7 @@ extern long tiers_grown;
 // maintains the tiers of the algorithm
 // and the spanning forest of the entire graph
 class GraphTiers {
+  FRIEND_TEST(GraphTiersSuite, mini_correctness_test);
 private:
   std::vector<std::vector<EulerTourTree>> ett_nodes;  // for each tier, for each node
   LinkCutTree link_cut_tree;

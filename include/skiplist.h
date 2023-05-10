@@ -22,6 +22,7 @@ public:
   SkipListNode(EulerTourTree* node, long seed);
   ~SkipListNode();
   static SkipListNode* init_element(EulerTourTree* node);
+  void uninit_element();
 
   SkipListNode* get_parent();
   SkipListNode* get_root();
@@ -42,6 +43,7 @@ public:
   static SkipListNode* split_right(SkipListNode* node);
 
   bool isvalid();
+  int print_list();
 };
 
 template <typename... T>
