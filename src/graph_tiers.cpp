@@ -18,7 +18,7 @@ edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
 GraphTiers::GraphTiers(node_id_t num_nodes) :
 	link_cut_tree(num_nodes) {
 	// Algorithm parameters
-	vec_t sketch_len = num_nodes*num_nodes;
+	vec_t sketch_len = (num_nodes*num_nodes);
 	vec_t sketch_err = 10;
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 	int seed = time(NULL);

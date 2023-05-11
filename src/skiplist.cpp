@@ -11,7 +11,7 @@ SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
  }
 
  SkipListNode::~SkipListNode() {
- 	delete sketch_agg;
+ 	::operator delete(sketch_agg, Sketch::sketchSizeof());
  }
 
  void SkipListNode::uninit_element() {
@@ -138,23 +138,30 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	assert(left || right);
 	if (!left) return right->get_root();
 	if (!right) return left->get_root();
+
 	long seed = left->sketch_agg->get_seed();
+	assert(seed == right->sketch_agg->get_seed());
+
 	SkipListNode* l_curr = left->get_last();
-	SkipListNode* r_curr = right->get_first();
+	SkipListNode* r_curr = right->get_first(); // this is the bottom boundary node
 	SkipListNode* l_prev = nullptr;
 	SkipListNode* r_prev = nullptr;
+	
 	// Go up levels. link pointers, add aggregates
 	while (l_curr && r_curr) {
-		l_curr->right = r_curr->right;
-		if (r_curr->right) r_curr->right->left = l_curr;
+		// Fix right pointer and add agg
+		l_curr->right = r_curr->right; // skip over boundary node
+		if (r_curr->right) r_curr->right->left = l_curr; // skip over boundary node, but to the left
 		*l_curr->sketch_agg += *r_curr->sketch_agg;
 		l_curr->size += r_curr->size-1;
+
 		if (r_prev) delete r_prev; // Delete old boundary nodes
 		l_prev = l_curr;
 		r_prev = r_curr;
 		l_curr = l_prev->get_parent();
 		r_curr = r_prev->up;
 	}
+
 	// If left list was taller add the root agg in right to the rest in left
 	while (l_curr) {
 		*l_curr->sketch_agg += *r_prev->sketch_agg;
@@ -162,6 +169,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		l_prev = l_curr;
 		l_curr = l_prev->get_parent();
 	}
+
 	// If right list was taller add new boundary nodes to left list
 	while (r_curr) {
 		l_curr = new SkipListNode(nullptr, seed);
@@ -169,11 +177,13 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		l_prev->up = l_curr;
 		l_curr->right = r_curr->right;
 		if (r_curr->right) r_curr->right->left = l_curr;
+
 		*l_curr->sketch_agg += *l_prev->sketch_agg;
 		*l_curr->sketch_agg += *r_prev->sketch_agg; // Avoid double adding entire right list
-		l_curr->size = l_prev->size;
+		l_curr->size = l_prev->size - (r_prev->size-1);
 		*l_curr->sketch_agg += *r_curr->sketch_agg;
 		l_curr->size += r_curr->size-1;
+
 		if (r_prev) delete r_prev; // Delete old boundary nodes
 		l_prev = l_curr;
 		r_prev = r_curr;
@@ -246,4 +256,8 @@ SkipListNode* SkipListNode::split_right(SkipListNode* node) {
 	if (!right) return nullptr;
 	SkipListNode::split_left(right);
 	return right->get_root();
+}
+
+SkipListNode* SkipListNode::next() {
+	return this->right;
 }

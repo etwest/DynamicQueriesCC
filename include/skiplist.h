@@ -43,6 +43,7 @@ public:
   static SkipListNode* split_right(SkipListNode* node);
 
   bool isvalid();
+  SkipListNode* next();
   int print_list();
 };
 

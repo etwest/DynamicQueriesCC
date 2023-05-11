@@ -35,6 +35,10 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
 
+#add_compile_options(-fsanitize=address)
+#add_link_options(-fsanitize=address)
+#add_compile_options(-fsanitize=undefined)
+#add_link_options(-fsanitize=undefined)
 
 add_executable(dynamicCC_tests
   test/test_runner.cpp

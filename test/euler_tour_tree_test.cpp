@@ -21,6 +21,15 @@ bool EulerTourTree::isvalid() const {
     // validate node itself
     EXPECT_TRUE(v->isvalid()) << (invalid = true, "");
     if (invalid) return false;
+    if (k == nullptr) {
+      // node is sentinel, expect next to be null
+      EXPECT_EQ(v->next(), nullptr) << (invalid = true, "");
+      if (invalid) return false;
+    } else {
+      // node is not sentinel, expect next to be valid
+      EXPECT_EQ(v->next()->node, k) << (invalid = true, "");
+      if (invalid) return false;
+    }
     // check allowed_caller
     if (v == allowed_caller) {
       // make sure there's only one allowed

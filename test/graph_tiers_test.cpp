@@ -60,6 +60,53 @@ TEST(GraphTiersSuite, mini_correctness_test) {
     }
 }
 
+TEST(GraphTiersSuite, deletion_replace_correctness_test) {
+    node_id_t numnodes = 100;
+    GraphTiers gt(numnodes);
+    MatGraphVerifier gv(numnodes);
+
+    // Link all of the nodes into 1 connected component
+    for (node_id_t i = 0; i < numnodes-1; i++) {
+        gt.update({{i, i+1}, INSERT});
+        gv.edge_update(i,i+1);
+        std::vector<std::set<node_id_t>> cc = gt.get_cc();
+        try {
+            gv.reset_cc_state();
+            gv.verify_soln(cc);
+        } catch (IncorrectCCException& e) {
+            std::cout << "Incorrect cc found after linking nodes " << i << " and " << i+1 << std::endl;
+            std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << numnodes-i-1 << " components" << std::endl;
+            FAIL();
+        }
+    }
+    // Generate a random bridge
+    node_id_t first = rand() % numnodes;
+    node_id_t second = rand() % numnodes;
+    while(first == second || second == first+1 || first == second+1)
+        second = rand() % numnodes;
+
+    gt.update({{first, second}, INSERT});
+    gv.edge_update(first, second);
+
+    node_id_t distance = std::max(first, second) - std::min(first, second);
+    // Cut a random edge
+    first = std::min(first, second) + rand() % (distance-1);
+
+    gt.update({{first, first+1}, DELETE});
+    gv.edge_update(first, first+1);
+
+    std::vector<std::set<node_id_t>> cc = gt.get_cc();
+    try {
+        gv.reset_cc_state();
+        gv.verify_soln(cc);
+    } catch (IncorrectCCException& e) {
+        std::cout << "Incorrect cc found after cutting nodes " << first << " and " << first+1 << std::endl;
+        std::cout << "GOT: " << cc.size() << " components, EXPECTED: 1 components" << std::endl;
+        FAIL();
+    }
+
+}
+
 TEST(GraphTiersSuite, full_correctness_test) {
     try {
 
