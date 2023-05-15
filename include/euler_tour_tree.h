@@ -13,13 +13,17 @@ class EulerTourTree {
   
 
   SplayTreeNode* allowed_caller = nullptr;
-  long seed = 0;
   std::unique_ptr<Sketch> sketch = nullptr;
+  long seed = 0;
 
-  //TODO: implement these
   Sptr make_edge(EulerTourTree* other);
   void delete_edge(EulerTourTree* other);
 public:
+
+  node_id_t vertex = 0;
+  uint32_t tier = 0;
+
+  EulerTourTree(long seed, node_id_t vertex, uint32_t tier);
   EulerTourTree(long seed);
   EulerTourTree(Sketch* sketch, long seed);
   bool link(EulerTourTree& other);
@@ -29,7 +33,12 @@ public:
 
   Sketch* get_sketch(SplayTreeNode* caller);
   void update_sketch(vec_t update_idx);
+
   std::shared_ptr<Sketch> get_aggregate();
+  uint32_t get_size();
+  bool has_edge_to(EulerTourTree* other);
+
+  std::set<EulerTourTree*> get_component();
 
   long get_seed() {return seed;};
 
