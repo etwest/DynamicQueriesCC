@@ -25,6 +25,18 @@ else()
   message("${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
 endif()
 
+######
+# Get MPI for distributed communication
+######
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+add_definitions(-DOMPI_SKIP_MPICXX)
+if(MPI_CXX_FOUND)
+       message("Found MPI_CXX")
+endif()
+
+
+
 # Install GraphZeppelin Project
 FetchContent_Declare(
   GraphZeppelinVerifyCC
@@ -58,6 +70,19 @@ add_executable(dynamicCC_tests
   src/sketch.cpp
 )
 
-target_include_directories(dynamicCC_tests PUBLIC include)
+target_include_directories(dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
 add_dependencies(dynamicCC_tests GraphZeppelinVerifyCC)
-target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelinVerifyCC)
+target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelinVerifyCC ${MPI_LIBRARIES})
+
+#######
+# TODO: Is MPI INCLUDE PATH necessary?
+if(MPI_COMPILE_FLAGS)
+  set_target_properties(dynamicCC_tests PROPERTIES
+    COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties(dynamicCC_tests PROPERTIES
+    LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+#######

@@ -1,6 +1,12 @@
+
+#include <mpi.h>
 #include <gtest/gtest.h>
 
 int main(int argc, char** argv) {
+  MPI_Init(&argc, &argv);
   testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  int ret = RUN_ALL_TESTS(); 
+  MPI_Finalize();
+  return ret; 
 }
+
