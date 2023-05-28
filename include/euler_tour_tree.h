@@ -16,11 +16,10 @@ class EulerTourTree {
   Sketch* sketch = nullptr;
   long seed = 0;
 
-  //TODO: implement these
   SkipListNode* make_edge(EulerTourTree* other);
   void delete_edge(EulerTourTree* other);
-public:
 
+public:
   const node_id_t vertex = 0;
   const uint32_t tier = 0;
 

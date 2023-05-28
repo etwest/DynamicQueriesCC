@@ -7,8 +7,6 @@
 #include "link_cut_tree.h"
 
 // Global variables for performance testing
-#ifndef TIME_VARIABLES
-#define TIME_VARIABLES
 extern long lct_time;
 extern long ett_time;
 extern long ett_find_root;
@@ -17,7 +15,6 @@ extern long sketch_query;
 extern long sketch_time;
 extern long refresh_time;
 extern long tiers_grown;
-#endif
 
 // maintains the tiers of the algorithm
 // and the spanning forest of the entire graph
@@ -28,8 +25,10 @@ private:
   LinkCutTree link_cut_tree;
   void refresh(GraphUpdate update);
 
+  bool use_parallelism;
+
 public:
-  GraphTiers(node_id_t num_nodes);
+  GraphTiers(node_id_t num_nodes, bool use_parallelism);
   ~GraphTiers();
 
   // apply an edge update

@@ -1,9 +1,11 @@
+
 #include <gtest/gtest.h>
 #include <chrono>
 #include <signal.h>
 #include "graph_tiers.h"
 #include "binary_graph_stream.h"
 #include "mat_graph_verifier.h"
+#include <omp.h>
 
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
@@ -27,7 +29,7 @@ static void print_metrics(int signum) {
 
 TEST(GraphTiersSuite, mini_correctness_test) {
     node_id_t numnodes = 10;
-    GraphTiers gt(numnodes);
+    GraphTiers gt(numnodes, false);
     MatGraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -62,7 +64,7 @@ TEST(GraphTiersSuite, mini_correctness_test) {
 
 TEST(GraphTiersSuite, deletion_replace_correctness_test) {
     node_id_t numnodes = 100;
-    GraphTiers gt(numnodes);
+    GraphTiers gt(numnodes, false);
     MatGraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -108,10 +110,11 @@ TEST(GraphTiersSuite, deletion_replace_correctness_test) {
 }
 
 TEST(GraphTiersSuite, full_correctness_test) {
+    omp_set_dynamic(1);
     try {
 
         BinaryGraphStream stream("kron_13_stream_binary", 100000);
-        GraphTiers gt(stream.nodes());
+        GraphTiers gt(stream.nodes(), true);
         int edgecount = stream.edges();
         MatGraphVerifier gv(stream.nodes());
         start = std::chrono::high_resolution_clock::now();
@@ -142,18 +145,19 @@ TEST(GraphTiersSuite, full_correctness_test) {
 }
 
 TEST(GraphTiersSuite, update_speed_test) {
+    omp_set_dynamic(1);    
     try {
 
         signal(SIGINT, print_metrics);
         BinaryGraphStream stream("kron_13_stream_binary", 100000);
-        GraphTiers gt(stream.nodes());
+        GraphTiers gt(stream.nodes(), true);
         int edgecount = stream.edges();
         start = std::chrono::high_resolution_clock::now();
 
         for (int i = 0; i < edgecount; i++) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
-            unlikely_if (i % 100000 == 0) {
+            unlikely_if (i % 10000 == 0) {
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
                 std::cout << "Update " << i << ", Time:  " << duration.count() << std::endl;
@@ -168,10 +172,12 @@ TEST(GraphTiersSuite, update_speed_test) {
 }
 
 TEST(GraphTiersSuite, query_speed_test) {
+    omp_set_dynamic(1);    
     try {
+
         BinaryGraphStream stream("kron_13_stream_binary", 100000);
         int nodecount = stream.nodes();
-        GraphTiers gt(nodecount);
+        GraphTiers gt(nodecount, true);
         int edgecount = 150000;
 
         std::cout << "Building up graph..." <<  std::endl;

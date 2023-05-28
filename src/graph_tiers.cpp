@@ -15,10 +15,10 @@ edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
    return a<b ? (((edge_id_t)a)<<32) + ((edge_id_t)b) : (((edge_id_t)b)<<32) + ((edge_id_t)a);
 };
 
-GraphTiers::GraphTiers(node_id_t num_nodes) :
-	link_cut_tree(num_nodes) {
+GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
+	link_cut_tree(num_nodes), use_parallelism(use_parallelism) {
 	// Algorithm parameters
-	vec_t sketch_len = (num_nodes*num_nodes);
+	vec_t sketch_len = num_nodes*num_nodes;
 	vec_t sketch_err = 10;
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 	int seed = time(NULL);
@@ -46,6 +46,7 @@ void GraphTiers::update(GraphUpdate update) {
 	if (update.type == DELETE && ett_nodes[ett_nodes.size()-1][update.edge.src].has_edge_to(&ett_nodes[ett_nodes.size()-1][update.edge.dst])) {
 		link_cut_tree.cut(update.edge.src, update.edge.dst);
 	}
+	#pragma omp parallel for if(use_parallelism)
 	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
 		ett_nodes[i][update.edge.src].update_sketch((vec_t)edge);
 		ett_nodes[i][update.edge.dst].update_sketch((vec_t)edge);
@@ -104,6 +105,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 
 				// Remove the maximum tier edge on all paths where it exists
 				START(ett1);
+				#pragma omp parallel for if(use_parallelism)
 				for (uint32_t i = max.second; i < ett_nodes.size(); i++) {
 					ett_nodes[i][c].cut(ett_nodes[i][d]);
 				}
@@ -115,6 +117,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 
 			// Join the ETTs for the endpoints of the edge on all tiers above the current
 			START(ett2);
+			#pragma omp parallel for if(use_parallelism)
 			for (uint32_t i = tier+1; i < ett_nodes.size(); i++) {
 				ett_nodes[i][a].link(ett_nodes[i][b]);
 			}
@@ -135,7 +138,7 @@ std::vector<std::set<node_id_t>> GraphTiers::get_cc() {
 			std::set<EulerTourTree*> pointer_component = ett_nodes[top][i].get_component();
 			std::set<node_id_t> component;
 			for (auto pointer : pointer_component) {
-				component.insert(pointer-&ett_nodes[top][0]);
+				component.insert(pointer->vertex);
 				visited.insert(pointer);
 			}
 			cc.push_back(component);
