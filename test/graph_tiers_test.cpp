@@ -17,6 +17,7 @@ static void print_metrics(int signum) {
     std::cout << "\nTotal time for all updates performed (ms): " << duration.count() << std::endl;
     std::cout << "\tTotal time in Sketch update (ms): " << sketch_time/1000 << std::endl;
     std::cout << "\tTotal time in Refresh function (ms): " << refresh_time/1000 << std::endl;
+    std::cout << "\t\tTime in Parallel isolated checking (ms): " << parallel_isolated_check/1000 << std::endl;
     std::cout << "\t\tTime in Sketch queries (ms): " << sketch_query/1000 << std::endl;
     std::cout << "\t\tTime in LCT operations (ms): " << lct_time/1000 << std::endl;
     std::cout << "\t\tTime in ETT operations (ms): " << (ett_time+ett_find_root+ett_get_agg)/1000 << std::endl;

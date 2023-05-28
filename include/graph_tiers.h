@@ -14,6 +14,7 @@ extern long ett_get_agg;
 extern long sketch_query;
 extern long sketch_time;
 extern long refresh_time;
+extern long parallel_isolated_check;
 extern long tiers_grown;
 
 // maintains the tiers of the algorithm

@@ -9,6 +9,7 @@ long ett_get_agg = 0;
 long sketch_query = 0;
 long sketch_time = 0;
 long refresh_time = 0;
+long parallel_isolated_check = 0;
 long tiers_grown = 0;
 
 edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
@@ -62,6 +63,34 @@ void GraphTiers::update(GraphUpdate update) {
 }
 
 void GraphTiers::refresh(GraphUpdate update) {
+	// In parallel check if all tiers are not isolated
+	if (use_parallelism) {
+		START(iso);
+		std::atomic_bool isolated = false;
+		#pragma omp parallel for
+		for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
+			for (node_id_t v : {update.edge.src, update.edge.dst}) {
+				// Check if the tree containing this endpoint is isolated
+				uint32_t tier_size = ett_nodes[tier][v].get_size();
+				uint32_t next_size = ett_nodes[tier+1][v].get_size();
+				// Check for same size for isolated
+				if (tier_size != next_size)
+					continue;
+
+				Sketch* ett_agg = ett_nodes[tier][v].get_aggregate();
+				std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
+
+				// Check for new edge to eliminate isolation
+				if (query_result.second != GOOD)
+					continue;
+				
+				isolated = true;
+			}
+		}
+		STOP(parallel_isolated_check, iso);
+		if (!isolated)
+			return;
+	}
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
