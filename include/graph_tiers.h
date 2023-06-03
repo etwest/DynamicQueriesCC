@@ -21,8 +21,8 @@ static edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
    return a<b ? (((edge_id_t)a)<<32) + ((edge_id_t)b) : (((edge_id_t)b)<<32) + ((edge_id_t)a);
 };
 
-enum OperationType{
-  EMPTY, LINK, CUT
+enum OperationType {
+  EMPTY, LINK, CUT, QUERY
 };
 
 typedef struct {
@@ -33,6 +33,7 @@ typedef struct {
 } UpdateMessage;
 
 typedef struct {
+  OperationType type = EMPTY;
   node_id_t endpoint1 = 0;
   node_id_t endpoint2 = 0;
 } LctQueryMessage;
@@ -47,8 +48,8 @@ typedef struct {
 typedef struct {
   node_id_t v = 0;
   uint32_t prev_tier_size = 0;
-  SampleSketchRet query_result_type = ZERO;
-  edge_id_t query_result = 0;
+  SampleSketchRet sketch_query_result_type = ZERO;
+  edge_id_t sketch_query_result = 0;
 } RefreshMessage;
 
 class TierNode {
@@ -63,25 +64,10 @@ public:
   std::vector<std::set<node_id_t>> get_cc();
 };
 
-// maintains the tiers of the algorithm
-// and the spanning forest of the entire graph
-class GraphTiers {
-  FRIEND_TEST(GraphTiersSuite, mini_correctness_test);
-private:
-  std::vector<std::vector<EulerTourTree>> ett_nodes;  // for each tier, for each node
+class QueryNode {
   LinkCutTree link_cut_tree;
-  void refresh(GraphUpdate update);
-
+  uint32_t num_tiers;
 public:
-  GraphTiers(node_id_t num_nodes);
-  ~GraphTiers();
-
-  // apply an edge update
-  void update(GraphUpdate update);
-
-  // query for the connected components of the graph
-  std::vector<std::set<node_id_t>> get_cc();
-
-  // query for if a is connected to b
-  bool is_connected(node_id_t a, node_id_t b);
+  QueryNode(node_id_t num_nodes, uint32_t num_tiers);
+  void main();
 };

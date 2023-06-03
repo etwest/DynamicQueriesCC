@@ -44,17 +44,34 @@ void TierNode::refresh_tier(RefreshMessage endpoint1, RefreshMessage endpoint2) 
         // Check if the tree containing this endpoint is isolated
         uint32_t prev_tier_size = message.prev_tier_size;
         uint32_t this_tier_size = ett_nodes[message.v].get_size();
-        if (prev_tier_size != this_tier_size)
+        if (prev_tier_size != this_tier_size) {
+            LctQueryMessage lct_query;
+            lct_query.type = EMPTY;
+            MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
+            UpdateMessage update_message;
+            update_message.type = EMPTY;
+            MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
+            MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
             continue;
+        }
 
         // Check for new edge to eliminate isolation
-        if (message.query_result_type != GOOD)
+        if (message.sketch_query_result_type != GOOD) {
+            LctQueryMessage lct_query;
+            lct_query.type = EMPTY;
+            MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
+            UpdateMessage update_message;
+            update_message.type = EMPTY;
+            MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
+            MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
             continue;
-        node_id_t a = (node_id_t)message.query_result;
-        node_id_t b = (node_id_t)(message.query_result>>32);
+        }
+        node_id_t a = (node_id_t)message.sketch_query_result;
+        node_id_t b = (node_id_t)(message.sketch_query_result>>32);
 
         // Query LCT node to check if this new edge forms a cycle
         LctQueryMessage lct_query;
+        lct_query.type = QUERY;
         lct_query.endpoint1 = a;
         lct_query.endpoint2 = b;
         MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
@@ -76,6 +93,10 @@ void TierNode::refresh_tier(RefreshMessage endpoint1, RefreshMessage endpoint2) 
 
             if (tier_num >= lct_response.weight)
                 ett_nodes[c].cut(ett_nodes[d]);
+        } else {
+            UpdateMessage cut_message;
+            cut_message.type = EMPTY;
+            MPI_Bcast(&cut_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
         }
 
         // Tell all nodes above and including the current tier to add the new edge
