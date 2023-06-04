@@ -5,7 +5,16 @@ QueryNode::QueryNode(node_id_t num_nodes, uint32_t num_tiers) : link_cut_tree(nu
 void QueryNode::main() {
     while (true) {
         // Process a sketch update message or a connectivity query message
-
+        StreamMessage stream_message;
+        MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
+        if (stream_message.type == UPDATE) {
+            if (stream_message.update.type == DELETE)
+                link_cut_tree.cut(stream_message.update.edge.src, stream_message.update.edge.dst);
+        } else {
+            bool is_connected = link_cut_tree.find_root(stream_message.update.edge.src) == link_cut_tree.find_root(stream_message.update.edge.dst);
+            MPI_Send(&is_connected, sizeof(bool), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+            continue;
+        }
         // For each tier process LCT queries and LCT updates
         for (int tier = 0; tier < num_tiers; tier++) {
             int rank = tier + 1;

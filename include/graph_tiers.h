@@ -21,19 +21,28 @@ static edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
    return a<b ? (((edge_id_t)a)<<32) + ((edge_id_t)b) : (((edge_id_t)b)<<32) + ((edge_id_t)a);
 };
 
-enum OperationType {
+enum StreamOperationType {
+  UPDATE, QUERY
+};
+
+enum TreeOperationType {
   EMPTY, LINK, CUT, QUERY
 };
 
 typedef struct {
-  OperationType type = EMPTY;
+  StreamOperationType type = UPDATE;
+  GraphUpdate update;
+} StreamMessage;
+
+typedef struct {
+  TreeOperationType type = EMPTY;
   node_id_t endpoint1 = 0;
   node_id_t endpoint2 = 0;
   uint32_t start_tier = 0;
 } UpdateMessage;
 
 typedef struct {
-  OperationType type = EMPTY;
+  TreeOperationType type = EMPTY;
   node_id_t endpoint1 = 0;
   node_id_t endpoint2 = 0;
 } LctQueryMessage;
