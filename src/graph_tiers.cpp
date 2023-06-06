@@ -20,7 +20,7 @@ GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
 	link_cut_tree(num_nodes), use_parallelism(use_parallelism) {
 	// Algorithm parameters
 	vec_t sketch_len = num_nodes*num_nodes;
-	vec_t sketch_err = 10;
+	vec_t sketch_err = 20;
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 	int seed = time(NULL);
 
