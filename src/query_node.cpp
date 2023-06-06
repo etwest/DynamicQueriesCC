@@ -10,10 +10,12 @@ void QueryNode::main() {
         if (stream_message.type == UPDATE) {
             if (stream_message.update.type == DELETE)
                 link_cut_tree.cut(stream_message.update.edge.src, stream_message.update.edge.dst);
-        } else {
+        } else if (stream_message.type == QUERY) {
             bool is_connected = link_cut_tree.find_root(stream_message.update.edge.src) == link_cut_tree.find_root(stream_message.update.edge.dst);
             MPI_Send(&is_connected, sizeof(bool), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
             continue;
+        } else {
+            MPI_Finalize();
         }
         // For each tier process LCT queries and LCT updates
         for (int tier = 0; tier < num_tiers; tier++) {

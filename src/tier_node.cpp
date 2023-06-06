@@ -19,6 +19,44 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers) :
     }
 }
 
+void TierNode::main() {
+    while (true) {
+        // Process a sketch update message or a stream query message
+        StreamMessage stream_message;
+        MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
+        if (stream_message.type == UPDATE) {
+            update_tier(stream_message.update);
+        } else if (stream_message.type == QUERY) {
+            continue;
+        } else {
+            MPI_Finalize();
+        }
+        // Start the refreshing sequence
+        for (int tier = 0; tier < tier_num; tier++) {
+            int rank = tier + 1;
+            // If this node's tier is the current tier process the refresh message from previous tier or input node
+            if (tier == tier_num) {
+                RefreshMessage refresh_message;
+                if (tier_num == 0) {
+                    MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                } else {
+                    MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, tier_num-1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                }
+                refresh_tier(refresh_message);
+                continue;
+            }
+            // For every other tier just receive and perform update messages
+            for (int endpoint : {0,1}) {
+                for (int broadcast : {0,1}) {
+                    UpdateMessage update_message;
+                    MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, rank, MPI_COMM_WORLD);
+                    ett_update_tier(update_message);
+                }
+            }
+        }
+    }
+}
+
 void TierNode::update_tier(GraphUpdate update) {
     edge_id_t edge = vertices_to_edge(update.edge.src, update.edge.dst);
     ett_nodes[update.edge.src].update_sketch((vec_t)edge);
@@ -29,21 +67,18 @@ void TierNode::update_tier(GraphUpdate update) {
 }
 
 void TierNode::ett_update_tier(UpdateMessage message) {
-    if (message.type == EMPTY) return;
-    node_id_t a = message.endpoint1;
-	node_id_t b = message.endpoint2;
     if (message.type == LINK) {
-        ett_nodes[a].link(ett_nodes[b]);
-    } else {
-        ett_nodes[a].cut(ett_nodes[b]);
+        ett_nodes[message.endpoint1].link(ett_nodes[message.endpoint2]);
+    } else if (message.type == CUT) {
+        ett_nodes[message.endpoint1].cut(ett_nodes[message.endpoint2]);
     }
 }
 
-void TierNode::refresh_tier(RefreshMessage endpoint1, RefreshMessage endpoint2) {
-    for (RefreshMessage message: {endpoint1, endpoint2}) {
+void TierNode::refresh_tier(RefreshMessage message) {
+    for (RefreshEndpoint endpoint: {message.endpoints.first, message.endpoints.second}) {
         // Check if the tree containing this endpoint is isolated
-        uint32_t prev_tier_size = message.prev_tier_size;
-        uint32_t this_tier_size = ett_nodes[message.v].get_size();
+        uint32_t prev_tier_size = endpoint.prev_tier_size;
+        uint32_t this_tier_size = ett_nodes[endpoint.v].get_size();
         if (prev_tier_size != this_tier_size) {
             LctQueryMessage lct_query;
             lct_query.type = EMPTY;
@@ -56,7 +91,7 @@ void TierNode::refresh_tier(RefreshMessage endpoint1, RefreshMessage endpoint2) 
         }
 
         // Check for new edge to eliminate isolation
-        if (message.sketch_query_result_type != GOOD) {
+        if (endpoint.sketch_query_result_type != GOOD) {
             LctQueryMessage lct_query;
             lct_query.type = EMPTY;
             MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
@@ -66,12 +101,12 @@ void TierNode::refresh_tier(RefreshMessage endpoint1, RefreshMessage endpoint2) 
             MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
             continue;
         }
-        node_id_t a = (node_id_t)message.sketch_query_result;
-        node_id_t b = (node_id_t)(message.sketch_query_result>>32);
+        node_id_t a = (node_id_t)endpoint.sketch_query_result;
+        node_id_t b = (node_id_t)(endpoint.sketch_query_result>>32);
 
         // Query LCT node to check if this new edge forms a cycle
         LctQueryMessage lct_query;
-        lct_query.type = QUERY;
+        lct_query.type = LCT_QUERY;
         lct_query.endpoint1 = a;
         lct_query.endpoint2 = b;
         MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);

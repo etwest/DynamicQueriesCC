@@ -22,11 +22,11 @@ static edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
 };
 
 enum StreamOperationType {
-  UPDATE, QUERY
+  UPDATE, QUERY, END
 };
 
 enum TreeOperationType {
-  EMPTY, LINK, CUT, QUERY
+  EMPTY, LINK, CUT, LCT_QUERY
 };
 
 typedef struct {
@@ -53,24 +53,28 @@ typedef struct {
   uint32_t weight = 0;
 } LctResponseMessage;
 
-
 typedef struct {
   node_id_t v = 0;
   uint32_t prev_tier_size = 0;
   SampleSketchRet sketch_query_result_type = ZERO;
   edge_id_t sketch_query_result = 0;
+} RefreshEndpoint;
+
+typedef struct {
+  std::pair<RefreshEndpoint, RefreshEndpoint> endpoints;
 } RefreshMessage;
 
 class TierNode {
+  std::vector<EulerTourTree> ett_nodes;
   uint32_t tier_num;
   uint32_t num_tiers;
-  std::vector<EulerTourTree> ett_nodes;
   void update_tier(GraphUpdate update);
   void ett_update_tier(UpdateMessage message);
-  void refresh_tier(RefreshMessage endpoint1, RefreshMessage endpoint2);
+  void refresh_tier(RefreshMessage messsage);
+  std::vector<std::set<node_id_t>> get_cc();
 public:
   TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers);
-  std::vector<std::set<node_id_t>> get_cc();
+  void main();
 };
 
 class QueryNode {
