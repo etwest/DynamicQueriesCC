@@ -65,9 +65,11 @@ add_executable(dynamicCC_tests
 
   src/link_cut_tree.cpp
 
-  src/graph_tiers.cpp
-
   src/sketch.cpp
+
+  src/tier_node.cpp
+
+  src/query_node.cpp
 )
 
 target_include_directories(dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})

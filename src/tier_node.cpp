@@ -4,8 +4,7 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers) :
     tier_num(tier_num), num_tiers(num_tiers) {
     // Algorithm parameters
 	vec_t sketch_len = (num_nodes*num_nodes);
-	vec_t sketch_err = 10;
-	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+	vec_t sketch_err = 20;
 	int seed = time(NULL);
 
 	// Configure the sketches globally
@@ -29,7 +28,7 @@ void TierNode::main() {
         } else if (stream_message.type == QUERY) {
             continue;
         } else {
-            MPI_Finalize();
+            return;
         }
         // Start the refreshing sequence
         for (int tier = 0; tier < tier_num; tier++) {

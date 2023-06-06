@@ -15,7 +15,7 @@ void QueryNode::main() {
             MPI_Send(&is_connected, sizeof(bool), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
             continue;
         } else {
-            MPI_Finalize();
+            return;
         }
         // For each tier process LCT queries and LCT updates
         for (int tier = 0; tier < num_tiers; tier++) {
