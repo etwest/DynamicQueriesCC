@@ -65,19 +65,29 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             }
             // Correctness testing by sending a query
             gv.edge_update(update.edge.src, update.edge.dst);
-            // unlikely_if(i%1000 == 0 || i == edgecount-1) {
-            //     std::vector<std::set<node_id_t>> cc = gt.get_cc();
-            //     try {
-            //         gv.reset_cc_state();
-            //         gv.verify_soln(cc);
-            //         std::cout << "Update " << i << ", CCs correct." << std::endl;
-            //     } catch (IncorrectCCException& e) {
-            //         std::cout << "Incorrect connected components found at update "  << i << std::endl;
-            //         std::cout << "GOT: " << cc.size() << std::endl;
-            //         FAIL();
-            //     }
-            // }
+            unlikely_if(i%1000 == 0 || i == edgecount-1) {
+                StreamMessage stream_message;
+                stream_message.type = CC_QUERY;
+                MPI_Send(&stream_message, sizeof(StreamMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
+                std::vector<std::set<node_id_t>> cc;
+                MPI_Recv(&cc, sizeof(cc)+cc.size()*sizeof(cc[0]), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                try {
+                    gv.reset_cc_state();
+                    gv.verify_soln(cc);
+                    std::cout << "Update " << i << ", CCs correct." << std::endl;
+                } catch (IncorrectCCException& e) {
+                    std::cout << "Incorrect connected components found at update "  << i << std::endl;
+                    std::cout << "GOT: " << cc.size() << std::endl;
+                    StreamMessage stream_message;
+                    stream_message.type = END;
+                    MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
+                    FAIL();
+                }
+            }
         }
+        StreamMessage stream_message;
+        stream_message.type = END;
+        MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
 
     } else if (world_rank == num_tiers-1) {
         QueryNode query_node(stream.nodes(), num_tiers);

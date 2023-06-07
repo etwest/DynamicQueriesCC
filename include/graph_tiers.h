@@ -22,7 +22,7 @@ static edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
 };
 
 enum StreamOperationType {
-  UPDATE, QUERY, END
+  UPDATE, QUERY, CC_QUERY, END
 };
 
 enum TreeOperationType {
@@ -71,7 +71,6 @@ class TierNode {
   void update_tier(GraphUpdate update);
   void ett_update_tier(UpdateMessage message);
   void refresh_tier(RefreshMessage messsage);
-  std::vector<std::set<node_id_t>> get_cc();
 public:
   TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers);
   void main();

@@ -14,6 +14,10 @@ void QueryNode::main() {
             bool is_connected = link_cut_tree.find_root(stream_message.update.edge.src) == link_cut_tree.find_root(stream_message.update.edge.dst);
             MPI_Send(&is_connected, sizeof(bool), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
             continue;
+        } else if (stream_message.type == CC_QUERY) {
+            std::vector<std::set<node_id_t>> cc = link_cut_tree.get_cc();
+            MPI_Send(&cc, sizeof(cc)+cc.size()*sizeof(cc[0]), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+            continue;
         } else {
             return;
         }

@@ -1,6 +1,8 @@
 #include "../include/link_cut_tree.h"
 #include <cassert>
 
+LinkCutNode::LinkCutNode(node_id_t vertex) : vertex(vertex) {}
+
 void LinkCutNode::set_parent(LinkCutNode* parent) { this->parent = parent; }
 void LinkCutNode::set_dparent(LinkCutNode* dparent) { this->dparent = dparent; }
 void LinkCutNode::set_max(uint32_t weight){ this->max = weight; }
@@ -220,7 +222,11 @@ LinkCutNode* LinkCutNode::splay() {
     return this;
 }
 
-LinkCutTree::LinkCutTree(node_id_t num_nodes) : nodes(num_nodes) {}
+LinkCutTree::LinkCutTree(node_id_t num_nodes) {
+    for (node_id_t vertex = 0; vertex < num_nodes; vertex++) {
+        nodes.emplace_back(vertex);
+    }
+}
 
 LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
     assert(v != nullptr && w != nullptr && v->get_parent() == nullptr && w->get_parent() == nullptr);
@@ -326,4 +332,38 @@ std::pair<edge_id_t, uint32_t> LinkCutTree::path_aggregate(node_id_t v, node_id_
     this->evert(v_node);
     LinkCutNode* p = this->expose(w_node);
     return p->get_max_edge();
+}
+
+std::vector<std::set<node_id_t>> LinkCutTree::get_cc() {
+	std::map<LinkCutNode*, std::set<node_id_t>> cc_map;
+	std::map<LinkCutNode*, LinkCutNode*> visited;
+	for (uint32_t i = 0; i < nodes.size(); i++) {
+		if (visited.find(&nodes[i]) == visited.end()) {
+            std::set<LinkCutNode*> node_component;
+            LinkCutNode* curr = &nodes[i];
+            while ((curr->get_parent() && visited.find(curr->get_parent()) == visited.end())
+            || curr->get_dparent() && visited.find(curr->get_dparent()) == visited.end()) {
+                node_component.insert(curr);
+                curr = curr->get_parent() ? curr->get_parent() : curr->get_dparent();
+            }
+            node_component.insert(curr);
+            LinkCutNode* root = curr;
+            if (curr->get_parent() || curr->get_dparent())
+                root = curr->get_parent() ? visited[curr->get_parent()] : visited[curr->get_dparent()];
+
+            if (cc_map.find(root) == cc_map.end()) {
+                std::set<node_id_t> component;
+                cc_map.insert({root, component});
+            }
+			for (auto node : node_component) {
+				cc_map[root].insert(node->vertex);
+				visited.insert({node, root});
+			}
+		}
+	}
+    std::vector<std::set<node_id_t>> cc;
+    for (auto component : cc_map) {
+        cc.push_back(component.second);
+    }
+	return cc;
 }

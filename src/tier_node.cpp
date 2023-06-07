@@ -144,20 +144,3 @@ void TierNode::refresh_tier(RefreshMessage message) {
         ett_nodes[a].link(ett_nodes[b]);
     }
 }
-
-std::vector<std::set<node_id_t>> TierNode::get_cc() {
-	std::vector<std::set<node_id_t>> cc;
-	std::set<EulerTourTree*> visited;
-	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
-		if (visited.find(&ett_nodes[i]) == visited.end()) {
-			std::set<EulerTourTree*> pointer_component = ett_nodes[i].get_component();
-			std::set<node_id_t> component;
-			for (auto pointer : pointer_component) {
-				component.insert(pointer-&ett_nodes[0]);
-				visited.insert(pointer);
-			}
-			cc.push_back(component);
-		}
-	}
-	return cc;
-}

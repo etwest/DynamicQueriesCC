@@ -35,6 +35,10 @@ class LinkCutNode {
   void rotate_up();
 
   public:
+    LinkCutNode(node_id_t vertex);
+
+    node_id_t vertex;
+
     LinkCutNode* splay();
 
     void link_left(LinkCutNode* left);
@@ -96,4 +100,7 @@ class LinkCutTree {
 
     // Given node v and w return the edge with the maximum weight on the path from v to w and the weight itself
     std::pair<edge_id_t, uint32_t> path_aggregate(node_id_t v, node_id_t w);
+
+    // Query for the CC algorithm
+    std::vector<std::set<node_id_t>> get_cc();
 };
