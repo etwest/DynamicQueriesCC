@@ -79,6 +79,7 @@ public:
 class QueryNode {
   LinkCutTree link_cut_tree;
   uint32_t num_tiers;
+  node_id_t num_nodes;
 public:
   QueryNode(node_id_t num_nodes, uint32_t num_tiers);
   void main();

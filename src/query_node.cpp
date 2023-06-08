@@ -1,6 +1,6 @@
 #include "../include/graph_tiers.h"
 
-QueryNode::QueryNode(node_id_t num_nodes, uint32_t num_tiers) : link_cut_tree(num_nodes), num_tiers(num_tiers) {};
+QueryNode::QueryNode(node_id_t num_nodes, uint32_t num_tiers) : link_cut_tree(num_nodes), num_tiers(num_tiers) {this->num_nodes = num_nodes;};
 
 void QueryNode::main() {
     while (true) {
@@ -16,7 +16,14 @@ void QueryNode::main() {
             continue;
         } else if (stream_message.type == CC_QUERY) {
             std::vector<std::set<node_id_t>> cc = link_cut_tree.get_cc();
-            MPI_Send(&cc, sizeof(cc)+cc.size()*sizeof(cc[0]), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+            std::vector<node_id_t> cc_broadcast(num_nodes, 0);
+            for (node_id_t component_idx = 0; component_idx < cc.size(); component_idx++) {
+                for (node_id_t node_idx = 0; node_idx < cc[component_idx].size(); node_idx++) {
+                    cc_broadcast.insert(cc_broadcast.begin() + (int)(node_idx), component_idx);
+                }
+            }
+            MPI_Send(&cc_broadcast, sizeof(cc_broadcast), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+            // MPI_Send(&cc, sizeof(cc)+cc.size()*sizeof(cc[0]), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
             continue;
         } else {
             return;

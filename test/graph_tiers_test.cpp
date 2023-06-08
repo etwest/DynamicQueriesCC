@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <signal.h>
+#include <unordered_map>
 #include "graph_tiers.h"
 #include "binary_graph_stream.h"
 #include "mat_graph_verifier.h"
@@ -69,8 +70,28 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
                 StreamMessage stream_message;
                 stream_message.type = CC_QUERY;
                 MPI_Send(&stream_message, sizeof(StreamMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
-                std::vector<std::set<node_id_t>> cc;
-                MPI_Recv(&cc, sizeof(cc)+cc.size()*sizeof(cc[0]), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                std::vector<node_id_t> cc_broadcast(stream.nodes());
+                MPI_Recv(&cc_broadcast, sizeof(cc_broadcast), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                // MPI_Recv(&cc, sizeof(cc)+cc.size()*sizeof(cc[0]), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                // Convert from vector<node_id_t> to vector<set<node_id_t>>
+                std::unordered_map<node_id_t, std::set<node_id_t>> component_map;
+                for (node_id_t i = 0; i < stream.nodes(); i++) {
+                    std::unordered_map<node_id_t, std::set<node_id_t>>::const_iterator it = component_map.find(cc_broadcast[i]);
+                    if (it != component_map.end()) {
+                        component_map[cc_broadcast[i]].insert(i);
+                    }
+                    else {
+                        std::set<node_id_t> component = {i};
+                        component_map.insert(std::make_pair(cc_broadcast[i], component));
+                    }
+                }
+
+                std::vector<std::set<node_id_t>> cc(component_map.size());
+                for (const auto& component : component_map) {
+                    cc.insert(cc.begin() + component.first, component.second);
+                }
+
                 try {
                     gv.reset_cc_state();
                     gv.verify_soln(cc);
