@@ -6,7 +6,7 @@ void QueryNode::main() {
     while (true) {
         // Process a sketch update message or a connectivity query message
         StreamMessage stream_message;
-        MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
+        bcast(&stream_message, sizeof(StreamMessage), 0);
         if (stream_message.type == UPDATE) {
             if (stream_message.update.type == DELETE)
                 link_cut_tree.cut(stream_message.update.edge.src, stream_message.update.edge.dst);
@@ -16,14 +16,13 @@ void QueryNode::main() {
             continue;
         } else if (stream_message.type == CC_QUERY) {
             std::vector<std::set<node_id_t>> cc = link_cut_tree.get_cc();
-            std::vector<node_id_t> cc_broadcast(num_nodes, 0);
+            std::vector<node_id_t> cc_broadcast(num_nodes);
             for (node_id_t component_idx = 0; component_idx < cc.size(); component_idx++) {
-                for (node_id_t node_idx = 0; node_idx < cc[component_idx].size(); node_idx++) {
-                    cc_broadcast.insert(cc_broadcast.begin() + (int)(node_idx), component_idx);
+                for (node_id_t vertex : cc[component_idx]) {
+                    cc_broadcast[vertex] = component_idx;
                 }
             }
-            MPI_Send(&cc_broadcast, sizeof(cc_broadcast), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
-            // MPI_Send(&cc, sizeof(cc)+cc.size()*sizeof(cc[0]), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+            MPI_Send(&cc_broadcast, sizeof(std::vector<node_id_t>)+num_nodes*sizeof(node_id_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
             continue;
         } else {
             return;
@@ -35,6 +34,7 @@ void QueryNode::main() {
                 //Process a LCT query message first
                 LctQueryMessage query_message;
                 MPI_Recv(&query_message, sizeof(LctQueryMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                std::cout << "RECEIVED LCT QUERY MESSAGE" << std::endl;
 
                 if (query_message.type != EMPTY) {
                     LctResponseMessage response_message;
@@ -50,7 +50,7 @@ void QueryNode::main() {
                 // Then process two update broadcasts to potentially cut and link in the LCT
                 for (int broadcast : {0,1}) {
                     UpdateMessage update_message;
-                    MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, rank, MPI_COMM_WORLD);
+                    bcast(&update_message, sizeof(UpdateMessage), rank);
                     if (update_message.type == LINK) {
                         link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
                     } else if (update_message.type == CUT) {

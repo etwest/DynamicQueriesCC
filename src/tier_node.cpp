@@ -22,7 +22,7 @@ void TierNode::main() {
     while (true) {
         // Process a sketch update message or a stream query message
         StreamMessage stream_message;
-        MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
+        bcast(&stream_message, sizeof(StreamMessage), 0);
         if (stream_message.type == UPDATE) {
             update_tier(stream_message.update);
         } else if (stream_message.type == QUERY) {
@@ -31,16 +31,12 @@ void TierNode::main() {
             return;
         }
         // Start the refreshing sequence
-        for (int tier = 0; tier < tier_num; tier++) {
+        for (int tier = 0; tier < num_tiers; tier++) {
             int rank = tier + 1;
             // If this node's tier is the current tier process the refresh message from previous tier or input node
             if (tier == tier_num) {
                 RefreshMessage refresh_message;
-                if (tier_num == 0) {
-                    MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                } else {
-                    MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, tier_num-1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                }
+                MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 refresh_tier(refresh_message);
                 continue;
             }
@@ -48,7 +44,7 @@ void TierNode::main() {
             for (int endpoint : {0,1}) {
                 for (int broadcast : {0,1}) {
                     UpdateMessage update_message;
-                    MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, rank, MPI_COMM_WORLD);
+                    bcast(&update_message, sizeof(UpdateMessage), rank);
                     ett_update_tier(update_message);
                 }
             }
@@ -84,8 +80,8 @@ void TierNode::refresh_tier(RefreshMessage message) {
             MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
             UpdateMessage update_message;
             update_message.type = EMPTY;
-            MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
-            MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
+            bcast(&update_message, sizeof(UpdateMessage), tier_num);
+            bcast(&update_message, sizeof(UpdateMessage), tier_num);
             continue;
         }
 
@@ -96,8 +92,8 @@ void TierNode::refresh_tier(RefreshMessage message) {
             MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
             UpdateMessage update_message;
             update_message.type = EMPTY;
-            MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
-            MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
+            bcast(&update_message, sizeof(UpdateMessage), tier_num);
+            bcast(&update_message, sizeof(UpdateMessage), tier_num);
             continue;
         }
         node_id_t a = (node_id_t)endpoint.sketch_query_result;
@@ -123,14 +119,14 @@ void TierNode::refresh_tier(RefreshMessage message) {
             cut_message.endpoint1 = c;
             cut_message.endpoint2 = d;
             cut_message.start_tier = lct_response.weight;
-            MPI_Bcast(&cut_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
+            bcast(&cut_message, sizeof(UpdateMessage), tier_num);
 
             if (tier_num >= lct_response.weight)
                 ett_nodes[c].cut(ett_nodes[d]);
         } else {
             UpdateMessage cut_message;
             cut_message.type = EMPTY;
-            MPI_Bcast(&cut_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
+            bcast(&cut_message, sizeof(UpdateMessage), tier_num);
         }
 
         // Tell all nodes above and including the current tier to add the new edge
@@ -139,7 +135,7 @@ void TierNode::refresh_tier(RefreshMessage message) {
         link_message.endpoint1 = a;
         link_message.endpoint2 = b;
         link_message.start_tier = tier_num;
-        MPI_Bcast(&link_message, sizeof(UpdateMessage), MPI_BYTE, tier_num, MPI_COMM_WORLD);
+        bcast(&link_message, sizeof(UpdateMessage), tier_num);
 
         ett_nodes[a].link(ett_nodes[b]);
     }

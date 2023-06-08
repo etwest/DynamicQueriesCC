@@ -47,7 +47,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             StreamMessage stream_message;
             stream_message.type = UPDATE;
             stream_message.update = update;
-            MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
+            bcast(&stream_message, sizeof(StreamMessage), 0);
             // Initiate the refresh sequence and receive all the broadcasts
             RefreshEndpoint e1, e2;
             e1.v = update.edge.src;
@@ -60,7 +60,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
                 for (int endpoint : {0,1}) {
                     for (int broadcast : {0,1}) {
                         UpdateMessage update_message;
-                        MPI_Bcast(&update_message, sizeof(UpdateMessage), MPI_BYTE, rank, MPI_COMM_WORLD);
+                        bcast(&update_message, sizeof(UpdateMessage), rank);
                     }
                 }
             }
@@ -71,25 +71,23 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
                 stream_message.type = CC_QUERY;
                 MPI_Send(&stream_message, sizeof(StreamMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
                 std::vector<node_id_t> cc_broadcast(stream.nodes());
-                MPI_Recv(&cc_broadcast, sizeof(cc_broadcast), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                // MPI_Recv(&cc, sizeof(cc)+cc.size()*sizeof(cc[0]), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&cc_broadcast, sizeof(std::vector<node_id_t>)+stream.nodes()*sizeof(node_id_t), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
                 // Convert from vector<node_id_t> to vector<set<node_id_t>>
                 std::unordered_map<node_id_t, std::set<node_id_t>> component_map;
                 for (node_id_t i = 0; i < stream.nodes(); i++) {
-                    std::unordered_map<node_id_t, std::set<node_id_t>>::const_iterator it = component_map.find(cc_broadcast[i]);
-                    if (it != component_map.end()) {
+                    if (component_map.find(cc_broadcast[i]) != component_map.end()) {
                         component_map[cc_broadcast[i]].insert(i);
                     }
                     else {
                         std::set<node_id_t> component = {i};
-                        component_map.insert(std::make_pair(cc_broadcast[i], component));
+                        component_map.insert({cc_broadcast[i], component});
                     }
                 }
 
                 std::vector<std::set<node_id_t>> cc(component_map.size());
                 for (const auto& component : component_map) {
-                    cc.insert(cc.begin() + component.first, component.second);
+                    cc[component.first] = component.second;
                 }
 
                 try {
@@ -110,10 +108,10 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
         stream_message.type = END;
         MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
 
-    } else if (world_rank == num_tiers-1) {
+    } else if (world_rank == num_tiers+1) {
         QueryNode query_node(stream.nodes(), num_tiers);
         query_node.main();
-    } else if (world_rank < num_tiers-1) {
+    } else if (world_rank < num_tiers+1) {
         TierNode tier_node(stream.nodes(), world_rank-1, num_tiers);
         tier_node.main();
     }

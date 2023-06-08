@@ -6,6 +6,7 @@
 
 #include "euler_tour_tree.h"
 #include "link_cut_tree.h"
+#include "mpi_functions.h"
 
 // Global variables for performance testing
 extern long lct_time;
