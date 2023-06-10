@@ -16,13 +16,14 @@ void QueryNode::main() {
             continue;
         } else if (stream_message.type == CC_QUERY) {
             std::vector<std::set<node_id_t>> cc = link_cut_tree.get_cc();
-            std::vector<node_id_t> cc_broadcast(num_nodes);
+            std::vector<node_id_t> cc_broadcast;
+            cc_broadcast.reserve(num_nodes);
             for (node_id_t component_idx = 0; component_idx < cc.size(); component_idx++) {
                 for (node_id_t vertex : cc[component_idx]) {
                     cc_broadcast[vertex] = component_idx;
                 }
             }
-            MPI_Send(&cc_broadcast, sizeof(std::vector<node_id_t>)+num_nodes*sizeof(node_id_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+            MPI_Send(&cc_broadcast[0], num_nodes*sizeof(node_id_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
             continue;
         } else {
             return;
@@ -34,7 +35,7 @@ void QueryNode::main() {
                 //Process a LCT query message first
                 LctQueryMessage query_message;
                 MPI_Recv(&query_message, sizeof(LctQueryMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                std::cout << "RECEIVED LCT QUERY MESSAGE" << std::endl;
+                //std::cout << "RECEIVED LCT QUERY MESSAGE FROM " << rank << std::endl;
 
                 if (query_message.type != EMPTY) {
                     LctResponseMessage response_message;

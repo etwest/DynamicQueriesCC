@@ -38,6 +38,23 @@ void TierNode::main() {
                 RefreshMessage refresh_message;
                 MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 refresh_tier(refresh_message);
+                // Send a refresh message to the next tier
+                if (tier < num_tiers-1) {
+                    RefreshEndpoint e1, e2;
+                    e1.v = refresh_message.endpoints.first.v;
+                    e2.v = refresh_message.endpoints.second.v;
+                    for (RefreshEndpoint e : {e1, e2}) {
+                        e.prev_tier_size = ett_nodes[e.v].get_size();
+                        Sketch* ett_agg = ett_nodes[e.v].get_aggregate();
+                        std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
+                        e.sketch_query_result_type = query_result.second;
+                        e.sketch_query_result = query_result.first;
+                    }
+                    RefreshMessage next_refresh_message;
+                    next_refresh_message.endpoints = {e1, e2};
+                    MPI_Send(&next_refresh_message, sizeof(RefreshMessage), MPI_BYTE, rank+1, 0, MPI_COMM_WORLD);
+                    //std::cout << "SENT NEXT REFRESH MESSAGE TO " << rank+1 << std::endl;
+                }
                 continue;
             }
             // For every other tier just receive and perform update messages
@@ -62,9 +79,9 @@ void TierNode::update_tier(GraphUpdate update) {
 }
 
 void TierNode::ett_update_tier(UpdateMessage message) {
-    if (message.type == LINK) {
+    if (message.type == LINK && tier_num > message.start_tier) {
         ett_nodes[message.endpoint1].link(ett_nodes[message.endpoint2]);
-    } else if (message.type == CUT) {
+    } else if (message.type == CUT && tier_num > message.start_tier) {
         ett_nodes[message.endpoint1].cut(ett_nodes[message.endpoint2]);
     }
 }
@@ -80,8 +97,8 @@ void TierNode::refresh_tier(RefreshMessage message) {
             MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
             UpdateMessage update_message;
             update_message.type = EMPTY;
-            bcast(&update_message, sizeof(UpdateMessage), tier_num);
-            bcast(&update_message, sizeof(UpdateMessage), tier_num);
+            bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
+            bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
             continue;
         }
 
@@ -92,8 +109,8 @@ void TierNode::refresh_tier(RefreshMessage message) {
             MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
             UpdateMessage update_message;
             update_message.type = EMPTY;
-            bcast(&update_message, sizeof(UpdateMessage), tier_num);
-            bcast(&update_message, sizeof(UpdateMessage), tier_num);
+            bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
+            bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
             continue;
         }
         node_id_t a = (node_id_t)endpoint.sketch_query_result;
@@ -119,14 +136,14 @@ void TierNode::refresh_tier(RefreshMessage message) {
             cut_message.endpoint1 = c;
             cut_message.endpoint2 = d;
             cut_message.start_tier = lct_response.weight;
-            bcast(&cut_message, sizeof(UpdateMessage), tier_num);
+            bcast(&cut_message, sizeof(UpdateMessage), tier_num+1);
 
             if (tier_num >= lct_response.weight)
                 ett_nodes[c].cut(ett_nodes[d]);
         } else {
             UpdateMessage cut_message;
             cut_message.type = EMPTY;
-            bcast(&cut_message, sizeof(UpdateMessage), tier_num);
+            bcast(&cut_message, sizeof(UpdateMessage), tier_num+1);
         }
 
         // Tell all nodes above and including the current tier to add the new edge
@@ -135,7 +152,7 @@ void TierNode::refresh_tier(RefreshMessage message) {
         link_message.endpoint1 = a;
         link_message.endpoint2 = b;
         link_message.start_tier = tier_num;
-        bcast(&link_message, sizeof(UpdateMessage), tier_num);
+        bcast(&link_message, sizeof(UpdateMessage), tier_num+1);
 
         ett_nodes[a].link(ett_nodes[b]);
     }

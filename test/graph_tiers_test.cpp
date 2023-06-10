@@ -6,25 +6,25 @@
 #include "binary_graph_stream.h"
 #include "mat_graph_verifier.h"
 
-auto start = std::chrono::high_resolution_clock::now();
-auto stop = std::chrono::high_resolution_clock::now();
-auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+// auto start = std::chrono::high_resolution_clock::now();
+// auto stop = std::chrono::high_resolution_clock::now();
+// auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-static void print_metrics(int signum) {
-    stop = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "\nTotal time for all updates performed (ms): " << duration.count() << std::endl;
-    std::cout << "\tTotal time in Sketch update (ms): " << sketch_time/1000 << std::endl;
-    std::cout << "\tTotal time in Refresh function (ms): " << refresh_time/1000 << std::endl;
-    std::cout << "\t\tTime in Sketch queries (ms): " << sketch_query/1000 << std::endl;
-    std::cout << "\t\tTime in LCT operations (ms): " << lct_time/1000 << std::endl;
-    std::cout << "\t\tTime in ETT operations (ms): " << (ett_time+ett_find_root+ett_get_agg)/1000 << std::endl;
-    std::cout << "\t\t\tETT Split and Join (ms): " << ett_time/1000 << std::endl;
-    std::cout << "\t\t\tETT Find Tree Root (ms): " << ett_find_root/1000 << std::endl;
-    std::cout << "\t\t\tETT Get Aggregate (ms): " << ett_get_agg/1000 << std::endl;
-    std::cout << "Total number of tiers grown: " << tiers_grown << std::endl;
-    exit(signum);
-}
+// static void print_metrics(int signum) {
+//     stop = std::chrono::high_resolution_clock::now();
+//     duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+//     std::cout << "\nTotal time for all updates performed (ms): " << duration.count() << std::endl;
+//     std::cout << "\tTotal time in Sketch update (ms): " << sketch_time/1000 << std::endl;
+//     std::cout << "\tTotal time in Refresh function (ms): " << refresh_time/1000 << std::endl;
+//     std::cout << "\t\tTime in Sketch queries (ms): " << sketch_query/1000 << std::endl;
+//     std::cout << "\t\tTime in LCT operations (ms): " << lct_time/1000 << std::endl;
+//     std::cout << "\t\tTime in ETT operations (ms): " << (ett_time+ett_find_root+ett_get_agg)/1000 << std::endl;
+//     std::cout << "\t\t\tETT Split and Join (ms): " << ett_time/1000 << std::endl;
+//     std::cout << "\t\t\tETT Find Tree Root (ms): " << ett_find_root/1000 << std::endl;
+//     std::cout << "\t\t\tETT Get Aggregate (ms): " << ett_get_agg/1000 << std::endl;
+//     std::cout << "Total number of tiers grown: " << tiers_grown << std::endl;
+//     exit(signum);
+// }
 
 TEST(GraphTiersSuite, mpi_correctness_test) {
     int world_rank;
@@ -42,6 +42,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
         MatGraphVerifier gv(stream.nodes());
         int edgecount = stream.edges();
         for (int i = 0; i < edgecount; i++) {
+            std::cout << "===============UPDATE " << i << "==============" << std::endl;
             // Read an update from the stream and broadcast it to all other nodes
             GraphUpdate update = stream.get_edge();
             StreamMessage stream_message;
@@ -69,9 +70,10 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             unlikely_if(i%1000 == 0 || i == edgecount-1) {
                 StreamMessage stream_message;
                 stream_message.type = CC_QUERY;
-                MPI_Send(&stream_message, sizeof(StreamMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
-                std::vector<node_id_t> cc_broadcast(stream.nodes());
-                MPI_Recv(&cc_broadcast, sizeof(std::vector<node_id_t>)+stream.nodes()*sizeof(node_id_t), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                bcast(&stream_message, sizeof(StreamMessage), 0);
+                std::vector<node_id_t> cc_broadcast;
+                cc_broadcast.reserve(stream.nodes());
+                MPI_Recv(&cc_broadcast[0], stream.nodes()*sizeof(node_id_t), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
                 // Convert from vector<node_id_t> to vector<set<node_id_t>>
                 std::unordered_map<node_id_t, std::set<node_id_t>> component_map;
