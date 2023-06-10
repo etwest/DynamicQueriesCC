@@ -179,7 +179,7 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
         }
     }
     // Manually compute the aggregates for each aux tree
-    std::unordered_map<LinkCutNode*, uint32_t> path_aggregates;
+    std::map<LinkCutNode*, uint32_t> path_aggregates;
     for (int i = 0; i < nodecount; i++) {
         uint32_t nodemax = std::max(lct.nodes[i].edges[lct.nodes[i].preferred_edges.first],
                 lct.nodes[i].edges[lct.nodes[i].preferred_edges.second]);

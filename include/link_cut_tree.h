@@ -10,17 +10,17 @@ class SplayTree;
 class LinkCutNode {
   FRIEND_TEST(LinkCutTreeSuite, random_links_and_cuts);
 
-  LinkCutNode* parent;
-  LinkCutNode* dparent;
-  LinkCutNode* left;
-  LinkCutNode* right;
+  LinkCutNode* parent = nullptr;
+  LinkCutNode* dparent = nullptr;
+  LinkCutNode* left = nullptr;
+  LinkCutNode* right = nullptr;
   
   LinkCutNode* head = this;
   LinkCutNode* tail = this;
 
   //Keep a list of edges with weights and up to two preferred edges
   std::pair<edge_id_t, edge_id_t> preferred_edges = {MAX_UINT64, MAX_UINT64};
-  std::unordered_map<edge_id_t, uint32_t> edges = {};
+  std::map<edge_id_t, uint32_t> edges = {};
   //Maintain an aggregate maximum of the edge weights in the auxilliary tree
   uint32_t max = 0;
   edge_id_t max_edge = MAX_UINT64;

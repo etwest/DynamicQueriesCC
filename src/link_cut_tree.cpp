@@ -223,6 +223,7 @@ LinkCutNode* LinkCutNode::splay() {
 }
 
 LinkCutTree::LinkCutTree(node_id_t num_nodes) {
+    nodes.reserve(num_nodes);
     for (node_id_t vertex = 0; vertex < num_nodes; vertex++) {
         nodes.emplace_back(vertex);
     }
@@ -342,14 +343,14 @@ std::vector<std::set<node_id_t>> LinkCutTree::get_cc() {
             std::set<LinkCutNode*> node_component;
             LinkCutNode* curr = &nodes[i];
             while ((curr->get_parent() && visited.find(curr->get_parent()) == visited.end())
-            || curr->get_dparent() && visited.find(curr->get_dparent()) == visited.end()) {
+            || (curr->get_head()->get_dparent() && visited.find(curr->get_head()->get_dparent()) == visited.end())) {
                 node_component.insert(curr);
-                curr = curr->get_parent() ? curr->get_parent() : curr->get_dparent();
+                curr = curr->get_parent() ? curr->get_parent() : curr->get_head()->get_dparent();
             }
             node_component.insert(curr);
             LinkCutNode* root = curr;
-            if (curr->get_parent() || curr->get_dparent())
-                root = curr->get_parent() ? visited[curr->get_parent()] : visited[curr->get_dparent()];
+            if (curr->get_parent() || curr->get_head()->get_dparent())
+                root = curr->get_parent() ? visited[curr->get_parent()] : visited[curr->get_head()->get_dparent()];
 
             if (cc_map.find(root) == cc_map.end()) {
                 std::set<node_id_t> component;
