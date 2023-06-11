@@ -43,12 +43,12 @@ void TierNode::main() {
                     RefreshEndpoint e1, e2;
                     e1.v = refresh_message.endpoints.first.v;
                     e2.v = refresh_message.endpoints.second.v;
-                    for (RefreshEndpoint e : {e1, e2}) {
-                        e.prev_tier_size = ett_nodes[e.v].get_size();
-                        Sketch* ett_agg = ett_nodes[e.v].get_aggregate();
+                    for (RefreshEndpoint* e : {&e1, &e2}) {
+                        e->prev_tier_size = ett_nodes[e->v].get_size();
+                        Sketch* ett_agg = ett_nodes[e->v].get_aggregate();
                         std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
-                        e.sketch_query_result_type = query_result.second;
-                        e.sketch_query_result = query_result.first;
+                        e->sketch_query_result_type = query_result.second;
+                        e->sketch_query_result = query_result.first;
                     }
                     RefreshMessage next_refresh_message;
                     next_refresh_message.endpoints = {e1, e2};
