@@ -1,8 +1,6 @@
 #include "../include/link_cut_tree.h"
 #include <cassert>
 
-LinkCutNode::LinkCutNode(node_id_t vertex) : vertex(vertex) {}
-
 void LinkCutNode::set_parent(LinkCutNode* parent) { this->parent = parent; }
 void LinkCutNode::set_dparent(LinkCutNode* dparent) { this->dparent = dparent; }
 void LinkCutNode::set_max(uint32_t weight){ this->max = weight; }
@@ -148,6 +146,10 @@ void LinkCutNode::remove_edge(edge_id_t e) {
     this->edges.erase(e);
 }
 
+bool LinkCutNode::has_edge(edge_id_t e) {
+    return (this->edges.find(e) != this->edges.end());
+}
+
 void LinkCutNode::rebuild_max() {
     uint32_t max = 0;
     edge_id_t max_edge = 0;
@@ -222,12 +224,7 @@ LinkCutNode* LinkCutNode::splay() {
     return this;
 }
 
-LinkCutTree::LinkCutTree(node_id_t num_nodes) {
-    nodes.reserve(num_nodes);
-    for (node_id_t vertex = 0; vertex < num_nodes; vertex++) {
-        nodes.emplace_back(vertex);
-    }
-}
+LinkCutTree::LinkCutTree(node_id_t num_nodes) : nodes(num_nodes) {}
 
 LinkCutNode* LinkCutTree::join(LinkCutNode* v, LinkCutNode* w) {
     assert(v != nullptr && w != nullptr && v->get_parent() == nullptr && w->get_parent() == nullptr);
@@ -335,6 +332,11 @@ std::pair<edge_id_t, uint32_t> LinkCutTree::path_aggregate(node_id_t v, node_id_
     return p->get_max_edge();
 }
 
+bool LinkCutTree::has_edge(node_id_t v1, node_id_t v2) {
+    edge_id_t e = vertices_to_edge(v1, v2);
+    return nodes[v1].has_edge(e);
+}
+
 std::vector<std::set<node_id_t>> LinkCutTree::get_cc() {
 	std::map<LinkCutNode*, std::set<node_id_t>> cc_map;
 	std::map<LinkCutNode*, LinkCutNode*> visited;
@@ -357,7 +359,7 @@ std::vector<std::set<node_id_t>> LinkCutTree::get_cc() {
                 cc_map.insert({root, component});
             }
 			for (auto node : node_component) {
-				cc_map[root].insert(node->vertex);
+				cc_map[root].insert(node-&nodes[0]);
 				visited.insert({node, root});
 			}
 		}

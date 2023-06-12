@@ -8,7 +8,7 @@ void QueryNode::main() {
         StreamMessage stream_message;
         bcast(&stream_message, sizeof(StreamMessage), 0);
         if (stream_message.type == UPDATE) {
-            if (stream_message.update.type == DELETE)
+            if (stream_message.update.type == DELETE && link_cut_tree.has_edge(stream_message.update.edge.src, stream_message.update.edge.dst))
                 link_cut_tree.cut(stream_message.update.edge.src, stream_message.update.edge.dst);
         } else if (stream_message.type == QUERY) {
             bool is_connected = link_cut_tree.find_root(stream_message.update.edge.src) == link_cut_tree.find_root(stream_message.update.edge.dst);

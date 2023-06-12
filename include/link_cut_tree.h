@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include "types.h"
+#include "util.h"
 
 #define MAX_UINT64 (std::numeric_limits<uint64_t>::max())
 class LinkCutTree;
@@ -10,17 +11,17 @@ class SplayTree;
 class LinkCutNode {
   FRIEND_TEST(LinkCutTreeSuite, random_links_and_cuts);
 
-  LinkCutNode* parent = nullptr;
-  LinkCutNode* dparent = nullptr;
-  LinkCutNode* left = nullptr;
-  LinkCutNode* right = nullptr;
+  LinkCutNode* parent;
+  LinkCutNode* dparent;
+  LinkCutNode* left;
+  LinkCutNode* right;
   
   LinkCutNode* head = this;
   LinkCutNode* tail = this;
 
   //Keep a list of edges with weights and up to two preferred edges
   std::pair<edge_id_t, edge_id_t> preferred_edges = {MAX_UINT64, MAX_UINT64};
-  std::map<edge_id_t, uint32_t> edges = {};
+  std::unordered_map<edge_id_t, uint32_t> edges = {};
   //Maintain an aggregate maximum of the edge weights in the auxilliary tree
   uint32_t max = 0;
   edge_id_t max_edge = MAX_UINT64;
@@ -35,10 +36,6 @@ class LinkCutNode {
   void rotate_up();
 
   public:
-    LinkCutNode(node_id_t vertex);
-
-    node_id_t vertex;
-
     LinkCutNode* splay();
 
     void link_left(LinkCutNode* left);
@@ -51,6 +48,7 @@ class LinkCutNode {
     void unmake_preferred_edge(edge_id_t e);
     void insert_edge(edge_id_t e, uint32_t weight);
     void remove_edge(edge_id_t e);
+    bool has_edge(edge_id_t e);
     void set_max(uint32_t weight);
 
     void set_reversed(bool reversed);
@@ -100,6 +98,7 @@ class LinkCutTree {
 
     // Given node v and w return the edge with the maximum weight on the path from v to w and the weight itself
     std::pair<edge_id_t, uint32_t> path_aggregate(node_id_t v, node_id_t w);
+    bool has_edge(node_id_t v1, node_id_t v2);
 
     // Query for the CC algorithm
     std::vector<std::set<node_id_t>> get_cc();
