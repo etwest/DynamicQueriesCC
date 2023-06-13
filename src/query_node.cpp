@@ -10,6 +10,7 @@ void QueryNode::main() {
         if (stream_message.type == UPDATE) {
             if (stream_message.update.type == DELETE && link_cut_tree.has_edge(stream_message.update.edge.src, stream_message.update.edge.dst))
                 link_cut_tree.cut(stream_message.update.edge.src, stream_message.update.edge.dst);
+            MPI_Barrier(MPI_COMM_WORLD);
         } else if (stream_message.type == QUERY) {
             bool is_connected = link_cut_tree.find_root(stream_message.update.edge.src) == link_cut_tree.find_root(stream_message.update.edge.dst);
             MPI_Send(&is_connected, sizeof(bool), MPI_BYTE, 0, 0, MPI_COMM_WORLD);

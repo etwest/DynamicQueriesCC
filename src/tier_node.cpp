@@ -25,6 +25,7 @@ void TierNode::main() {
         bcast(&stream_message, sizeof(StreamMessage), 0);
         if (stream_message.type == UPDATE) {
             update_tier(stream_message.update);
+            MPI_Barrier(MPI_COMM_WORLD);
         } else if (stream_message.type == QUERY || stream_message.type == CC_QUERY) {
             continue;
         } else {

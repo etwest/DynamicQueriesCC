@@ -126,6 +126,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
             stream_message.type = UPDATE;
             stream_message.update = update;
             bcast(&stream_message, sizeof(StreamMessage), 0);
+            MPI_Barrier(MPI_COMM_WORLD);
             STOP(update_time, update_timer);
             // Initiate the refresh sequence and receive all the broadcasts
             START(refresh_timer);
