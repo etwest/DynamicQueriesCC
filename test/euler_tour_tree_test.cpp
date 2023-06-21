@@ -77,6 +77,7 @@ TEST(EulerTourTreeSuite, stress_test) {
 
   int seed = time(NULL);
   srand(seed);
+  std::cout << "Seeding stress test with " << seed << std::endl;
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
 
@@ -85,8 +86,6 @@ TEST(EulerTourTreeSuite, stress_test) {
     nodes.emplace_back(seed, rand(), 0);
   }
 
-  std::cout << "Seeding stress test with " << seed << std::endl;
-  srand(seed);
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
     if (rand() % 100 < 15) {
@@ -116,6 +115,8 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   int nodecount = 1000;
   int n = 500;
   int seed = time(NULL);
+  srand(seed);
+  std::cout << "Seeding random links and cuts test with " << seed << std::endl;
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
   for (int i = 0; i < nodecount; i++)
@@ -125,8 +126,6 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     nodes[i].update_sketch((vec_t)i);
   }
 
-  std::cout << "Seeding random links and cuts test with " << seed << std::endl;
-  srand(seed);
   // Do random links and cuts
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
@@ -205,6 +204,8 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   Sketch::configure(len, err);
 
   int seed = time(NULL);
+  srand(seed);
+  std::cout << "Seeding get aggregate test with " << seed << std::endl;
 
   // Keep a manual aggregate of all the sketches
   Sketch* true_aggregate = (Sketch *) ::operator new(Sketch::sketchSizeof());

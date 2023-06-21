@@ -81,6 +81,8 @@ SkipListNode* SkipListNode::get_root() {
 }
 
 SkipListNode* SkipListNode::get_first() {
+	// Go to the root first and then down to the first element, because if we start at some lower level
+	// we may have to travel right a lot more on that level, takes log time instead of linear time
 	SkipListNode* prev = nullptr;
 	SkipListNode* curr = this->get_root();
 	while (curr) {
@@ -91,6 +93,8 @@ SkipListNode* SkipListNode::get_first() {
 }
 
 SkipListNode* SkipListNode::get_last() {
+	// Go to the root first and then down to the last element, because if we start at some lower level
+	// we may have to travel left a lot more on that level, takes log time instead of linear time
 	SkipListNode* prev = nullptr;
 	SkipListNode* curr = this->get_root();
 	while (curr) {
@@ -126,7 +130,7 @@ void SkipListNode::update_path_agg(Sketch* sketch) {
 
 std::set<EulerTourTree*> SkipListNode::get_component() {
 	std::set<EulerTourTree*> nodes;
-	SkipListNode* curr = this->get_first()->right;
+	SkipListNode* curr = this->get_first()->right; //Skip over the boundary node
 	while (curr) {
 		nodes.insert(curr->node);
 		curr = curr->right;

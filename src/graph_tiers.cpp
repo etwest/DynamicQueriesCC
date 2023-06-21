@@ -1,6 +1,7 @@
 
 #include "../include/graph_tiers.h"
 #include "timer.h"
+#include <atomic>
 
 long lct_time = 0;
 long ett_time = 0;
@@ -49,11 +50,11 @@ void GraphTiers::update(GraphUpdate update) {
 	}
 	#pragma omp parallel for if(use_parallelism)
 	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
-		ett_nodes[i][update.edge.src].update_sketch((vec_t)edge);
-		ett_nodes[i][update.edge.dst].update_sketch((vec_t)edge);
 		if (update.type == DELETE && ett_nodes[i][update.edge.src].has_edge_to(&ett_nodes[i][update.edge.dst])) {
 			ett_nodes[i][update.edge.src].cut(ett_nodes[i][update.edge.dst]);
 		}
+		ett_nodes[i][update.edge.src].update_sketch((vec_t)edge);
+		ett_nodes[i][update.edge.dst].update_sketch((vec_t)edge);
 	}
 	STOP(sketch_time, su);
 	// Refresh the data structure
@@ -66,7 +67,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 	// In parallel check if all tiers are not isolated
 	if (use_parallelism) {
 		START(iso);
-		std::atomic_bool isolated = false;
+		std::atomic<bool> isolated(false);
 		#pragma omp parallel for
 		for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
 			for (node_id_t v : {update.edge.src, update.edge.dst}) {
