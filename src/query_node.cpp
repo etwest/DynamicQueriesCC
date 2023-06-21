@@ -30,9 +30,10 @@ void QueryNode::main() {
             return;
         }
         // For each tier process LCT queries and LCT updates
-        for (int tier = 0; tier < num_tiers; tier++) {
+        for (uint32_t tier = 0; tier < num_tiers; tier++) {
             int rank = tier + 1;
-            for (int endpoint : {0,1}) {
+            for (auto endpoint : {0,1}) {
+                std::ignore = endpoint;
                 //Process a LCT query message first
                 LctQueryMessage query_message;
                 MPI_Recv(&query_message, sizeof(LctQueryMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -50,7 +51,8 @@ void QueryNode::main() {
                 }
 
                 // Then process two update broadcasts to potentially cut and link in the LCT
-                for (int broadcast : {0,1}) {
+                for (auto broadcast : {0,1}) {
+                    std::ignore = broadcast;
                     UpdateMessage update_message;
                     bcast(&update_message, sizeof(UpdateMessage), rank);
                     if (update_message.type == LINK) {

@@ -333,7 +333,7 @@ std::pair<edge_id_t, uint32_t> LinkCutTree::path_aggregate(node_id_t v, node_id_
 }
 
 bool LinkCutTree::has_edge(node_id_t v1, node_id_t v2) {
-    edge_id_t e = vertices_to_edge(v1, v2);
+    edge_id_t e = VERTICES_TO_EDGE(v1, v2);
     return nodes[v1].has_edge(e);
 }
 

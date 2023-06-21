@@ -32,7 +32,7 @@ void TierNode::main() {
             return;
         }
         // Start the refreshing sequence
-        for (int tier = 0; tier < num_tiers; tier++) {
+        for (uint32_t tier = 0; tier < num_tiers; tier++) {
             int rank = tier + 1;
             // If this node's tier is the current tier process the refresh message from previous tier or input node
             if (tier == tier_num) {
@@ -60,7 +60,9 @@ void TierNode::main() {
             }
             // For every other tier just receive and perform update messages
             for (int endpoint : {0,1}) {
+                std::ignore = endpoint;
                 for (int broadcast : {0,1}) {
+                    std::ignore = broadcast;
                     UpdateMessage update_message;
                     bcast(&update_message, sizeof(UpdateMessage), rank);
                     ett_update_tier(update_message);
@@ -71,7 +73,7 @@ void TierNode::main() {
 }
 
 void TierNode::update_tier(GraphUpdate update) {
-    edge_id_t edge = vertices_to_edge(update.edge.src, update.edge.dst);
+    edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
     ett_nodes[update.edge.src].update_sketch((vec_t)edge);
     ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
     if (update.type == DELETE && ett_nodes[update.edge.src].has_edge_to(&ett_nodes[update.edge.dst])) {

@@ -5,14 +5,16 @@
 #include "graph_tiers.h"
 #include "binary_graph_stream.h"
 #include "mat_graph_verifier.h"
-#include "timer.h"
+#include "util.h"
 
 
 TEST(GraphTiersSuite, mpi_correctness_test) {
-    int world_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    int world_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    int world_rank_buf;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
+    uint32_t world_rank = world_rank_buf;
+    int world_size_buf;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
+    uint32_t world_size = world_size_buf;
 
     BinaryGraphStream stream("kron_13_stream_binary", 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
@@ -30,6 +32,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             stream_message.type = UPDATE;
             stream_message.update = update;
             bcast(&stream_message, sizeof(StreamMessage), 0);
+            MPI_Barrier(MPI_COMM_WORLD);
             // Initiate the refresh sequence and receive all the broadcasts
             RefreshEndpoint e1, e2;
             e1.v = update.edge.src;
@@ -37,10 +40,12 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             RefreshMessage refresh_message;
             refresh_message.endpoints = {e1, e2};
             MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
-            for (int tier = 0; tier < num_tiers; tier++) {
+            for (uint32_t tier = 0; tier < num_tiers; tier++) {
                 int rank = tier + 1;
-                for (int endpoint : {0,1}) {
-                    for (int broadcast : {0,1}) {
+                for (auto endpoint : {0,1}) {
+                    std::ignore = endpoint;
+                    for (auto broadcast : {0,1}) {
+                        std::ignore = broadcast;
                         UpdateMessage update_message;
                         bcast(&update_message, sizeof(UpdateMessage), rank);
                     }
@@ -101,10 +106,12 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
 }
 
 TEST(GraphTierSuite, mpi_speed_test) {
-    int world_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    int world_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    int world_rank_buf;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
+    uint32_t world_rank = world_rank_buf;
+    int world_size_buf;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
+    uint32_t world_size = world_size_buf;
 
     BinaryGraphStream stream("kron_13_stream_binary", 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
@@ -136,10 +143,12 @@ TEST(GraphTierSuite, mpi_speed_test) {
             RefreshMessage refresh_message;
             refresh_message.endpoints = {e1, e2};
             MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
-            for (int tier = 0; tier < num_tiers; tier++) {
+            for (uint32_t tier = 0; tier < num_tiers; tier++) {
                 int rank = tier + 1;
-                for (int endpoint : {0,1}) {
-                    for (int broadcast : {0,1}) {
+                for (auto endpoint : {0,1}) {
+                    std::ignore = endpoint;
+                    for (auto broadcast : {0,1}) {
+                        std::ignore = broadcast;
                         UpdateMessage update_message;
                         bcast(&update_message, sizeof(UpdateMessage), rank);
                     }

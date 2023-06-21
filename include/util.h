@@ -1,5 +1,10 @@
+#include <chrono>
 #include "types.h"
 
-static edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
-   return a<b ? (((edge_id_t)a)<<32) + ((edge_id_t)b) : (((edge_id_t)b)<<32) + ((edge_id_t)a);
-};
+#define START(X) auto X = std::chrono::high_resolution_clock::now()
+#define STOP(C, X) C += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - X).count()
+
+//#define START(X) ;
+//#define STOP(C, X) ;
+
+#define VERTICES_TO_EDGE(A, B) A<B ? (((edge_id_t)A)<<32) + ((edge_id_t)B) : (((edge_id_t)B)<<32) + ((edge_id_t)A)
