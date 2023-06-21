@@ -81,6 +81,8 @@ SkipListNode* SkipListNode::get_root() {
 }
 
 SkipListNode* SkipListNode::get_first() {
+	// Go to the root first and then down to the first element, because if we start at some lower level
+	// we may have to travel right a lot more on that level, takes log time instead of linear time
 	SkipListNode* prev = nullptr;
 	SkipListNode* curr = this->get_root();
 	while (curr) {
@@ -91,6 +93,8 @@ SkipListNode* SkipListNode::get_first() {
 }
 
 SkipListNode* SkipListNode::get_last() {
+	// Go to the root first and then down to the last element, because if we start at some lower level
+	// we may have to travel left a lot more on that level, takes log time instead of linear time
 	SkipListNode* prev = nullptr;
 	SkipListNode* curr = this->get_root();
 	while (curr) {
@@ -126,7 +130,7 @@ void SkipListNode::update_path_agg(Sketch* sketch) {
 
 std::set<EulerTourTree*> SkipListNode::get_component() {
 	std::set<EulerTourTree*> nodes;
-	SkipListNode* curr = this->get_first()->right;
+	SkipListNode* curr = this->get_first()->right; //Skip over the boundary node
 	while (curr) {
 		nodes.insert(curr->node);
 		curr = curr->right;
@@ -171,23 +175,31 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	}
 
 	// If right list was taller add new boundary nodes to left list
-	while (r_curr) {
-		l_curr = new SkipListNode(nullptr, seed);
-		l_curr->down = l_prev;
-		l_prev->up = l_curr;
-		l_curr->right = r_curr->right;
-		if (r_curr->right) r_curr->right->left = l_curr;
+	if (r_curr) {
+		// Cache the left root to initialize the new boundary nodes
+		Sketch* l_root_agg = (Sketch*) ::operator new(Sketch::sketchSizeof());
+		Sketch::makeSketch((char*)l_root_agg, seed);
+		*l_root_agg += *l_prev->sketch_agg;
+		*l_root_agg += *r_prev->sketch_agg;
+		uint32_t l_root_size = l_prev->size - (r_prev->size-1);
+		while (r_curr) {
+			l_curr = new SkipListNode(nullptr, seed);
+			l_curr->down = l_prev;
+			l_prev->up = l_curr;
+			l_curr->right = r_curr->right;
+			if (r_curr->right) r_curr->right->left = l_curr;
 
-		*l_curr->sketch_agg += *l_prev->sketch_agg;
-		*l_curr->sketch_agg += *r_prev->sketch_agg; // Avoid double adding entire right list
-		l_curr->size = l_prev->size - (r_prev->size-1);
-		*l_curr->sketch_agg += *r_curr->sketch_agg;
-		l_curr->size += r_curr->size-1;
+			*l_curr->sketch_agg += *l_root_agg;
+			l_curr->size = l_root_size;
+			*l_curr->sketch_agg += *r_curr->sketch_agg;
+			l_curr->size += r_curr->size-1;
 
-		if (r_prev) delete r_prev; // Delete old boundary nodes
-		l_prev = l_curr;
-		r_prev = r_curr;
-		r_curr = r_prev->up;
+			if (r_prev) delete r_prev; // Delete old boundary nodes
+			l_prev = l_curr;
+			r_prev = r_curr;
+			r_curr = r_prev->up;
+		}
+		::operator delete(l_root_agg, Sketch::sketchSizeof());
 	}
 	delete r_prev;
 	// Returns the root of the joined list
