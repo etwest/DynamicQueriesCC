@@ -31,7 +31,7 @@ bool EulerTourTree::isvalid() const {
       if (invalid) return false;
     }
     // check allowed_caller
-    if (v.get() == allowed_caller) {
+    if (v == allowed_caller) {
       // make sure there's only one allowed
       EXPECT_FALSE(allowed_valid) << (invalid = true, "");
       if (invalid) return false;
@@ -76,16 +76,16 @@ TEST(EulerTourTreeSuite, stress_test) {
   int n = 100000;
 
   int seed = time(NULL);
+  srand(seed);
+  std::cout << "Seeding stress test with " << seed << std::endl;
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
 
   for (int i = 0; i < nodecount; i++)
   {
-    nodes.emplace_back(seed);
+    nodes.emplace_back(seed, rand(), 0);
   }
 
-  std::cout << "Seeding stress test with " << seed << std::endl;
-  srand(seed);
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
     if (rand() % 100 < 15) {
@@ -115,6 +115,8 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   int nodecount = 1000;
   int n = 500;
   int seed = time(NULL);
+  srand(seed);
+  std::cout << "Seeding random links and cuts test with " << seed << std::endl;
   std::vector<EulerTourTree> nodes;
   nodes.reserve(nodecount);
   for (int i = 0; i < nodecount; i++)
@@ -124,8 +126,6 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     nodes[i].update_sketch((vec_t)i);
   }
 
-  std::cout << "Seeding random links and cuts test with " << seed << std::endl;
-  srand(seed);
   // Do random links and cuts
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
@@ -141,43 +141,36 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
         << nodes;
   }
 
-  std::unordered_set<SplayTreeNode*> sentinels;
+  std::unordered_set<SkipListNode*> sentinels;
   for (int i = 0; i < nodecount; i++)
   {
-    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    SkipListNode *sentinel = nodes[i].edges.begin()->second->get_last();
     sentinels.insert(sentinel);
   }
   void *cc_sketch_space = malloc(space * sentinels.size());
 
   // Walk up from an occurrence of each node to the root of its auxiliary tre
-  std::unordered_map<SplayTreeNode*, Sketch*> aggs;
-  std::unordered_map<SplayTreeNode*, uint32_t> sizes;
+  std::unordered_map<SkipListNode*, Sketch*> aggs;
+  std::unordered_map<SkipListNode*, uint32_t> sizes;
   for (int i = 0; i < nodecount; i++)
   {
-    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
-    sentinel->splay();
-    SplayTreeNode *aux_root = sentinel;
-    aux_root->rebuild_agg();
-    ASSERT_FALSE(aux_root->needs_rebuilding)
-      << "Found node " << i << " in incomplete state!"
-      << std::endl
-      << nodes;
+    SkipListNode *sentinel = nodes[i].edges.begin()->second->get_last();
     if (aggs.find(sentinel) == aggs.end())
     {
       char *location = (char*)cc_sketch_space + space*aggs.size();
       aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
-      *aggs[sentinel] += *aux_root->sketch_agg;
-      sizes[sentinel] = aux_root->size;
+      *aggs[sentinel] += *sentinel->get_list_aggregate();
+      sizes[sentinel] = sentinel->get_list_size();
     }
   }
 
   void *naive_cc_sketch_space = malloc(space * sentinels.size());
-  std::unordered_map<SplayTreeNode*, Sketch*> naive_aggs;
-  std::unordered_map<SplayTreeNode*, uint32_t> naive_sizes;
+  std::unordered_map<SkipListNode*, Sketch*> naive_aggs;
+  std::unordered_map<SkipListNode*, uint32_t> naive_sizes;
   // Naively compute aggregates for each connected component
   for (int i = 0; i < nodecount; i++)
   {
-    SplayTreeNode *sentinel = SplayTree::get_last(nodes[i].edges.begin()->second).get();
+    SkipListNode* sentinel = nodes[i].edges.begin()->second->get_last();
     if (naive_aggs.find(sentinel) != naive_aggs.end())
     {
       *naive_aggs[sentinel] += *nodes[i].sketch;
@@ -199,7 +192,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   free(cc_sketch_space);
   for (auto size: sizes) {
     // Euler tour has length 2n-1
-    ASSERT_EQ(size.second, 2*naive_sizes[size.first]-1);
+    ASSERT_EQ(size.second-1, 2*naive_sizes[size.first]-1);
   }
 }
 
@@ -211,6 +204,8 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   Sketch::configure(len, err);
 
   int seed = time(NULL);
+  srand(seed);
+  std::cout << "Seeding get aggregate test with " << seed << std::endl;
 
   // Keep a manual aggregate of all the sketches
   Sketch* true_aggregate = (Sketch *) ::operator new(Sketch::sketchSizeof());
@@ -234,6 +229,6 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   }
 
   // Check that the ETT aggregate is properly maintained and gotten
-  std::shared_ptr<Sketch> aggregate = nodes[0].get_aggregate();
+  Sketch* aggregate = nodes[0].get_aggregate();
   ASSERT_TRUE(*aggregate == *true_aggregate);
 }

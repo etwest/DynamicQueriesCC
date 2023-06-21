@@ -2,26 +2,26 @@
 #include <iostream>
 #include <unordered_map>
 
-#include <splay_tree.h>
+#include <skiplist.h>
 
 class EulerTourTree {
-  FRIEND_TEST(SplayTreeSuite, random_splays);
   FRIEND_TEST(EulerTourTreeSuite, random_links_and_cuts);
   FRIEND_TEST(EulerTourTreeSuite, get_aggregate);
-  using Sptr = std::shared_ptr<SplayTreeNode>;
-  std::unordered_map<EulerTourTree*, Sptr> edges;
+  FRIEND_TEST(SkipListSuite, join_split_test);
+  FRIEND_TEST(GraphTiersSuite, mini_correctness_test);
   
+  std::unordered_map<EulerTourTree*, SkipListNode*> edges;
 
-  SplayTreeNode* allowed_caller = nullptr;
-  std::unique_ptr<Sketch> sketch = nullptr;
+  SkipListNode* allowed_caller = nullptr;
+  Sketch* sketch = nullptr;
   long seed = 0;
 
-  Sptr make_edge(EulerTourTree* other);
+  SkipListNode* make_edge(EulerTourTree* other);
   void delete_edge(EulerTourTree* other);
-public:
 
-  node_id_t vertex = 0;
-  uint32_t tier = 0;
+public:
+  const node_id_t vertex = 0;
+  const uint32_t tier = 0;
 
   EulerTourTree(long seed, node_id_t vertex, uint32_t tier);
   EulerTourTree(long seed);
@@ -31,10 +31,10 @@ public:
 
   bool isvalid() const;
 
-  Sketch* get_sketch(SplayTreeNode* caller);
+  Sketch* get_sketch(SkipListNode* caller);
   void update_sketch(vec_t update_idx);
 
-  std::shared_ptr<Sketch> get_aggregate();
+  Sketch* get_aggregate();
   uint32_t get_size();
   bool has_edge_to(EulerTourTree* other);
 

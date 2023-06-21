@@ -35,15 +35,19 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
 
+#add_compile_options(-fsanitize=address)
+#add_link_options(-fsanitize=address)
+#add_compile_options(-fsanitize=undefined)
+#add_link_options(-fsanitize=undefined)
 
 add_executable(dynamicCC_tests
   test/test_runner.cpp
+  test/skiplist_test.cpp
   test/euler_tour_tree_test.cpp
-  test/splay_tree_test.cpp
   test/link_cut_tree_test.cpp
   test/graph_tiers_test.cpp
 
-  src/splay_tree.cpp
+  src/skiplist.cpp
 
   src/euler_tour_tree.cpp
 
