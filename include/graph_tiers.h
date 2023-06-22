@@ -8,16 +8,6 @@
 #include "link_cut_tree.h"
 #include "mpi_functions.h"
 
-// Global variables for performance testing
-extern long lct_time;
-extern long ett_time;
-extern long ett_find_root;
-extern long ett_get_agg;
-extern long sketch_query;
-extern long sketch_time;
-extern long refresh_time;
-extern long parallel_isolated_check;
-extern long tiers_grown;
 
 enum StreamOperationType {
   UPDATE, QUERY, CC_QUERY, END
@@ -62,6 +52,17 @@ typedef struct {
   std::pair<RefreshEndpoint, RefreshEndpoint> endpoints;
 } RefreshMessage;
 
+class InputNode {
+  node_id_t num_nodes;
+  uint32_t num_tiers;
+public:
+  InputNode(node_id_t num_nodes, uint32_t num_tiers);
+  void update(GraphUpdate update);
+  bool connectivity_query(node_id_t a, node_id_t b);
+  std::vector<std::set<node_id_t>> cc_query();
+  void end();
+};
+
 class TierNode {
   std::vector<EulerTourTree> ett_nodes;
   uint32_t tier_num;
@@ -76,8 +77,8 @@ public:
 
 class QueryNode {
   LinkCutTree link_cut_tree;
-  uint32_t num_tiers;
   node_id_t num_nodes;
+  uint32_t num_tiers;
 public:
   QueryNode(node_id_t num_nodes, uint32_t num_tiers);
   void main();

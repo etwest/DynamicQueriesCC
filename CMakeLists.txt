@@ -59,16 +59,14 @@ add_executable(dynamicCC_tests
   test/link_cut_tree_test.cpp
   test/graph_tiers_test.cpp
 
-  src/skiplist.cpp
-
-  src/euler_tour_tree.cpp
-
-  src/link_cut_tree.cpp
-
   src/sketch.cpp
 
-  src/tier_node.cpp
+  src/skiplist.cpp
+  src/euler_tour_tree.cpp
+  src/link_cut_tree.cpp
 
+  src/input_node.cpp
+  src/tier_node.cpp
   src/query_node.cpp
 )
 

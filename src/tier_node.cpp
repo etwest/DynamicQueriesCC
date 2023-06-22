@@ -1,5 +1,6 @@
 #include "../include/graph_tiers.h"
 
+
 TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers) :
     tier_num(tier_num), num_tiers(num_tiers) {
     // Algorithm parameters
@@ -25,7 +26,6 @@ void TierNode::main() {
         bcast(&stream_message, sizeof(StreamMessage), 0);
         if (stream_message.type == UPDATE) {
             update_tier(stream_message.update);
-            MPI_Barrier(MPI_COMM_WORLD);
         } else if (stream_message.type == QUERY || stream_message.type == CC_QUERY) {
             continue;
         } else {
@@ -54,7 +54,6 @@ void TierNode::main() {
                     RefreshMessage next_refresh_message;
                     next_refresh_message.endpoints = {e1, e2};
                     MPI_Send(&next_refresh_message, sizeof(RefreshMessage), MPI_BYTE, rank+1, 0, MPI_COMM_WORLD);
-                    //std::cout << "SENT NEXT REFRESH MESSAGE TO " << rank+1 << std::endl;
                 }
                 continue;
             }
