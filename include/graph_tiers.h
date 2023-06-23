@@ -14,7 +14,7 @@ enum StreamOperationType {
 };
 
 enum TreeOperationType {
-  EMPTY, LINK, CUT, LCT_QUERY
+  EMPTY, LINK, CUT, LCT_QUERY, DONE
 };
 
 typedef struct {

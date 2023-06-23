@@ -1,7 +1,7 @@
 #include "../include/graph_tiers.h"
 
 
-InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers) : num_tiers(num_tiers), num_nodes(num_nodes) {};
+InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers) : num_nodes(num_nodes), num_tiers(num_tiers) {};
 
 void InputNode::update(GraphUpdate update) {
     // Broadcast the update to all nodes for sketch updating
@@ -24,6 +24,7 @@ void InputNode::update(GraphUpdate update) {
                 std::ignore = broadcast;
                 UpdateMessage update_message;
                 bcast(&update_message, sizeof(UpdateMessage), rank);
+                if (update_message.type == DONE) break;
             }
         }
     }

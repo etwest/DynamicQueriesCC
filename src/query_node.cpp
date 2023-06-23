@@ -1,7 +1,7 @@
 #include "../include/graph_tiers.h"
 
 
-QueryNode::QueryNode(node_id_t num_nodes, uint32_t num_tiers) : link_cut_tree(num_nodes), num_tiers(num_tiers), num_nodes(num_nodes) {};
+QueryNode::QueryNode(node_id_t num_nodes, uint32_t num_tiers) : link_cut_tree(num_nodes), num_nodes(num_nodes), num_tiers(num_tiers) {};
 
 void QueryNode::main() {
     while (true) {
@@ -55,6 +55,7 @@ void QueryNode::main() {
                     std::ignore = broadcast;
                     UpdateMessage update_message;
                     bcast(&update_message, sizeof(UpdateMessage), rank);
+                    if (update_message.type == DONE) break;
                     if (update_message.type == LINK) {
                         link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
                     } else if (update_message.type == CUT) {

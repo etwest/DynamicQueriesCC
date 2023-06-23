@@ -64,6 +64,7 @@ void TierNode::main() {
                     std::ignore = broadcast;
                     UpdateMessage update_message;
                     bcast(&update_message, sizeof(UpdateMessage), rank);
+                    if (update_message.type == DONE) break;
                     ett_update_tier(update_message);
                 }
             }
@@ -98,8 +99,7 @@ void TierNode::refresh_tier(RefreshMessage message) {
             lct_query.type = EMPTY;
             MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
             UpdateMessage update_message;
-            update_message.type = EMPTY;
-            bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
+            update_message.type = DONE;
             bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
             continue;
         }
@@ -110,8 +110,7 @@ void TierNode::refresh_tier(RefreshMessage message) {
             lct_query.type = EMPTY;
             MPI_Send(&lct_query, sizeof(LctQueryMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD);
             UpdateMessage update_message;
-            update_message.type = EMPTY;
-            bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
+            update_message.type = DONE;
             bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
             continue;
         }
