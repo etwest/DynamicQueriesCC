@@ -34,30 +34,28 @@ void QueryNode::main() {
             int rank = tier + 1;
             for (auto endpoint : {0,1}) {
                 std::ignore = endpoint;
-                //Process a LCT query message first
-                LctQueryMessage query_message;
-                MPI_Recv(&query_message, sizeof(LctQueryMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                //std::cout << "RECEIVED LCT QUERY MESSAGE FROM " << rank << std::endl;
-
-                if (query_message.type != EMPTY) {
-                    LctResponseMessage response_message;
-                    response_message.connected = link_cut_tree.find_root(query_message.endpoint1) == link_cut_tree.find_root(query_message.endpoint2);
-                    if (response_message.connected) {
-                        std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(query_message.endpoint1, query_message.endpoint2);
-                        response_message.cycle_edge = max.first;
-                        response_message.weight = max.second;
-                    }
-                    MPI_Send(&response_message, sizeof(LctResponseMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD);
+                // Receive a broadcast to see if the current tier/endpoint is isolated or not
+                UpdateMessage update_message;
+                bcast(&update_message, sizeof(UpdateMessage), rank);
+                if (update_message.type == NOT_ISOLATED) continue;
+                // Process a LCT query message first
+                LctResponseMessage response_message;
+                response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
+                if (response_message.connected) {
+                    std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(update_message.endpoint1, update_message.endpoint2);
+                    response_message.cycle_edge = max.first;
+                    response_message.weight = max.second;
                 }
+                MPI_Send(&response_message, sizeof(LctResponseMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD);
 
                 // Then process two update broadcasts to potentially cut and link in the LCT
                 for (auto broadcast : {0,1}) {
                     std::ignore = broadcast;
                     UpdateMessage update_message;
                     bcast(&update_message, sizeof(UpdateMessage), rank);
-                    if (update_message.type == DONE) break;
                     if (update_message.type == LINK) {
                         link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
+                        break;
                     } else if (update_message.type == CUT) {
                         link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
                     }

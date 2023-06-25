@@ -20,11 +20,16 @@ void InputNode::update(GraphUpdate update) {
         int rank = tier + 1;
         for (auto endpoint : {0,1}) {
             std::ignore = endpoint;
+            // Receive a broadcast to see if the endpoint at the current tier is isolated or not
+            UpdateMessage update_message;
+            bcast(&update_message, sizeof(UpdateMessage), rank);
+            if (update_message.type == NOT_ISOLATED) continue;
+            // Get the two broadcasts for ett link or cut
             for (auto broadcast : {0,1}) {
                 std::ignore = broadcast;
                 UpdateMessage update_message;
                 bcast(&update_message, sizeof(UpdateMessage), rank);
-                if (update_message.type == DONE) break;
+                if (update_message.type == LINK) break;
             }
         }
     }
