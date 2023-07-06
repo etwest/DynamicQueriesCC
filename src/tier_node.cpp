@@ -5,17 +5,18 @@ long refresh_time = 0;
 long ett_update_time = 0;
 long ett_root_time = 0;
 long lct_query_time = 0;
-
 long init_bcast_time = 0;
 long refresh_bcast_time = 0;
-long leading_refresh_bcast_time = 0;
-long leading_refresh_msg_time = 0;
+long leader_refresh_time = 0;
+long leader_refresh_bcast_time = 0;
+long leader_refresh_msg_time = 0;
+long leader_ett_update_time = 0;
 
 TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers) :
     tier_num(tier_num), num_tiers(num_tiers) {
     // Algorithm parameters
-	vec_t sketch_len = (num_nodes*num_nodes);
-	vec_t sketch_err = 20;
+	vec_t sketch_len = ((vec_t)num_nodes) * num_nodes;
+	vec_t sketch_err = 10;
 	int seed = time(NULL);
 
 	// Configure the sketches globally
@@ -47,10 +48,12 @@ void TierNode::main() {
             std::cout << "ETT update time (ms): " << ett_update_time/1000 << std::endl;
             std::cout << "Refresh time (ms): " << refresh_time/1000 << std::endl;
             std::cout << "  Time in refresh bcasts (ms): " << refresh_bcast_time/1000 << std::endl;
-            std::cout << "  Time in leading refresh bcasts (ms): " << leading_refresh_bcast_time/1000 << std::endl;
-            std::cout << "  Time in refresh message passing (ms): " << leading_refresh_msg_time/1000 << std::endl;
-            std::cout << "  ETT find root time (ms): " << ett_root_time/1000 << std::endl;
-            std::cout << "  LCT node query time (ms): " << lct_query_time/1000 << std::endl;
+            std::cout << "  Time in refresh message passing (ms): " << leader_refresh_msg_time/1000 << std::endl;
+            std::cout << "  Time in leader refresh (ms): " << leader_refresh_time/1000 << std::endl;
+            std::cout << "    Time in leader bcasts (ms): " << leader_refresh_bcast_time/1000 << std::endl;
+            std::cout << "    ETT find root time (ms): " << ett_root_time/1000 << std::endl;
+            std::cout << "    LCT node query time (ms): " << lct_query_time/1000 << std::endl;
+            std::cout << "    Leader ETT update time (ms): " << leader_ett_update_time/1000 << std::endl;
             return;
         }
         // Start the refreshing sequence
@@ -59,13 +62,15 @@ void TierNode::main() {
             int rank = tier + 1;
             // If this node's tier is the current tier process the refresh message from previous tier or input node
             if (tier == tier_num) {
-                START(refresh_timer);
+                START(refresh_timer1);
                 RefreshMessage refresh_message;
                 MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                STOP(leading_refresh_msg_time, refresh_timer);
+                STOP(leader_refresh_msg_time, refresh_timer1);
+                START(refresh_timer2);
                 refresh_tier(refresh_message);
+                STOP(leader_refresh_time, refresh_timer2);
                 // Send a refresh message to the next tier
-                START(refresh_timerr);
+                START(refresh_timer3);
                 if (tier < num_tiers-1) {
                     RefreshEndpoint e1, e2;
                     e1.v = refresh_message.endpoints.first.v;
@@ -83,7 +88,7 @@ void TierNode::main() {
                     next_refresh_message.endpoints = {e1, e2};
                     MPI_Send(&next_refresh_message, sizeof(RefreshMessage), MPI_BYTE, rank+1, 0, MPI_COMM_WORLD);
                 }
-                STOP(leading_refresh_msg_time, refresh_timerr);
+                STOP(leader_refresh_msg_time, refresh_timer3);
                 continue;
             }
             // For every other tier just receive and perform update messages
@@ -135,40 +140,26 @@ void TierNode::ett_update_tier(UpdateMessage message) {
 void TierNode::refresh_tier(RefreshMessage message) {
     for (RefreshEndpoint endpoint: {message.endpoints.first, message.endpoints.second}) {
         // Check if the tree containing this endpoint is isolated
-        uint32_t prev_tier_size = endpoint.prev_tier_size;
         START(root_timer);
+        uint32_t prev_tier_size = endpoint.prev_tier_size;
         uint32_t this_tier_size = ett_nodes[endpoint.v].get_size();
-        STOP(ett_root_time, root_timer);
-        if (prev_tier_size != this_tier_size) {
-            START(bcast_timer);
-            UpdateMessage update_message;
-            update_message.type = NOT_ISOLATED;
-            bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
-            STOP(leading_refresh_bcast_time, bcast_timer);
-            continue;
-        }
-
-        // Check for new edge to eliminate isolation
-        if (endpoint.sketch_query_result_type != GOOD) {
-            START(bcast_timer);
-            UpdateMessage update_message;
-            update_message.type = NOT_ISOLATED;
-            bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
-            STOP(leading_refresh_bcast_time, bcast_timer);
-            continue;
-        }
+        
         node_id_t a = (node_id_t)endpoint.sketch_query_result;
         node_id_t b = (node_id_t)(endpoint.sketch_query_result>>32);
-
+        STOP(ett_root_time, root_timer);
+        
         // Tell all other nodes an isolation was found
-        START(bcast_timer);
+        START(bcast_timer1);
         UpdateMessage update_message;
-        update_message.type = ISOLATED;
+        update_message.type = (TreeOperationType)(!(prev_tier_size != this_tier_size || endpoint.sketch_query_result_type != GOOD));
         update_message.endpoint1 = a;
         update_message.endpoint2 = b;
         bcast(&update_message, sizeof(UpdateMessage), tier_num+1);
-        STOP(leading_refresh_bcast_time, bcast_timer);
-
+        STOP(leader_refresh_bcast_time, bcast_timer1);
+				
+        if (update_message.type == NOT_ISOLATED)
+            continue;
+				
         // Query LCT node to check if this new edge forms a cycle
         START(lct_timer);
         LctResponseMessage lct_response;
@@ -180,29 +171,33 @@ void TierNode::refresh_tier(RefreshMessage message) {
             node_id_t c = (node_id_t)lct_response.cycle_edge;
             node_id_t d = (node_id_t)(lct_response.cycle_edge>>32);
 
-            START(bcast_timer);
+            START(bcast_timer2);
             UpdateMessage cut_message;
             cut_message.type = CUT;
             cut_message.endpoint1 = c;
             cut_message.endpoint2 = d;
             cut_message.start_tier = lct_response.weight;
             bcast(&cut_message, sizeof(UpdateMessage), tier_num+1);
-            STOP(leading_refresh_bcast_time, bcast_timer);
+            STOP(leader_refresh_bcast_time, bcast_timer2);
 
+            START(ett_timer);
             if (tier_num >= lct_response.weight)
                 ett_nodes[c].cut(ett_nodes[d]);
+            STOP(leader_ett_update_time, ett_timer);
         }
 
         // Tell all nodes above and including the current tier to add the new edge
-        START(bcast_timerr);
+        START(bcast_timer3);
         UpdateMessage link_message;
         link_message.type = LINK;
         link_message.endpoint1 = a;
         link_message.endpoint2 = b;
         link_message.start_tier = tier_num;
         bcast(&link_message, sizeof(UpdateMessage), tier_num+1);
-        STOP(leading_refresh_bcast_time, bcast_timerr);
+        STOP(leader_refresh_bcast_time, bcast_timer3);
 
+        START(ett_timer);
         ett_nodes[a].link(ett_nodes[b]);
+        STOP(leader_ett_update_time, ett_timer);
     }
 }
