@@ -1,6 +1,6 @@
 
 #include "../include/graph_tiers.h"
-#include "timer.h"
+#include "util.h"
 #include <atomic>
 
 long lct_time = 0;
@@ -20,8 +20,8 @@ edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
 GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
 	link_cut_tree(num_nodes), use_parallelism(use_parallelism) {
 	// Algorithm parameters
-	vec_t sketch_len = num_nodes*num_nodes;
-	vec_t sketch_err = 20;
+	vec_t sketch_len = ((vec_t)num_nodes) * num_nodes;
+	vec_t sketch_err = 10;
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 	int seed = time(NULL);
 
