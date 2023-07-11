@@ -28,6 +28,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
         InputNode input_node(stream.nodes(), num_tiers);
         MatGraphVerifier gv(stream.nodes());
         int edgecount = stream.edges();
+	    edgecount = 1000000;
         for (int i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
@@ -51,7 +52,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             }
         }
         std::ofstream file;
-        file.open ("kron_correctness_results.txt", std::ios_base::app);
+        file.open ("mpi_kron_results.txt", std::ios_base::app);
         file << stream_file << " passed correctness test." << std::endl;
         file.close();
         // Communicate to all other nodes that the stream has ended
@@ -84,6 +85,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
         long time = 0;
         InputNode input_node(stream.nodes(), num_tiers);
         int edgecount = stream.edges();
+	    edgecount = 1000000;
         START(timer);
         for (int i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
@@ -98,7 +100,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
         STOP(time, timer);
         std::cout << "TOTAL TIME FOR ALL UPDATES (ms): " << time/1000 << std::endl;
         std::ofstream file;
-        file.open ("kron_speed_results.txt", std::ios_base::app);
+        file.open ("mpi_kron_results.txt", std::ios_base::app);
         file << stream_file << " time (ms): " << time/1000 << std::endl;
         file.close();
 

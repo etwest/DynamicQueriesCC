@@ -9,6 +9,27 @@ void InputNode::update(GraphUpdate update) {
     stream_message.type = UPDATE;
     stream_message.update = update;
     bcast(&stream_message, sizeof(StreamMessage), 0);
+    // Try the greedy parallel refresh
+    RefreshMessage empty_message;
+    RefreshMessage* greedy_messages = (RefreshMessage*) malloc(sizeof(RefreshMessage)*(num_tiers+2));
+    gather(&empty_message, sizeof(RefreshMessage), greedy_messages, sizeof(RefreshMessage), 0);
+    UpdateMessage isolation_message;
+    isolation_message.type = NOT_ISOLATED;
+    for (uint32_t tier = 0; tier < num_tiers-1; tier++) {
+        if (greedy_messages[tier].endpoints.first.prev_tier_size == greedy_messages[tier+1].endpoints.first.prev_tier_size
+            && greedy_messages[tier].endpoints.first.sketch_query_result_type == GOOD) {
+            isolation_message.type = ISOLATED;
+            break;
+        }
+        if (greedy_messages[tier].endpoints.second.prev_tier_size == greedy_messages[tier+1].endpoints.second.prev_tier_size
+            && greedy_messages[tier].endpoints.second.sketch_query_result_type == GOOD) {
+            isolation_message.type = ISOLATED;
+            break;
+        }
+    }
+    bcast(&isolation_message, sizeof(UpdateMessage), 0);
+    if (isolation_message.type == NOT_ISOLATED)
+        return;
     // Initiate the refresh sequence and receive all the broadcasts
     RefreshEndpoint e1, e2;
     e1.v = update.edge.src;

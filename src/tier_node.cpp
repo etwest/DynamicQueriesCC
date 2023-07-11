@@ -56,8 +56,25 @@ void TierNode::main() {
             std::cout << "    Leader ETT update time (ms): " << leader_ett_update_time/1000 << std::endl;
             return;
         }
-        // Start the refreshing sequence
         START(refresh_timer);
+        // Try the greedy parallel refresh
+        RefreshEndpoint e1, e2;
+        e1.v = stream_message.update.edge.src;
+        e2.v = stream_message.update.edge.dst;
+        for (RefreshEndpoint* e : {&e1, &e2}) {
+            e->prev_tier_size = ett_nodes[e->v].get_size();
+            Sketch* ett_agg = ett_nodes[e->v].get_aggregate();
+            std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
+            e->sketch_query_result_type = query_result.second;
+        }
+        RefreshMessage refresh_message;
+        refresh_message.endpoints = {e1, e2};
+        gather(&refresh_message, sizeof(RefreshMessage), nullptr, 0, 0);
+        UpdateMessage isolation_message;
+        bcast(&isolation_message, sizeof(UpdateMessage), 0);
+        if (isolation_message.type == NOT_ISOLATED)
+            continue;
+        // Start the refreshing sequence
         for (uint32_t tier = 0; tier < num_tiers; tier++) {
             int rank = tier + 1;
             // If this node's tier is the current tier process the refresh message from previous tier or input node

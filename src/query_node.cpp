@@ -29,6 +29,13 @@ void QueryNode::main() {
         } else {
             return;
         }
+        // Participate in greedy refresh gather and bcast
+        RefreshMessage empty_message;
+        gather(&empty_message, sizeof(RefreshMessage), nullptr, 0, 0);
+        UpdateMessage isolation_message;
+        bcast(&isolation_message, sizeof(UpdateMessage), 0);
+        if (isolation_message.type == NOT_ISOLATED)
+            continue;
         // For each tier process LCT queries and LCT updates
         for (uint32_t tier = 0; tier < num_tiers; tier++) {
             int rank = tier + 1;
