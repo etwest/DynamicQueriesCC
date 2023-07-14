@@ -1,62 +1,82 @@
 #include "../include/graph_tiers.h"
 
 
-InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers) : num_nodes(num_nodes), num_tiers(num_tiers) {};
+InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers) {
+    update_buffer.reserve(batch_size);
+    greedy_refresh_buffer = (RefreshMessage*) malloc(sizeof(RefreshMessage)*(num_tiers+2));
+};
+
+InputNode::~InputNode() {
+    free(greedy_refresh_buffer);
+}
 
 void InputNode::update(GraphUpdate update) {
-    // Broadcast the update to all nodes for sketch updating
     StreamMessage stream_message;
     stream_message.type = UPDATE;
     stream_message.update = update;
-    bcast(&stream_message, sizeof(StreamMessage), 0);
-    // Try the greedy parallel refresh
-    RefreshMessage empty_message;
-    RefreshMessage* greedy_messages = (RefreshMessage*) malloc(sizeof(RefreshMessage)*(num_tiers+2));
-    gather(&empty_message, sizeof(RefreshMessage), greedy_messages, sizeof(RefreshMessage), 0);
-    UpdateMessage isolation_message;
-    isolation_message.type = NOT_ISOLATED;
-    for (uint32_t tier = 0; tier < num_tiers-1; tier++) {
-        if (greedy_messages[tier].endpoints.first.prev_tier_size == greedy_messages[tier+1].endpoints.first.prev_tier_size
-            && greedy_messages[tier].endpoints.first.sketch_query_result_type == GOOD) {
-            isolation_message.type = ISOLATED;
-            break;
-        }
-        if (greedy_messages[tier].endpoints.second.prev_tier_size == greedy_messages[tier+1].endpoints.second.prev_tier_size
-            && greedy_messages[tier].endpoints.second.sketch_query_result_type == GOOD) {
-            isolation_message.type = ISOLATED;
-            break;
-        }
+    update_buffer.push_back(stream_message);
+    if (update_buffer.size() == update_buffer.capacity()) {
+        process_updates();
+        update_buffer.clear();
     }
-    bcast(&isolation_message, sizeof(UpdateMessage), 0);
-    if (isolation_message.type == NOT_ISOLATED)
-        return;
-    // Initiate the refresh sequence and receive all the broadcasts
-    RefreshEndpoint e1, e2;
-    e1.v = update.edge.src;
-    e2.v = update.edge.dst;
-    RefreshMessage refresh_message;
-    refresh_message.endpoints = {e1, e2};
-    MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
-    for (uint32_t tier = 0; tier < num_tiers; tier++) {
-        int rank = tier + 1;
-        for (auto endpoint : {0,1}) {
-            std::ignore = endpoint;
-            // Receive a broadcast to see if the endpoint at the current tier is isolated or not
-            UpdateMessage update_message;
-            bcast(&update_message, sizeof(UpdateMessage), rank);
-            if (update_message.type == NOT_ISOLATED) continue;
-            // Get the two broadcasts for ett link or cut
-            for (auto broadcast : {0,1}) {
-                std::ignore = broadcast;
+}
+
+void InputNode::process_updates() {
+    // Broadcast the batch of updates to all nodes
+    bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
+    // Process all those updates
+    for (int i = 0; i < update_buffer.capacity(); i++) {
+        GraphUpdate update = update_buffer[i].update;
+        // Try the greedy parallel refresh
+        RefreshMessage empty_message;
+        gather(&empty_message, sizeof(RefreshMessage), greedy_refresh_buffer, sizeof(RefreshMessage), 0);
+        UpdateMessage isolation_message;
+        isolation_message.type = NOT_ISOLATED;
+        // TODO: make fast
+        for (uint32_t tier = 0; tier < num_tiers-1; tier++) {
+            unlikely_if (greedy_refresh_buffer[tier].endpoints.first.prev_tier_size == greedy_refresh_buffer[tier+1].endpoints.first.prev_tier_size
+                && greedy_refresh_buffer[tier].endpoints.first.sketch_query_result_type == GOOD) {
+                isolation_message.type = ISOLATED;
+                break;
+            }
+            unlikely_if (greedy_refresh_buffer[tier].endpoints.second.prev_tier_size == greedy_refresh_buffer[tier+1].endpoints.second.prev_tier_size
+                && greedy_refresh_buffer[tier].endpoints.second.sketch_query_result_type == GOOD) {
+                isolation_message.type = ISOLATED;
+                break;
+            }
+        }
+        bcast(&isolation_message, sizeof(UpdateMessage), 0);
+        if (isolation_message.type == NOT_ISOLATED)
+            continue;
+        // Initiate the refresh sequence and receive all the broadcasts
+        RefreshEndpoint e1, e2;
+        e1.v = update.edge.src;
+        e2.v = update.edge.dst;
+        RefreshMessage refresh_message;
+        refresh_message.endpoints = {e1, e2};
+        MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
+        for (uint32_t tier = 0; tier < num_tiers; tier++) {
+            int rank = tier + 1;
+            for (auto endpoint : {0,1}) {
+                std::ignore = endpoint;
+                // Receive a broadcast to see if the endpoint at the current tier is isolated or not
                 UpdateMessage update_message;
                 bcast(&update_message, sizeof(UpdateMessage), rank);
-                if (update_message.type == LINK) break;
+                if (update_message.type == NOT_ISOLATED) continue;
+                // Get the two broadcasts for ett link or cut
+                for (auto broadcast : {0,1}) {
+                    std::ignore = broadcast;
+                    UpdateMessage update_message;
+                    bcast(&update_message, sizeof(UpdateMessage), rank);
+                    if (update_message.type == LINK) break;
+                }
             }
         }
     }
 }
 
 bool InputNode::connectivity_query(node_id_t a, node_id_t b) {
+    process_updates();
     // Send the CC query message to the query node and receive the response
     Edge e;
     e.src = a;
@@ -73,6 +93,7 @@ bool InputNode::connectivity_query(node_id_t a, node_id_t b) {
 }
 
 std::vector<std::set<node_id_t>> InputNode::cc_query() {
+    process_updates();
     // Send the CC query message to the query node and receive the response
     StreamMessage stream_message;
     stream_message.type = CC_QUERY;
@@ -99,7 +120,10 @@ std::vector<std::set<node_id_t>> InputNode::cc_query() {
 }
 
 void InputNode::end() {
+    process_updates();
+    // Tell all nodes the stream is over
     StreamMessage stream_message;
     stream_message.type = END;
-    MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
+    update_buffer.push_back(stream_message);
+    bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
 }

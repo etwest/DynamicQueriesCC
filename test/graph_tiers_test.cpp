@@ -18,6 +18,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
     uint32_t world_size = world_size_buf;
 
+    int batch_size = 100;
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
     if (world_size != num_tiers+2) {
@@ -25,7 +26,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     }
 
     if (world_rank == 0) {
-        InputNode input_node(stream.nodes(), num_tiers);
+        InputNode input_node(stream.nodes(), num_tiers, batch_size);
         MatGraphVerifier gv(stream.nodes());
         int edgecount = stream.edges();
 	    edgecount = 1000000;
@@ -59,10 +60,10 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
         input_node.end();
 
     } else if (world_rank == num_tiers+1) {
-        QueryNode query_node(stream.nodes(), num_tiers);
+        QueryNode query_node(stream.nodes(), num_tiers, batch_size);
         query_node.main();
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(stream.nodes(), world_rank-1, num_tiers);
+        TierNode tier_node(stream.nodes(), world_rank-1, num_tiers, batch_size);
         tier_node.main();
     }
 }
@@ -75,6 +76,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
     uint32_t world_size = world_size_buf;
 
+    int batch_size = 100;
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
     if (world_size != num_tiers+2) {
@@ -83,7 +85,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
 
     if (world_rank == 0) {
         long time = 0;
-        InputNode input_node(stream.nodes(), num_tiers);
+        InputNode input_node(stream.nodes(), num_tiers, batch_size);
         int edgecount = stream.edges();
 	    edgecount = 1000000;
         START(timer);
@@ -105,10 +107,10 @@ TEST(GraphTierSuite, mpi_speed_test) {
         file.close();
 
     } else if (world_rank == num_tiers+1) {
-        QueryNode query_node(stream.nodes(), num_tiers);
+        QueryNode query_node(stream.nodes(), num_tiers, batch_size);
         query_node.main();
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(stream.nodes(), world_rank-1, num_tiers);
+        TierNode tier_node(stream.nodes(), world_rank-1, num_tiers, batch_size);
         tier_node.main();
     }
 }

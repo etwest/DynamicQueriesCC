@@ -55,8 +55,12 @@ typedef struct {
 class InputNode {
   node_id_t num_nodes;
   uint32_t num_tiers;
+  RefreshMessage* greedy_refresh_buffer;
+  std::vector<StreamMessage> update_buffer;
+  void process_updates();
 public:
-  InputNode(node_id_t num_nodes, uint32_t num_tiers);
+  InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size);
+  ~InputNode();
   void update(GraphUpdate update);
   bool connectivity_query(node_id_t a, node_id_t b);
   std::vector<std::set<node_id_t>> cc_query();
@@ -67,11 +71,12 @@ class TierNode {
   std::vector<EulerTourTree> ett_nodes;
   uint32_t tier_num;
   uint32_t num_tiers;
+  std::vector<StreamMessage> update_buffer;
   void update_tier(GraphUpdate update);
   void ett_update_tier(UpdateMessage message);
   void refresh_tier(RefreshMessage messsage);
 public:
-  TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers);
+  TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, int batch_size);
   void main();
 };
 
@@ -79,7 +84,8 @@ class QueryNode {
   LinkCutTree link_cut_tree;
   node_id_t num_nodes;
   uint32_t num_tiers;
+  std::vector<StreamMessage> update_buffer;
 public:
-  QueryNode(node_id_t num_nodes, uint32_t num_tiers);
+  QueryNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size);
   void main();
 };
