@@ -55,18 +55,25 @@ void TierNode::main() {
         }
         // Process all the updates in the batch
         for (int i = 0; i < update_buffer.capacity(); i++) {
-            update_tier(update_buffer[i].update);
+            // Perform the sketch updating
+            START(timer);
+            GraphUpdate update = update_buffer[i].update;
+            edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
+            unlikely_if (update.type == DELETE && ett_nodes[update.edge.src].has_edge_to(&ett_nodes[update.edge.dst])) {
+                ett_nodes[update.edge.src].cut(ett_nodes[update.edge.dst]);
+            }
+            SkipListNode* root1 = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
+            SkipListNode* root2 = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
+            STOP(sketch_time, timer);
             START(refresh_timer);
             // Try the greedy parallel refresh
             RefreshEndpoint e1, e2;
-            e1.v = update_buffer[i].update.edge.src;
-            e2.v = update_buffer[i].update.edge.dst;
-            for (RefreshEndpoint* e : {&e1, &e2}) {
-                e->prev_tier_size = ett_nodes[e->v].get_size();
-                Sketch* ett_agg = ett_nodes[e->v].get_aggregate();
-                std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
-                e->sketch_query_result_type = query_result.second;
-            }
+            e1.v = update.edge.src;
+            e1.prev_tier_size = root1->size;
+            e1.sketch_query_result_type = root1->sketch_agg->query().second;
+            e2.v = update.edge.dst;
+            e2.prev_tier_size = root2->size;
+            e2.sketch_query_result_type = root2->sketch_agg->query().second;
             RefreshMessage refresh_message;
             refresh_message.endpoints = {e1, e2};
             gather(&refresh_message, sizeof(RefreshMessage), nullptr, 0, 0);
