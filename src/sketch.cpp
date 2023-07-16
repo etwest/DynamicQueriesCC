@@ -87,6 +87,29 @@ void Sketch::update(const vec_t update_idx) {
   }
 }
 
+std::pair<vec_hash_t, std::vector<size_t>> Sketch::get_bucket_ids(const vec_t update_idx) {
+  vec_hash_t checksum = Bucket_Boruvka::get_index_hash(update_idx, checksum_seed());
+  
+  std::vector<size_t> bucket_ids;
+  // Update depth 0 bucket
+  bucket_ids.push_back(num_elems-1);
+
+  // Update higher depth buckets
+  for (unsigned i = 0; i < num_columns; ++i) {
+    col_hash_t depth = Bucket_Boruvka::get_index_depth(update_idx, column_seed(i), num_guesses);
+    size_t bucket_id = i * num_guesses + depth;
+    likely_if(depth < num_guesses)
+      bucket_ids.push_back(bucket_id);
+  }
+
+  return {checksum, bucket_ids};
+}
+
+void Sketch::update(const vec_t update_idx, vec_hash_t checksum, std::vector<size_t> bucket_ids) {
+  for (size_t bucket_id : bucket_ids)
+    Bucket_Boruvka::update(bucket_a[bucket_id], bucket_c[bucket_id], update_idx, checksum);
+}
+
 void Sketch::batch_update(const std::vector<vec_t>& updates) {
   for (const auto& update_idx : updates) {
     update(update_idx);

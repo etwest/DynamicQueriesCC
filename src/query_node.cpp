@@ -13,7 +13,7 @@ void QueryNode::main() {
             return;
         }
         // Process all the updates in the batch
-        for (int i = 0; i < update_buffer.capacity(); i++) {
+        for (uint32_t i = 0; i < update_buffer.capacity(); i++) {
             if (update_buffer[i].update.type == DELETE && link_cut_tree.has_edge(update_buffer[i].update.edge.src, update_buffer[i].update.edge.dst))
                     link_cut_tree.cut(update_buffer[i].update.edge.src, update_buffer[i].update.edge.dst);
             // Participate in greedy refresh gather and bcast

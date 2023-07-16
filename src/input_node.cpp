@@ -25,7 +25,7 @@ void InputNode::process_updates() {
     // Broadcast the batch of updates to all nodes
     bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
     // Process all those updates
-    for (int i = 0; i < update_buffer.capacity(); i++) {
+    for (uint32_t i = 0; i < update_buffer.capacity(); i++) {
         GraphUpdate update = update_buffer[i].update;
         // Try the greedy parallel refresh
         RefreshMessage empty_message;
