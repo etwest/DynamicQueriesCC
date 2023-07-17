@@ -12,11 +12,11 @@ class SkipListNode {
   SkipListNode* up = nullptr;
   SkipListNode* down = nullptr;
 
+public:
   Sketch* sketch_agg;
 
   uint32_t size = 1;
 
-public:
   EulerTourTree* node;
 
   SkipListNode(EulerTourTree* node, long seed);
@@ -38,9 +38,11 @@ public:
   // Return the aggregate sketch at the root of the list
   Sketch* get_list_aggregate();
   // Update all the aggregate sketches with the input vector from the current node to its root
-  void update_path_agg(vec_t update_idx);
-  // Add the given sketch to allaggregate sketches from the current node to its root
-  void update_path_agg(Sketch* sketch);
+  SkipListNode* update_path_agg(vec_t update_idx);
+  // Add the given sketch to all aggregate sketches from the current node to its root
+  SkipListNode* update_path_agg(Sketch* sketch);
+  // Update all the aggregate sketches with the input vector, list of buckets, and checksum
+  SkipListNode* update_path_agg(const vec_t update_idx, vec_hash_t checksum, std::vector<size_t> bucket_ids);
 
   std::set<EulerTourTree*> get_component();
 

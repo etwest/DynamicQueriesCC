@@ -53,10 +53,11 @@ void EulerTourTree::delete_edge(EulerTourTree* other) {
   }
 }
 
-void EulerTourTree::update_sketch(vec_t update_idx) {
+SkipListNode* EulerTourTree::update_sketch(vec_t update_idx) {
   assert(allowed_caller);
-  this->sketch->update(update_idx);
-  this->allowed_caller->update_path_agg(update_idx);
+  std::pair<vec_hash_t, std::vector<size_t>> bucket_ids = this->sketch->get_bucket_ids(update_idx);
+  this->sketch->update(update_idx, bucket_ids.first, bucket_ids.second);
+  return this->allowed_caller->update_path_agg(update_idx, bucket_ids.first, bucket_ids.second);
 }
 
 //Get the aggregate sketch at the root of the ETT for this node

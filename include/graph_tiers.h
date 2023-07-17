@@ -23,6 +23,7 @@ class GraphTiers {
   FRIEND_TEST(GraphTiersSuite, mini_correctness_test);
 private:
   std::vector<std::vector<EulerTourTree>> ett_nodes;  // for each tier, for each node
+  std::vector<SkipListNode*> root_nodes;
   LinkCutTree link_cut_tree;
   void refresh(GraphUpdate update);
 

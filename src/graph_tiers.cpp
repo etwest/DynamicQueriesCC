@@ -37,6 +37,8 @@ GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
 			ett_nodes[i].emplace_back(seed, j, i);
 		}
 	}
+
+	root_nodes.reserve(num_tiers*2);
 }
 
 GraphTiers::~GraphTiers() {}
@@ -53,8 +55,8 @@ void GraphTiers::update(GraphUpdate update) {
 		if (update.type == DELETE && ett_nodes[i][update.edge.src].has_edge_to(&ett_nodes[i][update.edge.dst])) {
 			ett_nodes[i][update.edge.src].cut(ett_nodes[i][update.edge.dst]);
 		}
-		ett_nodes[i][update.edge.src].update_sketch((vec_t)edge);
-		ett_nodes[i][update.edge.dst].update_sketch((vec_t)edge);
+		root_nodes[2*i] = ett_nodes[i][update.edge.src].update_sketch((vec_t)edge);
+		root_nodes[2*i+1] = ett_nodes[i][update.edge.dst].update_sketch((vec_t)edge);
 	}
 	STOP(sketch_time, su);
 	// Refresh the data structure
@@ -68,25 +70,28 @@ void GraphTiers::refresh(GraphUpdate update) {
 	if (use_parallelism) {
 		START(iso);
 		std::atomic<bool> isolated(false);
-		#pragma omp parallel for
+		//#pragma omp parallel for
 		for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
-			for (node_id_t v : {update.edge.src, update.edge.dst}) {
-				// Check if the tree containing this endpoint is isolated
-				uint32_t tier_size = ett_nodes[tier][v].get_size();
-				uint32_t next_size = ett_nodes[tier+1][v].get_size();
-				// Check for same size for isolated
-				if (tier_size != next_size)
-					continue;
-
-				Sketch* ett_agg = ett_nodes[tier][v].get_aggregate();
-				std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
-
-				// Check for new edge to eliminate isolation
-				if (query_result.second != GOOD)
-					continue;
-				
-				isolated = true;
-			}
+			// Check if the tree containing first endpoint is isolated
+			uint32_t tier_size1 = root_nodes[2*tier]->size;
+			uint32_t next_size1 = root_nodes[2*(tier+1)]->size;
+			if (tier_size1 != next_size1)
+				continue;
+			Sketch* ett_agg1 = root_nodes[2*tier]->sketch_agg;
+			std::pair<vec_t, SampleSketchRet> query_result1 = ett_agg1->query();
+			if (query_result1.second != GOOD)
+				continue;
+			isolated = true;
+			// Check if the tree containing second endpoint is isolated
+			uint32_t tier_size2 = root_nodes[2*tier+1]->size;
+			uint32_t next_size2 = root_nodes[2*(tier+1)+1]->size;
+			if (tier_size2 != next_size2)
+				continue;
+			Sketch* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
+			std::pair<vec_t, SampleSketchRet> query_result2 = ett_agg2->query();
+			if (query_result2.second != GOOD)
+				continue;
+			isolated = true;
 		}
 		STOP(parallel_isolated_check, iso);
 		if (!isolated)

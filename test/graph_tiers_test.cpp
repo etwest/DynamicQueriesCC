@@ -154,14 +154,14 @@ TEST(GraphTiersSuite, omp_speed_test) {
     omp_set_dynamic(1);
     try {
 
-	long time = 0;
+	    long time = 0;
         BinaryGraphStream stream(stream_file, 100000);
         GraphTiers gt(stream.nodes(), true);
         int edgecount = stream.edges();
         edgecount = 1000000;
         start = std::chrono::high_resolution_clock::now();
 
-	START(timer);
+	    START(timer);
         for (int i = 0; i < edgecount; i++) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
@@ -171,7 +171,8 @@ TEST(GraphTiersSuite, omp_speed_test) {
                 std::cout << "Update " << i << ", Time:  " << duration.count() << std::endl;
             }
         }
-	STOP(time, timer);
+	    STOP(time, timer);
+        print_metrics();
         std::ofstream file;
         file.open ("omp_kron_results.txt", std::ios_base::app);
         file << stream_file << " time (ms): "<< time/1000 << std::endl;

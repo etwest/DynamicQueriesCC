@@ -32,7 +32,7 @@ public:
   bool isvalid() const;
 
   Sketch* get_sketch(SkipListNode* caller);
-  void update_sketch(vec_t update_idx);
+  SkipListNode* update_sketch(vec_t update_idx);
 
   Sketch* get_aggregate();
   uint32_t get_size();
