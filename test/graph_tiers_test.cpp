@@ -88,22 +88,30 @@ TEST(GraphTierSuite, mpi_speed_test) {
         InputNode input_node(stream.nodes(), num_tiers, batch_size);
         int edgecount = stream.edges();
 	    edgecount = 1000000;
+        for (int i = 0; i < 300000; i++) {
+            // Read an update from the stream and have the input node process it
+            GraphUpdate update = stream.get_edge();
+            input_node.update(update);
+            unlikely_if(i%100000 == 0 || i == edgecount-1) {
+                std::cout << "BUILDING UP GRAPH..." << std::endl;
+            }
+        }
         START(timer);
         for (int i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
             input_node.update(update);
             unlikely_if(i%100000 == 0 || i == edgecount-1) {
-                std::cout << "FINISHED UPDATE " << i << std::endl;
+                std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             }
         }
         // Communicate to all other nodes that the stream has ended
         input_node.end();
         STOP(time, timer);
-        std::cout << "TOTAL TIME FOR ALL UPDATES (ms): " << time/1000 << std::endl;
+        std::cout << "TOTAL TIME FOR ALL " << edgecount << " UPDATES (ms): " << time/1000 << std::endl;
         std::ofstream file;
         file.open ("mpi_kron_results.txt", std::ios_base::app);
-        file << stream_file << " time (ms): " << time/1000 << std::endl;
+        file << stream_file << " updates/s: " << 1000*edgecount/(time/1000) << std::endl;
         file.close();
 
     } else if (world_rank == num_tiers+1) {

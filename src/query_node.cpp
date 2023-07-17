@@ -17,8 +17,8 @@ void QueryNode::main() {
             if (update_buffer[i].update.type == DELETE && link_cut_tree.has_edge(update_buffer[i].update.edge.src, update_buffer[i].update.edge.dst))
                     link_cut_tree.cut(update_buffer[i].update.edge.src, update_buffer[i].update.edge.dst);
             // Participate in greedy refresh gather and bcast
-            RefreshMessage empty_message;
-            gather(&empty_message, sizeof(RefreshMessage), nullptr, 0, 0);
+            GreedyRefreshMessage empty_message;
+            gather(&empty_message, sizeof(GreedyRefreshMessage), nullptr, 0, 0);
             UpdateMessage isolation_message;
             bcast(&isolation_message, sizeof(UpdateMessage), 0);
             if (isolation_message.type == NOT_ISOLATED)

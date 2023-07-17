@@ -3,7 +3,7 @@
 
 InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers) {
     update_buffer.reserve(batch_size);
-    greedy_refresh_buffer = (RefreshMessage*) malloc(sizeof(RefreshMessage)*(num_tiers+2));
+    greedy_refresh_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*(num_tiers+2));
 };
 
 InputNode::~InputNode() {
@@ -28,19 +28,17 @@ void InputNode::process_updates() {
     for (uint32_t i = 0; i < update_buffer.capacity(); i++) {
         GraphUpdate update = update_buffer[i].update;
         // Try the greedy parallel refresh
-        RefreshMessage empty_message;
-        gather(&empty_message, sizeof(RefreshMessage), greedy_refresh_buffer, sizeof(RefreshMessage), 0);
+        GreedyRefreshMessage empty_message;
+        gather(&empty_message, sizeof(GreedyRefreshMessage), greedy_refresh_buffer, sizeof(GreedyRefreshMessage), 0);
         UpdateMessage isolation_message;
         isolation_message.type = NOT_ISOLATED;
         // TODO: make fast
         for (uint32_t tier = 0; tier < num_tiers-1; tier++) {
-            unlikely_if (greedy_refresh_buffer[tier].endpoints.first.prev_tier_size == greedy_refresh_buffer[tier+1].endpoints.first.prev_tier_size
-                && greedy_refresh_buffer[tier].endpoints.first.sketch_query_result_type == GOOD) {
+            unlikely_if (greedy_refresh_buffer[tier].size1 == greedy_refresh_buffer[tier+1].size1 && greedy_refresh_buffer[tier].query_result1 == GOOD) {
                 isolation_message.type = ISOLATED;
                 break;
             }
-            unlikely_if (greedy_refresh_buffer[tier].endpoints.second.prev_tier_size == greedy_refresh_buffer[tier+1].endpoints.second.prev_tier_size
-                && greedy_refresh_buffer[tier].endpoints.second.sketch_query_result_type == GOOD) {
+            unlikely_if (greedy_refresh_buffer[tier].size2 == greedy_refresh_buffer[tier+1].size2 && greedy_refresh_buffer[tier].query_result2 == GOOD) {
                 isolation_message.type = ISOLATED;
                 break;
             }

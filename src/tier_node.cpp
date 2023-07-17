@@ -58,17 +58,13 @@ void TierNode::main() {
             STOP(sketch_update_time, sketch_update_timer);
             START(greedy_refresh_timer);
             // Try the greedy parallel refresh
-            RefreshEndpoint e1, e2;
-            e1.v = update.edge.src;
-            e1.prev_tier_size = root1->size;
-            e1.sketch_query_result_type = root1->sketch_agg->query().second;
-            e2.v = update.edge.dst;
-            e2.prev_tier_size = root2->size;
-            e2.sketch_query_result_type = root2->sketch_agg->query().second;
-            RefreshMessage refresh_message;
-            refresh_message.endpoints = {e1, e2};
+            GreedyRefreshMessage refresh_message;
+            refresh_message.size1 = root1->size;
+            refresh_message.query_result1 = root1->sketch_agg->query().second;
+            refresh_message.size2 = root2->size;
+            refresh_message.query_result2 = root2->sketch_agg->query().second;
             START(greedy_gather_timer);
-            gather(&refresh_message, sizeof(RefreshMessage), nullptr, 0, 0);
+            gather(&refresh_message, sizeof(GreedyRefreshMessage), nullptr, 0, 0);
             STOP(greedy_gather_time, greedy_gather_timer);
             UpdateMessage isolation_message;
             START(greedy_bcast_timer);

@@ -52,10 +52,17 @@ typedef struct {
   std::pair<RefreshEndpoint, RefreshEndpoint> endpoints;
 } RefreshMessage;
 
+typedef struct {
+  uint32_t size1 = 0;
+  SampleSketchRet query_result1 = ZERO;
+  uint32_t size2 = 0;
+  SampleSketchRet query_result2 = ZERO;
+} GreedyRefreshMessage;
+
 class InputNode {
   node_id_t num_nodes;
   uint32_t num_tiers;
-  RefreshMessage* greedy_refresh_buffer;
+  GreedyRefreshMessage* greedy_refresh_buffer;
   std::vector<StreamMessage> update_buffer;
   void process_updates();
 public:
