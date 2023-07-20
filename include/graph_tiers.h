@@ -10,7 +10,7 @@
 
 
 enum StreamOperationType {
-  UPDATE, QUERY, CC_QUERY, END
+  UPDATE, END
 };
 
 enum TreeOperationType {
@@ -62,6 +62,7 @@ typedef struct {
 class InputNode {
   node_id_t num_nodes;
   uint32_t num_tiers;
+  LinkCutTree link_cut_tree;
   GreedyRefreshMessage* greedy_refresh_buffer;
   std::vector<StreamMessage> update_buffer;
   void process_updates();
@@ -84,15 +85,5 @@ class TierNode {
   void refresh_tier(RefreshMessage messsage);
 public:
   TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, int batch_size);
-  void main();
-};
-
-class QueryNode {
-  LinkCutTree link_cut_tree;
-  node_id_t num_nodes;
-  uint32_t num_tiers;
-  std::vector<StreamMessage> update_buffer;
-public:
-  QueryNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size);
   void main();
 };

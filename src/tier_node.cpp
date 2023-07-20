@@ -25,7 +25,7 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
         ett_nodes.emplace_back(seed, i, tier_num);
     }
 
-    update_buffer.reserve(batch_size);
+    update_buffer.reserve(batch_size + 1);
 }
 
 void TierNode::main() {
@@ -45,7 +45,7 @@ void TierNode::main() {
             return;
         }
         // Process all the updates in the batch
-        for (uint32_t i = 0; i < update_buffer.capacity(); i++) {
+        for (uint32_t i = 1; i < update_buffer[0].update.edge.src; i++) {
             // Perform the sketch updating
             START(sketch_update_timer);
             GraphUpdate update = update_buffer[i].update;
@@ -161,7 +161,7 @@ void TierNode::refresh_tier(RefreshMessage message) {
 				
         // Query LCT node to check if this new edge forms a cycle
         LctResponseMessage lct_response;
-        MPI_Recv(&lct_response, sizeof(LctResponseMessage), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&lct_response, sizeof(LctResponseMessage), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         // If there is a cycle formed, tell all necessary nodes to delete that edge
         if (lct_response.connected) {

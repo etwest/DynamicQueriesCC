@@ -21,8 +21,8 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     int batch_size = 100;
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
-    if (world_size != num_tiers+2) {
-        FAIL() << "MPI world size too small for graph with " << stream.nodes() << " vertices. Correct world size is: " << num_tiers+2;
+    if (world_size != num_tiers+1) {
+        FAIL() << "MPI world size too small for graph with " << stream.nodes() << " vertices. Correct world size is: " << num_tiers+1;
     }
 
     if (world_rank == 0) {
@@ -59,9 +59,6 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
         // Communicate to all other nodes that the stream has ended
         input_node.end();
 
-    } else if (world_rank == num_tiers+1) {
-        QueryNode query_node(stream.nodes(), num_tiers, batch_size);
-        query_node.main();
     } else if (world_rank < num_tiers+1) {
         TierNode tier_node(stream.nodes(), world_rank-1, num_tiers, batch_size);
         tier_node.main();
@@ -79,8 +76,8 @@ TEST(GraphTierSuite, mpi_speed_test) {
     int batch_size = 100;
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
-    if (world_size != num_tiers+2) {
-        FAIL() << "MPI world size too small for graph with " << stream.nodes() << " vertices. Correct world size is: " << num_tiers+2;
+    if (world_size != num_tiers+1) {
+        FAIL() << "MPI world size too small for graph with " << stream.nodes() << " vertices. Correct world size is: " << num_tiers+1;
     }
 
     if (world_rank == 0) {
@@ -114,9 +111,6 @@ TEST(GraphTierSuite, mpi_speed_test) {
         file << stream_file << " updates/s: " << 1000*edgecount/(time/1000) << std::endl;
         file.close();
 
-    } else if (world_rank == num_tiers+1) {
-        QueryNode query_node(stream.nodes(), num_tiers, batch_size);
-        query_node.main();
     } else if (world_rank < num_tiers+1) {
         TierNode tier_node(stream.nodes(), world_rank-1, num_tiers, batch_size);
         tier_node.main();

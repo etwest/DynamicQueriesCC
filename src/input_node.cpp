@@ -1,9 +1,11 @@
 #include "../include/graph_tiers.h"
 
 
-InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers) {
-    update_buffer.reserve(batch_size);
-    greedy_refresh_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*(num_tiers+2));
+InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes){
+    update_buffer.reserve(batch_size + 1);
+    StreamMessage msg;
+    update_buffer.push_back(msg);
+    greedy_refresh_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*(num_tiers+1));
 };
 
 InputNode::~InputNode() {
@@ -17,15 +19,15 @@ void InputNode::update(GraphUpdate update) {
     update_buffer.push_back(stream_message);
     if (update_buffer.size() == update_buffer.capacity()) {
         process_updates();
-        update_buffer.clear();
     }
 }
 
 void InputNode::process_updates() {
     // Broadcast the batch of updates to all nodes
+    update_buffer[0].update.edge.src = update_buffer.size();
     bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
     // Process all those updates
-    for (uint32_t i = 0; i < update_buffer.capacity(); i++) {
+    for (uint32_t i = 1; i < update_buffer.size(); i++) {
         GraphUpdate update = update_buffer[i].update;
         // Try the greedy parallel refresh
         GreedyRefreshMessage empty_message;
@@ -57,64 +59,48 @@ void InputNode::process_updates() {
             int rank = tier + 1;
             for (auto endpoint : {0,1}) {
                 std::ignore = endpoint;
-                // Receive a broadcast to see if the endpoint at the current tier is isolated or not
+                // Receive a broadcast to see if the current tier/endpoint is isolated or not
                 UpdateMessage update_message;
                 bcast(&update_message, sizeof(UpdateMessage), rank);
                 if (update_message.type == NOT_ISOLATED) continue;
-                // Get the two broadcasts for ett link or cut
+                // Process a LCT query message first
+                LctResponseMessage response_message;
+                response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
+                if (response_message.connected) {
+                    std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(update_message.endpoint1, update_message.endpoint2);
+                    response_message.cycle_edge = max.first;
+                    response_message.weight = max.second;
+                }
+                MPI_Send(&response_message, sizeof(LctResponseMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD);
+
+                // Then process two update broadcasts to potentially cut and link in the LCT
                 for (auto broadcast : {0,1}) {
                     std::ignore = broadcast;
                     UpdateMessage update_message;
                     bcast(&update_message, sizeof(UpdateMessage), rank);
-                    if (update_message.type == LINK) break;
+                    if (update_message.type == LINK) {
+                        link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
+                        break;
+                    } else if (update_message.type == CUT) {
+                        link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
+                    }
                 }
             }
         }
     }
+    update_buffer.clear();
+    StreamMessage msg;
+    update_buffer.push_back(msg);
 }
 
 bool InputNode::connectivity_query(node_id_t a, node_id_t b) {
     process_updates();
-    // Send the CC query message to the query node and receive the response
-    Edge e;
-    e.src = a;
-    e.dst = b;
-    GraphUpdate update;
-    update.edge = e;
-    StreamMessage stream_message;
-    stream_message.type = QUERY;
-    stream_message.update = update;
-    bcast(&stream_message, sizeof(StreamMessage), 0);
-    bool connected;
-    MPI_Recv(&connected, sizeof(bool), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    return connected;
+    return link_cut_tree.find_root(a) == link_cut_tree.find_root(b);
 }
 
 std::vector<std::set<node_id_t>> InputNode::cc_query() {
     process_updates();
-    // Send the CC query message to the query node and receive the response
-    StreamMessage stream_message;
-    stream_message.type = CC_QUERY;
-    bcast(&stream_message, sizeof(StreamMessage), 0);
-    std::vector<node_id_t> cc_broadcast;
-    cc_broadcast.reserve(num_nodes);
-    MPI_Recv(&cc_broadcast[0], num_nodes*sizeof(node_id_t), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    // Convert from vector<node_id_t> to vector<set<node_id_t>>
-    std::unordered_map<node_id_t, std::set<node_id_t>> component_map;
-    for (node_id_t i = 0; i < num_nodes; i++) {
-        if (component_map.find(cc_broadcast[i]) != component_map.end()) {
-            component_map[cc_broadcast[i]].insert(i);
-        }
-        else {
-            std::set<node_id_t> component = {i};
-            component_map.insert({cc_broadcast[i], component});
-        }
-    }
-    std::vector<std::set<node_id_t>> cc(component_map.size());
-    for (const auto& component : component_map) {
-        cc[component.first] = component.second;
-    }
-    return cc;
+    return link_cut_tree.get_cc();
 }
 
 void InputNode::end() {
