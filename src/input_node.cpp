@@ -1,7 +1,9 @@
 #include "../include/graph_tiers.h"
 
 
-InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers) : num_nodes(num_nodes), num_tiers(num_tiers) {};
+InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers) : num_nodes(num_nodes), num_tiers(num_tiers) {
+    link_cut_tree(num_nodes);
+};
 
 void InputNode::update(GraphUpdate update) {
     // Broadcast the update to all nodes for sketch updating
@@ -63,34 +65,43 @@ bool InputNode::connectivity_query(node_id_t a, node_id_t b) {
     e.dst = b;
     GraphUpdate update;
     update.edge = e;
-    StreamMessage stream_message;
-    stream_message.type = QUERY;
-    stream_message.update = update;
-    bcast(&stream_message, sizeof(StreamMessage), 0);
-    bool connected;
-    MPI_Recv(&connected, sizeof(bool), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    return connected;
+    // StreamMessage stream_message;
+    // stream_message.type = QUERY;
+    // stream_message.update = update;
+    // bcast(&stream_message, sizeof(StreamMessage), 0);
+    bool is_connected = link_cut_tree.find_root(update.edge.src) == link_cut_tree.find_root(update.edge.dst);
+    // MPI_Recv(&connected, sizeof(bool), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    return is_connected;
 }
 
 std::vector<std::set<node_id_t>> InputNode::cc_query() {
     // Send the CC query message to the query node and receive the response
-    StreamMessage stream_message;
-    stream_message.type = CC_QUERY;
-    bcast(&stream_message, sizeof(StreamMessage), 0);
-    std::vector<node_id_t> cc_broadcast;
-    cc_broadcast.reserve(num_nodes);
-    MPI_Recv(&cc_broadcast[0], num_nodes*sizeof(node_id_t), MPI_BYTE, num_tiers+1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    // StreamMessage stream_message;
+    // stream_message.type = CC_QUERY;
+    
+    // Query LCT for the cc
+    std::vector<std::set<node_id_t>> cc = link_cut_tree.get_cc();
+    std::vector<node_id_t> component_indices;
+    component_indices.reserve(num_nodes);
+    for (node_id_t component_idx = 0; component_idx < cc.size(); component_idx++) {
+        for (node_id_t vertex : cc[component_idx]) {
+            component_indices[vertex] = component_idx;
+        }
+    }
+
     // Convert from vector<node_id_t> to vector<set<node_id_t>>
     std::unordered_map<node_id_t, std::set<node_id_t>> component_map;
     for (node_id_t i = 0; i < num_nodes; i++) {
-        if (component_map.find(cc_broadcast[i]) != component_map.end()) {
-            component_map[cc_broadcast[i]].insert(i);
+        if (component_map.find(component_indices[i]) != component_map.end()) {
+            component_map[component_indices[i]].insert(i);
         }
         else {
             std::set<node_id_t> component = {i};
-            component_map.insert({cc_broadcast[i], component});
+            component_map.insert({component_indices[i], component});
         }
     }
+
     std::vector<std::set<node_id_t>> cc(component_map.size());
     for (const auto& component : component_map) {
         cc[component.first] = component.second;

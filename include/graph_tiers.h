@@ -55,6 +55,7 @@ typedef struct {
 class InputNode {
   node_id_t num_nodes;
   uint32_t num_tiers;
+  LinkCutTree link_cut_tree;
 public:
   InputNode(node_id_t num_nodes, uint32_t num_tiers);
   void update(GraphUpdate update);

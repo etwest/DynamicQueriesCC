@@ -12,20 +12,20 @@ void QueryNode::main() {
             if (stream_message.update.type == DELETE && link_cut_tree.has_edge(stream_message.update.edge.src, stream_message.update.edge.dst))
                 link_cut_tree.cut(stream_message.update.edge.src, stream_message.update.edge.dst);
         } else if (stream_message.type == QUERY) {
-            bool is_connected = link_cut_tree.find_root(stream_message.update.edge.src) == link_cut_tree.find_root(stream_message.update.edge.dst);
-            MPI_Send(&is_connected, sizeof(bool), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
-            continue;
+            // bool is_connected = link_cut_tree.find_root(stream_message.update.edge.src) == link_cut_tree.find_root(stream_message.update.edge.dst);
+            // MPI_Send(&is_connected, sizeof(bool), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+            // continue;
         } else if (stream_message.type == CC_QUERY) {
-            std::vector<std::set<node_id_t>> cc = link_cut_tree.get_cc();
-            std::vector<node_id_t> cc_broadcast;
-            cc_broadcast.reserve(num_nodes);
-            for (node_id_t component_idx = 0; component_idx < cc.size(); component_idx++) {
-                for (node_id_t vertex : cc[component_idx]) {
-                    cc_broadcast[vertex] = component_idx;
-                }
-            }
-            MPI_Send(&cc_broadcast[0], num_nodes*sizeof(node_id_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
-            continue;
+            // std::vector<std::set<node_id_t>> cc = link_cut_tree.get_cc();
+            // std::vector<node_id_t> cc_broadcast;
+            // cc_broadcast.reserve(num_nodes);
+            // for (node_id_t component_idx = 0; component_idx < cc.size(); component_idx++) {
+            //     for (node_id_t vertex : cc[component_idx]) {
+            //         cc_broadcast[vertex] = component_idx;
+            //     }
+            // }
+            // MPI_Send(&cc_broadcast[0], num_nodes*sizeof(node_id_t), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+            // continue;
         } else {
             return;
         }
