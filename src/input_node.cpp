@@ -1,4 +1,4 @@
-#include "../include/graph_tiers.h"
+#include "../include/mpi_nodes.h"
 
 
 InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes){
@@ -106,8 +106,6 @@ std::vector<std::set<node_id_t>> InputNode::cc_query() {
 void InputNode::end() {
     process_updates();
     // Tell all nodes the stream is over
-    StreamMessage stream_message;
-    stream_message.type = END;
-    update_buffer.push_back(stream_message);
+    update_buffer[0].type = END;
     bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
 }
