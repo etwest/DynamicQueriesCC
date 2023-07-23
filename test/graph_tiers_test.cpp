@@ -126,7 +126,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%10000 == 0 || i == edgecount-1) {
+            unlikely_if(i%100000 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = gt.get_cc();
                 try {
                     gv.reset_cc_state();

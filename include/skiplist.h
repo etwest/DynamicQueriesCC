@@ -41,8 +41,6 @@ public:
   SkipListNode* update_path_agg(vec_t update_idx);
   // Add the given sketch to all aggregate sketches from the current node to its root
   SkipListNode* update_path_agg(Sketch* sketch);
-  // Update all the aggregate sketches with the input vector, list of buckets, and checksum
-  SkipListNode* update_path_agg(const vec_t update_idx, vec_hash_t checksum, std::vector<size_t> bucket_ids);
 
   std::set<EulerTourTree*> get_component();
 

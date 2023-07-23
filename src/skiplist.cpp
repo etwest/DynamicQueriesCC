@@ -134,17 +134,6 @@ SkipListNode* SkipListNode::update_path_agg(Sketch* sketch) {
 	return prev;
 }
 
-SkipListNode* SkipListNode::update_path_agg(const vec_t update_idx, vec_hash_t checksum, std::vector<size_t> bucket_ids) {
-	SkipListNode* curr = this;
-	SkipListNode* prev;
-	while (curr) {
-		curr->sketch_agg->update(update_idx, checksum, bucket_ids);
-		prev = curr;
-		curr = prev->get_parent();
-	}
-	return prev;
-}
-
 std::set<EulerTourTree*> SkipListNode::get_component() {
 	std::set<EulerTourTree*> nodes;
 	SkipListNode* curr = this->get_first()->right; //Skip over the boundary node
