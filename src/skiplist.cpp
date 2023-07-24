@@ -1,20 +1,22 @@
 #include <cassert>
 #include <xxhash.h>
-
 #include "skiplist.h"
 #include "euler_tour_tree.h"
 
 
+int buffer_size = 20;
+
 SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
 	sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())), node(node) {
- 	Sketch::makeSketch((char*)sketch_agg, seed);
- }
+	Sketch::makeSketch((char*)sketch_agg, seed);
+	update_buffer.reserve(buffer_size);
+}
 
- SkipListNode::~SkipListNode() {
- 	::operator delete(sketch_agg, Sketch::sketchSizeof());
- }
+SkipListNode::~SkipListNode() {
+	::operator delete(sketch_agg, Sketch::sketchSizeof());
+}
 
- void SkipListNode::uninit_element() {
+void SkipListNode::uninit_element() {
 	SkipListNode* list_curr = this;
 	SkipListNode* list_prev;
 	SkipListNode* bdry_curr = this->left;
@@ -29,7 +31,7 @@ SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
 		bdry_curr = bdry_prev->up;
 		delete bdry_prev;
 	}
- }
+}
 
 SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	long seed = node->get_seed();
@@ -112,11 +114,23 @@ Sketch* SkipListNode::get_list_aggregate() {
 	return this->get_root()->sketch_agg;
 }
 
+void SkipListNode::update_agg(vec_t update_idx) {
+	if (this->update_buffer.size() == this->update_buffer.capacity())
+		this->process_updates();
+	this->update_buffer.push_back(update_idx);
+}
+
+void SkipListNode::process_updates() {
+	for (vec_t update_idx : this->update_buffer)
+		this->sketch_agg->update(update_idx);
+	this->update_buffer.clear();
+}
+
 SkipListNode* SkipListNode::update_path_agg(vec_t update_idx) {
 	SkipListNode* curr = this;
 	SkipListNode* prev;
 	while (curr) {
-		curr->sketch_agg->update(update_idx);
+		curr->update_agg(update_idx);
 		prev = curr;
 		curr = prev->get_parent();
 	}
@@ -162,6 +176,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		// Fix right pointer and add agg
 		l_curr->right = r_curr->right; // skip over boundary node
 		if (r_curr->right) r_curr->right->left = l_curr; // skip over boundary node, but to the left
+		r_curr->process_updates();
 		*l_curr->sketch_agg += *r_curr->sketch_agg;
 		l_curr->size += r_curr->size-1;
 
@@ -185,6 +200,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		// Cache the left root to initialize the new boundary nodes
 		Sketch* l_root_agg = (Sketch*) ::operator new(Sketch::sketchSizeof());
 		Sketch::makeSketch((char*)l_root_agg, seed);
+		l_prev->process_updates();
 		*l_root_agg += *l_prev->sketch_agg;
 		*l_root_agg += *r_prev->sketch_agg;
 		uint32_t l_root_size = l_prev->size - (r_prev->size-1);
@@ -197,6 +213,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 
 			*l_curr->sketch_agg += *l_root_agg;
 			l_curr->size = l_root_size;
+			r_curr->process_updates();
 			*l_curr->sketch_agg += *r_curr->sketch_agg;
 			l_curr->size += r_curr->size-1;
 
@@ -239,6 +256,7 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 		*new_bdry->sketch_agg += *bdry->sketch_agg;
 		new_bdry->size = bdry->size;
 		while (r_curr && !r_curr->up) {
+			r_curr->process_updates();
 			*new_bdry->sketch_agg += *r_curr->sketch_agg;
 			new_bdry->size += r_curr->size;
 			r_curr = r_curr->right;

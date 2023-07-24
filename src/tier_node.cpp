@@ -60,8 +60,10 @@ void TierNode::main() {
             // Try the greedy parallel refresh
             GreedyRefreshMessage refresh_message;
             refresh_message.size1 = root1->size;
+            root1->process_updates();
             refresh_message.query_result1 = root1->sketch_agg->query().second;
             refresh_message.size2 = root2->size;
+            root2->process_updates();
             refresh_message.query_result2 = root2->sketch_agg->query().second;
             START(greedy_gather_timer);
             gather(&refresh_message, sizeof(GreedyRefreshMessage), nullptr, 0, 0);
@@ -89,7 +91,9 @@ void TierNode::main() {
                         e2.v = refresh_message.endpoints.second.v;
                         for (RefreshEndpoint* e : {&e1, &e2}) {
                             e->prev_tier_size = ett_nodes[e->v].get_size();
-                            Sketch* ett_agg = ett_nodes[e->v].get_aggregate();
+                            SkipListNode* root = ett_nodes[e->v].get_root();
+                            root->process_updates();
+                            Sketch* ett_agg = root->sketch_agg;
                             std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
                             e->sketch_query_result_type = query_result.second;
                             e->sketch_query_result = query_result.first;

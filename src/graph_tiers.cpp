@@ -77,6 +77,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 			uint32_t next_size1 = root_nodes[2*(tier+1)]->size;
 			if (tier_size1 != next_size1)
 				continue;
+			root_nodes[2*tier]->process_updates();
 			Sketch* ett_agg1 = root_nodes[2*tier]->sketch_agg;
 			std::pair<vec_t, SampleSketchRet> query_result1 = ett_agg1->query();
 			if (query_result1.second != GOOD)
@@ -87,6 +88,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 			uint32_t next_size2 = root_nodes[2*(tier+1)+1]->size;
 			if (tier_size2 != next_size2)
 				continue;
+			root_nodes[2*tier+1]->process_updates();
 			Sketch* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
 			std::pair<vec_t, SampleSketchRet> query_result2 = ett_agg2->query();
 			if (query_result2.second != GOOD)
@@ -110,7 +112,9 @@ void GraphTiers::refresh(GraphUpdate update) {
 				continue;
 
 			START(agg);
-			Sketch* ett_agg = ett_nodes[tier][v].get_aggregate();
+			SkipListNode* root = ett_nodes[tier][v].get_root();
+			root->process_updates();
+			Sketch* ett_agg = root->sketch_agg;
 			STOP(ett_get_agg, agg);
 			START(sq);
 			std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
