@@ -27,6 +27,8 @@ static void print_metrics() {
     std::cout << "\t\t\tETT Find Tree Root (ms): " << ett_find_root/1000 << std::endl;
     std::cout << "\t\t\tETT Get Aggregate (ms): " << ett_get_agg/1000 << std::endl;
     std::cout << "Total number of tiers grown: " << tiers_grown << std::endl;
+    std::cout << "Total number of sketches updates: " << num_sketch_updates << std::endl;
+    std::cout << "Total number of batches processed: " << num_sketch_batches << std::endl;
 }
 
 TEST(GraphTiersSuite, mini_correctness_test) {

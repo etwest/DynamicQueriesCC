@@ -85,14 +85,6 @@ TEST(GraphTierSuite, mpi_speed_test) {
         InputNode input_node(stream.nodes(), num_tiers, batch_size);
         int edgecount = stream.edges();
 	    edgecount = 1000000;
-        for (int i = 0; i < 300000; i++) {
-            // Read an update from the stream and have the input node process it
-            GraphUpdate update = stream.get_edge();
-            input_node.update(update);
-            unlikely_if(i%100000 == 0 || i == edgecount-1) {
-                std::cout << "BUILDING UP GRAPH..." << std::endl;
-            }
-        }
         START(timer);
         for (int i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
