@@ -14,7 +14,9 @@ class SkipListNode {
   SkipListNode* up = nullptr;
   SkipListNode* down = nullptr;
 
-  std::vector<vec_t> update_buffer;
+  vec_t* update_buffer;
+  int buffer_size = 0;
+  int buffer_capacity;
 
 public:
   Sketch* sketch_agg;

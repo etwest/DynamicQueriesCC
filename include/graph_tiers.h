@@ -2,6 +2,7 @@
 
 #include "types.h"
 #include <vector>
+#include <atomic>
 
 #include "euler_tour_tree.h"
 #include "link_cut_tree.h"
@@ -17,6 +18,8 @@ extern long sketch_time;
 extern long refresh_time;
 extern long parallel_isolated_check;
 extern long tiers_grown;
+extern std::atomic<long> num_sketch_updates;
+extern std::atomic<long> num_sketch_batches;
 
 // maintains the tiers of the algorithm
 // and the spanning forest of the entire graph

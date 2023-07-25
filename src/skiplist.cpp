@@ -2,18 +2,24 @@
 #include <xxhash.h>
 #include "skiplist.h"
 #include "euler_tour_tree.h"
+#include <atomic>
 
 
-int buffer_size = 20;
+int buffer_cap = 100;
+
+std::atomic<long> num_sketch_updates(0);
+std::atomic<long> num_sketch_batches(0);
 
 SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
 	sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())), node(node) {
 	Sketch::makeSketch((char*)sketch_agg, seed);
-	update_buffer.reserve(buffer_size);
+	update_buffer = (vec_t*) malloc(buffer_cap*sizeof(vec_t));
+	buffer_capacity = buffer_cap;
 }
 
 SkipListNode::~SkipListNode() {
 	::operator delete(sketch_agg, Sketch::sketchSizeof());
+	free(update_buffer);
 }
 
 void SkipListNode::uninit_element() {
@@ -115,15 +121,17 @@ Sketch* SkipListNode::get_list_aggregate() {
 }
 
 void SkipListNode::update_agg(vec_t update_idx) {
-	if (this->update_buffer.size() == this->update_buffer.capacity())
+	num_sketch_updates++;
+	if (this->buffer_size == this->buffer_capacity)
 		this->process_updates();
-	this->update_buffer.push_back(update_idx);
+	this->update_buffer[this->buffer_size++] = update_idx;
 }
 
 void SkipListNode::process_updates() {
-	for (vec_t update_idx : this->update_buffer)
-		this->sketch_agg->update(update_idx);
-	this->update_buffer.clear();
+	num_sketch_batches++;
+	for (int i = 0; i < buffer_size; i++)
+		this->sketch_agg->update(update_buffer[i]);
+	this->buffer_size = 0;
 }
 
 SkipListNode* SkipListNode::update_path_agg(vec_t update_idx) {
