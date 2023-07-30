@@ -5,7 +5,7 @@
 #include <atomic>
 
 
-int buffer_cap = 100;
+int buffer_cap = 25;
 
 std::atomic<long> num_sketch_updates(0);
 std::atomic<long> num_sketch_batches(0);
@@ -42,7 +42,7 @@ void SkipListNode::uninit_element() {
 SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	long seed = node->get_seed();
 	// NOTE: WE SHOULD MAKE IT SO DIFFERENT SKIPLIST NODES FOR THE SAME ELEMENT CAN BE DIFFERENT HEIGHTS
-	uint64_t element_height = __builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), seed))+1;
+	uint64_t element_height = 0.25*__builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), seed))+1;
 	SkipListNode* list_node, *bdry_node, *list_prev, *bdry_prev;
 	list_node = bdry_node = list_prev = bdry_prev = nullptr;
 	// Add skiplist and boundary nodes up to the random height
@@ -54,10 +54,12 @@ SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 		if (list_prev) {
 			list_node->down = list_prev;
 			list_prev->up = list_node;
+			list_prev->parent = list_node;
 		}
 		if (bdry_prev) {
 			bdry_node->down = bdry_prev;
 			bdry_prev->up = bdry_node;
+			bdry_prev->parent = bdry_node;
 		}
 		list_prev = list_node;
 		bdry_prev = bdry_node;
@@ -66,16 +68,19 @@ SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	SkipListNode* root = new SkipListNode(nullptr, seed);
 	root->down = bdry_prev;
 	bdry_prev->up = root;
+	bdry_prev->parent = root;
+	list_prev->parent = root;
 	root->size = 2;
 	return root->get_last();
 }
 
 SkipListNode* SkipListNode::get_parent() {
-	SkipListNode* curr = this;
-	while (curr && !curr->up) {
-		curr = curr->left;
-	}
-	return curr ? curr->up : nullptr;
+	// SkipListNode* curr = this;
+	// while (curr && !curr->up) {
+	// 	curr = curr->left;
+	// }
+	// return curr ? curr->up : nullptr;
+	return parent;
 }
 
 SkipListNode* SkipListNode::get_root() {
@@ -176,6 +181,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 
 	SkipListNode* l_curr = left->get_last();
 	SkipListNode* r_curr = right->get_first(); // this is the bottom boundary node
+	SkipListNode* r_first = r_curr->right;
 	SkipListNode* l_prev = nullptr;
 	SkipListNode* r_prev = nullptr;
 	
@@ -216,6 +222,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 			l_curr = new SkipListNode(nullptr, seed);
 			l_curr->down = l_prev;
 			l_prev->up = l_curr;
+			l_prev->parent = l_curr;
 			l_curr->right = r_curr->right;
 			if (r_curr->right) r_curr->right->left = l_curr;
 
@@ -233,6 +240,15 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		::operator delete(l_root_agg, Sketch::sketchSizeof());
 	}
 	delete r_prev;
+	// Update parent pointers in right list
+	while (r_first) {
+		while (r_first && !r_first->up) {
+			r_first->parent = r_first->left->parent;
+			r_first = r_first->right;
+		}
+		if (r_first)
+			r_first = r_first->up;
+	}
 	// Returns the root of the joined list
 	return l_prev;
 }
@@ -267,11 +283,13 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 			r_curr->process_updates();
 			*new_bdry->sketch_agg += *r_curr->sketch_agg;
 			new_bdry->size += r_curr->size;
+			r_curr->parent = new_bdry;
 			r_curr = r_curr->right;
 		}
 		r_curr = r_curr ? r_curr->up : nullptr;
 		new_bdry->down = bdry;
 		bdry->up = new_bdry;
+		bdry->parent = new_bdry;
 		bdry = new_bdry;
 	}
 	// Subtract the final right agg from the rest of the aggs on left path
@@ -290,6 +308,7 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 		l_curr = l_prev->down;
 	}
 	l_prev->up = nullptr;
+	l_prev->parent = nullptr;
 	// Returns the root of left list
 	return l_prev;
 }
