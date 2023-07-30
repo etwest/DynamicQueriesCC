@@ -146,6 +146,10 @@ void LinkCutNode::remove_edge(edge_id_t e) {
     this->edges.erase(e);
 }
 
+bool LinkCutNode::has_edge(edge_id_t e) {
+    return (this->edges.find(e) != this->edges.end());
+}
+
 void LinkCutNode::rebuild_max() {
     uint32_t max = 0;
     edge_id_t max_edge = 0;
@@ -326,4 +330,43 @@ std::pair<edge_id_t, uint32_t> LinkCutTree::path_aggregate(node_id_t v, node_id_
     this->evert(v_node);
     LinkCutNode* p = this->expose(w_node);
     return p->get_max_edge();
+}
+
+bool LinkCutTree::has_edge(node_id_t v1, node_id_t v2) {
+    edge_id_t e = VERTICES_TO_EDGE(v1, v2);
+    return nodes[v1].has_edge(e);
+}
+
+std::vector<std::set<node_id_t>> LinkCutTree::get_cc() {
+	std::map<LinkCutNode*, std::set<node_id_t>> cc_map;
+	std::map<LinkCutNode*, LinkCutNode*> visited;
+	for (uint32_t i = 0; i < nodes.size(); i++) {
+		if (visited.find(&nodes[i]) == visited.end()) {
+            std::set<LinkCutNode*> node_component;
+            LinkCutNode* curr = &nodes[i];
+            while ((curr->get_parent() && visited.find(curr->get_parent()) == visited.end())
+            || (curr->get_head()->get_dparent() && visited.find(curr->get_head()->get_dparent()) == visited.end())) {
+                node_component.insert(curr);
+                curr = curr->get_parent() ? curr->get_parent() : curr->get_head()->get_dparent();
+            }
+            node_component.insert(curr);
+            LinkCutNode* root = curr;
+            if (curr->get_parent() || curr->get_head()->get_dparent())
+                root = curr->get_parent() ? visited[curr->get_parent()] : visited[curr->get_head()->get_dparent()];
+
+            if (cc_map.find(root) == cc_map.end()) {
+                std::set<node_id_t> component;
+                cc_map.insert({root, component});
+            }
+			for (auto node : node_component) {
+				cc_map[root].insert(node-&nodes[0]);
+				visited.insert({node, root});
+			}
+		}
+	}
+    std::vector<std::set<node_id_t>> cc;
+    for (auto component : cc_map) {
+        cc.push_back(component.second);
+    }
+	return cc;
 }

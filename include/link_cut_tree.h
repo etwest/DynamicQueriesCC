@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include "types.h"
+#include "util.h"
 
 #define MAX_UINT64 (std::numeric_limits<uint64_t>::max())
 class LinkCutTree;
@@ -47,6 +48,7 @@ class LinkCutNode {
     void unmake_preferred_edge(edge_id_t e);
     void insert_edge(edge_id_t e, uint32_t weight);
     void remove_edge(edge_id_t e);
+    bool has_edge(edge_id_t e);
     void set_max(uint32_t weight);
 
     void set_reversed(bool reversed);
@@ -96,4 +98,8 @@ class LinkCutTree {
 
     // Given node v and w return the edge with the maximum weight on the path from v to w and the weight itself
     std::pair<edge_id_t, uint32_t> path_aggregate(node_id_t v, node_id_t w);
+    bool has_edge(node_id_t v1, node_id_t v2);
+
+    // Query for the CC algorithm
+    std::vector<std::set<node_id_t>> get_cc();
 };

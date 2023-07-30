@@ -25,6 +25,18 @@ else()
   message("${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
 endif()
 
+######
+# Get MPI for distributed communication
+######
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+add_definitions(-DOMPI_SKIP_MPICXX)
+if(MPI_CXX_FOUND)
+       message("Found MPI_CXX")
+endif()
+
+
+
 # Install GraphZeppelin Project
 FetchContent_Declare(
   GraphZeppelinVerifyCC
@@ -47,17 +59,45 @@ add_executable(dynamicCC_tests
   test/link_cut_tree_test.cpp
   test/graph_tiers_test.cpp
 
-  src/skiplist.cpp
-
-  src/euler_tour_tree.cpp
-
-  src/link_cut_tree.cpp
-
-  src/graph_tiers.cpp
-
   src/sketch.cpp
+
+  src/skiplist.cpp
+  src/euler_tour_tree.cpp
+  src/link_cut_tree.cpp
+  src/graph_tiers.cpp
 )
 
-target_include_directories(dynamicCC_tests PUBLIC include)
+target_include_directories(dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
 add_dependencies(dynamicCC_tests GraphZeppelinVerifyCC)
-target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelinVerifyCC)
+target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelinVerifyCC ${MPI_LIBRARIES})
+
+add_executable(mpi_dynamicCC_tests
+  test/mpi_test_runner.cpp
+  test/mpi_graph_tiers_test.cpp
+
+  src/sketch.cpp
+
+  src/skiplist.cpp
+  src/euler_tour_tree.cpp
+  src/link_cut_tree.cpp
+
+  src/input_node.cpp
+  src/tier_node.cpp
+)
+
+target_include_directories(mpi_dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
+add_dependencies(mpi_dynamicCC_tests GraphZeppelinVerifyCC)
+target_link_libraries(mpi_dynamicCC_tests PRIVATE GraphZeppelinVerifyCC ${MPI_LIBRARIES})
+
+#######
+# TODO: Is MPI INCLUDE PATH necessary?
+if(MPI_COMPILE_FLAGS)
+  set_target_properties(mpi_dynamicCC_tests PROPERTIES
+    COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties(mpi_dynamicCC_tests PROPERTIES
+    LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+#######

@@ -1,17 +1,19 @@
-
 #include <gtest/gtest.h>
 #include <chrono>
 #include <signal.h>
+#include <omp.h>
+#include <iostream>
+#include <fstream>
 #include "graph_tiers.h"
 #include "binary_graph_stream.h"
 #include "mat_graph_verifier.h"
-#include <omp.h>
+#include "util.h"
 
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-static void print_metrics(int signum) {
+static void print_metrics() {
     stop = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
     std::cout << "\nTotal time for all updates performed (ms): " << duration.count() << std::endl;
@@ -25,7 +27,6 @@ static void print_metrics(int signum) {
     std::cout << "\t\t\tETT Find Tree Root (ms): " << ett_find_root/1000 << std::endl;
     std::cout << "\t\t\tETT Get Aggregate (ms): " << ett_get_agg/1000 << std::endl;
     std::cout << "Total number of tiers grown: " << tiers_grown << std::endl;
-    exit(signum);
 }
 
 TEST(GraphTiersSuite, mini_correctness_test) {
@@ -110,13 +111,14 @@ TEST(GraphTiersSuite, deletion_replace_correctness_test) {
 
 }
 
-TEST(GraphTiersSuite, full_correctness_test) {
+TEST(GraphTiersSuite, omp_correctness_test) {
     omp_set_dynamic(1);
     try {
 
-        BinaryGraphStream stream("kron_13_stream_binary", 100000);
+        BinaryGraphStream stream(stream_file, 100000);
         GraphTiers gt(stream.nodes(), true);
         int edgecount = stream.edges();
+        edgecount = 1000000;
         MatGraphVerifier gv(stream.nodes());
         start = std::chrono::high_resolution_clock::now();
 
@@ -124,7 +126,7 @@ TEST(GraphTiersSuite, full_correctness_test) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%10000 == 0 || i == edgecount-1) {
+            unlikely_if(i%100000 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = gt.get_cc();
                 try {
                     gv.reset_cc_state();
@@ -137,35 +139,43 @@ TEST(GraphTiersSuite, full_correctness_test) {
                 }
             }
         }
-
-        print_metrics(0);
+        std::ofstream file;
+        file.open ("omp_kron_results.txt", std::ios_base::app);
+        file << stream_file << " passed correctness test." << std::endl;
+        file.close();
 
     } catch (BadStreamException& e) {
         std::cout << "ERROR: Stream binary file not found." << std::endl;
     }
 }
 
-TEST(GraphTiersSuite, update_speed_test) {
-    omp_set_dynamic(1);    
+TEST(GraphTiersSuite, omp_speed_test) {
+    omp_set_dynamic(1);
     try {
 
-        signal(SIGINT, print_metrics);
-        BinaryGraphStream stream("kron_13_stream_binary", 100000);
+	    long time = 0;
+        BinaryGraphStream stream(stream_file, 100000);
         GraphTiers gt(stream.nodes(), true);
         int edgecount = stream.edges();
+        edgecount = 1000000;
         start = std::chrono::high_resolution_clock::now();
 
+	    START(timer);
         for (int i = 0; i < edgecount; i++) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
-            unlikely_if (i % 10000 == 0) {
+            unlikely_if (i % 100000 == 0) {
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
                 std::cout << "Update " << i << ", Time:  " << duration.count() << std::endl;
             }
         }
-
-        print_metrics(0);
+	    STOP(time, timer);
+        print_metrics();
+        std::ofstream file;
+        file.open ("omp_kron_results.txt", std::ios_base::app);
+        file << stream_file << " time (ms): "<< time/1000 << std::endl;
+        file.close();
 
     } catch (BadStreamException& e) {
         std::cout << "ERROR: Stream binary file not found." << std::endl;
@@ -173,10 +183,10 @@ TEST(GraphTiersSuite, update_speed_test) {
 }
 
 TEST(GraphTiersSuite, query_speed_test) {
-    omp_set_dynamic(1);    
+    omp_set_dynamic(1);
     try {
 
-        BinaryGraphStream stream("kron_13_stream_binary", 100000);
+        BinaryGraphStream stream(stream_file, 100000);
         int nodecount = stream.nodes();
         GraphTiers gt(nodecount, true);
         int edgecount = 150000;

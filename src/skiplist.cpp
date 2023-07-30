@@ -112,20 +112,26 @@ Sketch* SkipListNode::get_list_aggregate() {
 	return this->get_root()->sketch_agg;
 }
 
-void SkipListNode::update_path_agg(vec_t update_idx) {
+SkipListNode* SkipListNode::update_path_agg(vec_t update_idx) {
 	SkipListNode* curr = this;
+	SkipListNode* prev;
 	while (curr) {
 		curr->sketch_agg->update(update_idx);
-		curr = curr->get_parent();
+		prev = curr;
+		curr = prev->get_parent();
 	}
+	return prev;
 }
 
-void SkipListNode::update_path_agg(Sketch* sketch) {
+SkipListNode* SkipListNode::update_path_agg(Sketch* sketch) {
 	SkipListNode* curr = this;
+	SkipListNode* prev;
 	while (curr) {
 		*curr->sketch_agg += *sketch;
-		curr = curr->get_parent();
+		prev = curr;
+		curr = prev->get_parent();
 	}
+	return prev;
 }
 
 std::set<EulerTourTree*> SkipListNode::get_component() {
