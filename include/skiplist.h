@@ -13,6 +13,8 @@ class SkipListNode {
   SkipListNode* right = nullptr;
   SkipListNode* up = nullptr;
   SkipListNode* down = nullptr;
+  // Store the first node to the left on the next level up
+  SkipListNode* parent = nullptr;
 
   vec_t* update_buffer;
   int buffer_size = 0;
