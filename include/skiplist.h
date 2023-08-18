@@ -5,7 +5,8 @@
 
 class EulerTourTree;
 
-extern int buffer_size;
+constexpr int buffer_cap = 25;
+extern double height_factor;
 
 class SkipListNode {
 
@@ -16,7 +17,7 @@ class SkipListNode {
   // Store the first node to the left on the next level up
   SkipListNode* parent = nullptr;
 
-  vec_t* update_buffer;
+  vec_t update_buffer[buffer_cap];
   int buffer_size = 0;
   int buffer_capacity;
 
