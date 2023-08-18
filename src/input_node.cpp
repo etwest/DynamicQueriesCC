@@ -1,6 +1,11 @@
 #include "../include/mpi_nodes.h"
 
 
+long greedy_refresh_loop_time = 0;
+
+long input_greedy_gather_time = 0;
+long input_greedy_bcast_time = 0;
+
 InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes){
     update_buffer.reserve(batch_size + 1);
     StreamMessage msg;
@@ -31,10 +36,14 @@ void InputNode::process_updates() {
         GraphUpdate update = update_buffer[i].update;
         // Try the greedy parallel refresh
         GreedyRefreshMessage empty_message;
+        barrier();
+        START(input_greedy_gather_timer);
         gather(&empty_message, sizeof(GreedyRefreshMessage), greedy_refresh_buffer, sizeof(GreedyRefreshMessage), 0);
+        STOP(input_greedy_gather_time, input_greedy_gather_timer);
         UpdateMessage isolation_message;
         isolation_message.type = NOT_ISOLATED;
         // TODO: make fast
+        START(greedy_refresh_loop_timer);
         for (uint32_t tier = 0; tier < num_tiers-1; tier++) {
             unlikely_if (greedy_refresh_buffer[tier].size1 == greedy_refresh_buffer[tier+1].size1 && greedy_refresh_buffer[tier].query_result1 == GOOD) {
                 isolation_message.type = ISOLATED;
@@ -45,7 +54,10 @@ void InputNode::process_updates() {
                 break;
             }
         }
+        STOP(greedy_refresh_loop_time, greedy_refresh_loop_timer);
+        START(input_greedy_bcast_timer);
         bcast(&isolation_message, sizeof(UpdateMessage), 0);
+        STOP(input_greedy_bcast_time, input_greedy_bcast_timer);
         if (isolation_message.type == NOT_ISOLATED)
             continue;
         // Initiate the refresh sequence and receive all the broadcasts
@@ -108,4 +120,8 @@ void InputNode::end() {
     // Tell all nodes the stream is over
     update_buffer[0].type = END;
     bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
+    std::cout << "============= INPUT NODE =============" << std::endl;
+    std::cout << "Time in greedy refresh gather (ms): " << input_greedy_gather_time/1000 << std::endl;
+    std::cout << "Time in greedy refresh loop (ms): " << greedy_refresh_loop_time/1000 << std::endl;
+    std::cout << "Time in greedy refresh bcast (ms): " << input_greedy_bcast_time/1000 << std::endl;
 }

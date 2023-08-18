@@ -5,7 +5,7 @@
 #include <atomic>
 
 
-int buffer_cap = 25;
+double height_factor;
 
 std::atomic<long> num_sketch_updates(0);
 std::atomic<long> num_sketch_batches(0);
@@ -13,13 +13,13 @@ std::atomic<long> num_sketch_batches(0);
 SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
 	sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())), node(node) {
 	Sketch::makeSketch((char*)sketch_agg, seed);
-	update_buffer = (vec_t*) malloc(buffer_cap*sizeof(vec_t));
+	//update_buffer = (vec_t*) malloc(buffer_cap*sizeof(vec_t));
 	buffer_capacity = buffer_cap;
 }
 
 SkipListNode::~SkipListNode() {
 	::operator delete(sketch_agg, Sketch::sketchSizeof());
-	free(update_buffer);
+	//free(update_buffer);
 }
 
 void SkipListNode::uninit_element() {
@@ -42,7 +42,7 @@ void SkipListNode::uninit_element() {
 SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	long seed = node->get_seed();
 	// NOTE: WE SHOULD MAKE IT SO DIFFERENT SKIPLIST NODES FOR THE SAME ELEMENT CAN BE DIFFERENT HEIGHTS
-	uint64_t element_height = 0.25*__builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), seed))+1;
+	uint64_t element_height = height_factor*__builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), seed))+1;
 	SkipListNode* list_node, *bdry_node, *list_prev, *bdry_prev;
 	list_node = bdry_node = list_prev = bdry_prev = nullptr;
 	// Add skiplist and boundary nodes up to the random height

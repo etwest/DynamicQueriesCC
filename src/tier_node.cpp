@@ -65,6 +65,7 @@ void TierNode::main() {
             refresh_message.size2 = root2->size;
             root2->process_updates();
             refresh_message.query_result2 = root2->sketch_agg->query().second;
+            barrier();
             START(greedy_gather_timer);
             gather(&refresh_message, sizeof(GreedyRefreshMessage), nullptr, 0, 0);
             STOP(greedy_gather_time, greedy_gather_timer);
