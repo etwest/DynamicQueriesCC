@@ -6,6 +6,7 @@
 class EulerTourTree;
 
 constexpr int buffer_cap = 25;
+extern long skiplist_seed;
 extern double height_factor;
 
 class SkipListNode {
