@@ -76,6 +76,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     int batch_size = 100;
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
+    height_factor = 4./num_tiers;
     if (world_size != num_tiers+1) {
         FAIL() << "MPI world size too small for graph with " << stream.nodes() << " vertices. Correct world size is: " << num_tiers+1;
     }
@@ -83,22 +84,15 @@ TEST(GraphTierSuite, mpi_speed_test) {
     if (world_rank == 0) {
         long time = 0;
         InputNode input_node(stream.nodes(), num_tiers, batch_size);
-        int edgecount = stream.edges();
-	    edgecount = 1000000;
-        for (int i = 0; i < 300000; i++) {
-            // Read an update from the stream and have the input node process it
-            GraphUpdate update = stream.get_edge();
-            input_node.update(update);
-            unlikely_if(i%100000 == 0 || i == edgecount-1) {
-                std::cout << "BUILDING UP GRAPH..." << std::endl;
-            }
-        }
+        long edgecount = stream.edges();
+        long count = 5000000;
+        edgecount = std::min(edgecount, count);
         START(timer);
-        for (int i = 0; i < edgecount; i++) {
+        for (long i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
             input_node.update(update);
-            unlikely_if(i%100000 == 0 || i == edgecount-1) {
+            unlikely_if(i%1000000 == 0 || i == edgecount-1) {
                 std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             }
         }

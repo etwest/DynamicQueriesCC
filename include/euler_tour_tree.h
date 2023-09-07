@@ -34,6 +34,8 @@ public:
   Sketch* get_sketch(SkipListNode* caller);
   SkipListNode* update_sketch(vec_t update_idx);
 
+  SkipListNode* get_root();
+
   Sketch* get_aggregate();
   uint32_t get_size();
   bool has_edge_to(EulerTourTree* other);

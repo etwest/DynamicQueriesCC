@@ -59,6 +59,10 @@ SkipListNode* EulerTourTree::update_sketch(vec_t update_idx) {
   return this->allowed_caller->update_path_agg(update_idx);
 }
 
+SkipListNode* EulerTourTree::get_root() {
+  return this->allowed_caller->get_root();
+}
+
 //Get the aggregate sketch at the root of the ETT for this node
 Sketch* EulerTourTree::get_aggregate() {
   assert(allowed_caller);

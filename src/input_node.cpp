@@ -1,11 +1,16 @@
 #include "../include/mpi_nodes.h"
 
 
+long greedy_refresh_loop_time = 0;
+
+long input_greedy_gather_time = 0;
+long input_greedy_bcast_time = 0;
+
 InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes){
     update_buffer.reserve(batch_size + 1);
     StreamMessage msg;
     update_buffer.push_back(msg);
-    greedy_refresh_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*(num_tiers+1));
+    greedy_refresh_buffer = (bool*) malloc(sizeof(bool)*(num_tiers+1));
 };
 
 InputNode::~InputNode() {
@@ -30,23 +35,22 @@ void InputNode::process_updates() {
     for (uint32_t i = 1; i < update_buffer.size(); i++) {
         GraphUpdate update = update_buffer[i].update;
         // Try the greedy parallel refresh
-        GreedyRefreshMessage empty_message;
-        gather(&empty_message, sizeof(GreedyRefreshMessage), greedy_refresh_buffer, sizeof(GreedyRefreshMessage), 0);
-        UpdateMessage isolation_message;
-        isolation_message.type = NOT_ISOLATED;
-        // TODO: make fast
-        for (uint32_t tier = 0; tier < num_tiers-1; tier++) {
-            unlikely_if (greedy_refresh_buffer[tier].size1 == greedy_refresh_buffer[tier+1].size1 && greedy_refresh_buffer[tier].query_result1 == GOOD) {
-                isolation_message.type = ISOLATED;
-                break;
-            }
-            unlikely_if (greedy_refresh_buffer[tier].size2 == greedy_refresh_buffer[tier+1].size2 && greedy_refresh_buffer[tier].query_result2 == GOOD) {
-                isolation_message.type = ISOLATED;
+        barrier();
+        START(input_greedy_gather_timer);
+        bool isolated_message = false;
+        allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
+        STOP(input_greedy_gather_time, input_greedy_gather_timer);
+        // Check for any isolation
+        bool any_tier_isolated = false;
+        START(greedy_refresh_loop_timer);
+        for (uint32_t i = 0; i < num_tiers+1; i++) {
+            unlikely_if (greedy_refresh_buffer[i]) {
+                any_tier_isolated = true;
                 break;
             }
         }
-        bcast(&isolation_message, sizeof(UpdateMessage), 0);
-        if (isolation_message.type == NOT_ISOLATED)
+        STOP(greedy_refresh_loop_time, greedy_refresh_loop_timer);
+        if (!any_tier_isolated)
             continue;
         // Initiate the refresh sequence and receive all the broadcasts
         RefreshEndpoint e1, e2;
@@ -108,4 +112,8 @@ void InputNode::end() {
     // Tell all nodes the stream is over
     update_buffer[0].type = END;
     bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
+    std::cout << "============= INPUT NODE =============" << std::endl;
+    std::cout << "Time in greedy refresh gather (ms): " << input_greedy_gather_time/1000 << std::endl;
+    std::cout << "Time in greedy refresh loop (ms): " << greedy_refresh_loop_time/1000 << std::endl;
+    std::cout << "Time in greedy refresh bcast (ms): " << input_greedy_bcast_time/1000 << std::endl;
 }

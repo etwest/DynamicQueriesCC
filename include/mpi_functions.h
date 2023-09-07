@@ -7,3 +7,11 @@ static void bcast(void* message, int size, int root) {
 static void gather(void* send_data, int send_size, void* recv_data, int recv_size, int root) {
     MPI_Gather(send_data, send_size, MPI_BYTE, recv_data, recv_size, MPI_BYTE, root, MPI_COMM_WORLD);
 }
+
+static void allgather(void* send_data, int send_size, void* recv_data, int recv_size) {
+    MPI_Allgather(send_data, send_size, MPI_BYTE, recv_data, recv_size, MPI_BYTE, MPI_COMM_WORLD);
+}
+
+static void barrier() {
+    MPI_Barrier(MPI_COMM_WORLD);
+}

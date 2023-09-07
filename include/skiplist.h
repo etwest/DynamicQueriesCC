@@ -5,12 +5,22 @@
 
 class EulerTourTree;
 
+constexpr int buffer_cap = 1;
+extern long skiplist_seed;
+extern double height_factor;
+
 class SkipListNode {
 
   SkipListNode* left = nullptr;
   SkipListNode* right = nullptr;
   SkipListNode* up = nullptr;
   SkipListNode* down = nullptr;
+  // Store the first node to the left on the next level up
+  SkipListNode* parent = nullptr;
+
+  vec_t update_buffer[buffer_cap];
+  int buffer_size = 0;
+  int buffer_capacity;
 
 public:
   Sketch* sketch_agg;
@@ -41,6 +51,12 @@ public:
   SkipListNode* update_path_agg(vec_t update_idx);
   // Add the given sketch to all aggregate sketches from the current node to its root
   SkipListNode* update_path_agg(Sketch* sketch);
+
+  // Update just this node's aggregate sketch
+  void update_agg(vec_t update_idx);
+
+  // Apply all the sketch updates currently in the update buffer
+  void process_updates();
 
   std::set<EulerTourTree*> get_component();
 

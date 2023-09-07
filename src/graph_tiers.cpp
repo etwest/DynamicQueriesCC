@@ -50,7 +50,7 @@ void GraphTiers::update(GraphUpdate update) {
 	if (update.type == DELETE && ett_nodes[ett_nodes.size()-1][update.edge.src].has_edge_to(&ett_nodes[ett_nodes.size()-1][update.edge.dst])) {
 		link_cut_tree.cut(update.edge.src, update.edge.dst);
 	}
-	#pragma omp parallel for if(use_parallelism)
+	#pragma omp parallel for
 	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
 		if (update.type == DELETE && ett_nodes[i][update.edge.src].has_edge_to(&ett_nodes[i][update.edge.dst])) {
 			ett_nodes[i][update.edge.src].cut(ett_nodes[i][update.edge.dst]);
@@ -67,36 +67,38 @@ void GraphTiers::update(GraphUpdate update) {
 
 void GraphTiers::refresh(GraphUpdate update) {
 	// In parallel check if all tiers are not isolated
-	if (use_parallelism) {
-		START(iso);
-		std::atomic<bool> isolated(false);
-		//#pragma omp parallel for
-		for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
-			// Check if the tree containing first endpoint is isolated
-			uint32_t tier_size1 = root_nodes[2*tier]->size;
-			uint32_t next_size1 = root_nodes[2*(tier+1)]->size;
-			if (tier_size1 != next_size1)
-				continue;
+	START(iso);
+	std::atomic<bool> isolated(false);
+	//#pragma omp parallel for
+	for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
+		// Check if the tree containing first endpoint is isolated
+		uint32_t tier_size1 = root_nodes[2*tier]->size;
+		uint32_t next_size1 = root_nodes[2*(tier+1)]->size;
+		if (tier_size1 == next_size1) {
+			root_nodes[2*tier]->process_updates();
 			Sketch* ett_agg1 = root_nodes[2*tier]->sketch_agg;
 			std::pair<vec_t, SampleSketchRet> query_result1 = ett_agg1->query();
-			if (query_result1.second != GOOD)
+			if (query_result1.second == GOOD) {
+				isolated = true;
 				continue;
-			isolated = true;
-			// Check if the tree containing second endpoint is isolated
-			uint32_t tier_size2 = root_nodes[2*tier+1]->size;
-			uint32_t next_size2 = root_nodes[2*(tier+1)+1]->size;
-			if (tier_size2 != next_size2)
-				continue;
+			}
+		}
+		// Check if the tree containing second endpoint is isolated
+		uint32_t tier_size2 = root_nodes[2*tier+1]->size;
+		uint32_t next_size2 = root_nodes[2*(tier+1)+1]->size;
+		if (tier_size2 == next_size2) {
+			root_nodes[2*tier+1]->process_updates();
 			Sketch* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
 			std::pair<vec_t, SampleSketchRet> query_result2 = ett_agg2->query();
-			if (query_result2.second != GOOD)
+			if (query_result2.second == GOOD) {
+				isolated = true;
 				continue;
-			isolated = true;
+			}
 		}
-		STOP(parallel_isolated_check, iso);
-		if (!isolated)
-			return;
 	}
+	STOP(parallel_isolated_check, iso);
+	if (!isolated)
+		return;
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
@@ -110,7 +112,9 @@ void GraphTiers::refresh(GraphUpdate update) {
 				continue;
 
 			START(agg);
-			Sketch* ett_agg = ett_nodes[tier][v].get_aggregate();
+			SkipListNode* root = ett_nodes[tier][v].get_root();
+			root->process_updates();
+			Sketch* ett_agg = root->sketch_agg;
 			STOP(ett_get_agg, agg);
 			START(sq);
 			std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
@@ -140,7 +144,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 
 				// Remove the maximum tier edge on all paths where it exists
 				START(ett1);
-				#pragma omp parallel for if(use_parallelism)
+				#pragma omp parallel for
 				for (uint32_t i = max.second; i < ett_nodes.size(); i++) {
 					ett_nodes[i][c].cut(ett_nodes[i][d]);
 				}
@@ -152,7 +156,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 
 			// Join the ETTs for the endpoints of the edge on all tiers above the current
 			START(ett2);
-			#pragma omp parallel for if(use_parallelism)
+			#pragma omp parallel for
 			for (uint32_t i = tier+1; i < ett_nodes.size(); i++) {
 				ett_nodes[i][a].link(ett_nodes[i][b]);
 			}
