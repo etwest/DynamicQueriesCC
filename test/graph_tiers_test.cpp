@@ -188,7 +188,7 @@ TEST(GraphTiersSuite, query_speed_test) {
     omp_set_dynamic(1);
     try {
 
-        BinaryGraphStream stream("kron_13_stream_binary", 100000);
+        BinaryGraphStream stream(stream_file, 100000);
         int nodecount = stream.nodes();
         GraphTiers gt(nodecount, true);
         int edgecount = 150000;
