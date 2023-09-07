@@ -6,6 +6,7 @@
 
 
 double height_factor;
+long skiplist_seed = time(NULL);
 
 std::atomic<long> num_sketch_updates(0);
 std::atomic<long> num_sketch_batches(0);
@@ -42,7 +43,7 @@ void SkipListNode::uninit_element() {
 SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	long seed = node->get_seed();
 	// NOTE: WE SHOULD MAKE IT SO DIFFERENT SKIPLIST NODES FOR THE SAME ELEMENT CAN BE DIFFERENT HEIGHTS
-	uint64_t element_height = height_factor*__builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), seed))+1;
+	uint64_t element_height = height_factor*__builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), skiplist_seed))+1;
 	SkipListNode* list_node, *bdry_node, *list_prev, *bdry_prev;
 	list_node = bdry_node = list_prev = bdry_prev = nullptr;
 	// Add skiplist and boundary nodes up to the random height
@@ -127,9 +128,9 @@ Sketch* SkipListNode::get_list_aggregate() {
 
 void SkipListNode::update_agg(vec_t update_idx) {
 	num_sketch_updates++;
+	this->update_buffer[this->buffer_size++] = update_idx;
 	if (this->buffer_size == this->buffer_capacity)
 		this->process_updates();
-	this->update_buffer[this->buffer_size++] = update_idx;
 }
 
 void SkipListNode::process_updates() {

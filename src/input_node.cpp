@@ -10,7 +10,7 @@ InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : 
     update_buffer.reserve(batch_size + 1);
     StreamMessage msg;
     update_buffer.push_back(msg);
-    greedy_refresh_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*(num_tiers+1));
+    greedy_refresh_buffer = (bool*) malloc(sizeof(bool)*(num_tiers+1));
 };
 
 InputNode::~InputNode() {
@@ -35,30 +35,22 @@ void InputNode::process_updates() {
     for (uint32_t i = 1; i < update_buffer.size(); i++) {
         GraphUpdate update = update_buffer[i].update;
         // Try the greedy parallel refresh
-        GreedyRefreshMessage empty_message;
         barrier();
         START(input_greedy_gather_timer);
-        gather(&empty_message, sizeof(GreedyRefreshMessage), greedy_refresh_buffer, sizeof(GreedyRefreshMessage), 0);
+        bool isolated_message = false;
+        allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
         STOP(input_greedy_gather_time, input_greedy_gather_timer);
-        UpdateMessage isolation_message;
-        isolation_message.type = NOT_ISOLATED;
-        // TODO: make fast
+        // Check for any isolation
+        bool any_tier_isolated = false;
         START(greedy_refresh_loop_timer);
-        for (uint32_t tier = 0; tier < num_tiers-1; tier++) {
-            unlikely_if (greedy_refresh_buffer[tier].size1 == greedy_refresh_buffer[tier+1].size1 && greedy_refresh_buffer[tier].query_result1 == GOOD) {
-                isolation_message.type = ISOLATED;
-                break;
-            }
-            unlikely_if (greedy_refresh_buffer[tier].size2 == greedy_refresh_buffer[tier+1].size2 && greedy_refresh_buffer[tier].query_result2 == GOOD) {
-                isolation_message.type = ISOLATED;
+        for (uint32_t i = 0; i < num_tiers+1; i++) {
+            unlikely_if (greedy_refresh_buffer[i]) {
+                any_tier_isolated = true;
                 break;
             }
         }
         STOP(greedy_refresh_loop_time, greedy_refresh_loop_timer);
-        START(input_greedy_bcast_timer);
-        bcast(&isolation_message, sizeof(UpdateMessage), 0);
-        STOP(input_greedy_bcast_time, input_greedy_bcast_timer);
-        if (isolation_message.type == NOT_ISOLATED)
+        if (!any_tier_isolated)
             continue;
         // Initiate the refresh sequence and receive all the broadcasts
         RefreshEndpoint e1, e2;
