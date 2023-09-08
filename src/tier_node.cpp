@@ -88,12 +88,12 @@ void TierNode::main() {
             if (tier_num != num_tiers-1) {
                 if (this_sizes.size1 == next_sizes.size1) {
                     root1->process_updates();
-                    if (root1->sketch_agg->query().second)
+                    if (root1->sketch_agg->query().second == GOOD)
                         isolated = true;
                 }
                 if (this_sizes.size2 == next_sizes.size2) {
                     root2->process_updates();
-                    if (root2->sketch_agg->query().second)
+                    if (root2->sketch_agg->query().second == GOOD)
                         isolated = true;
                 }
             }
