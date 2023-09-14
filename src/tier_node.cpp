@@ -1,16 +1,16 @@
 #include "../include/mpi_nodes.h"
 
 long sketch_update_time = 0;
+long greedy_batch_time = 0;
 long greedy_refresh_time = 0;
 long normal_refresh_time = 0;
 
-long initial_bcast_time = 0;
-long greedy_gather_time = 0;
-
-long iso_check_time = 0;
+long greedy_batch_gather_time = 0;
+long greedy_refresh_gather_time = 0;
+long size_message_passing_time = 0;
 
 TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, int batch_size) :
-    tier_num(tier_num), num_tiers(num_tiers) {
+    tier_num(tier_num), num_tiers(num_tiers), batch_size(batch_size) {
     // Algorithm parameters
 	vec_t sketch_len = ((vec_t)num_nodes) * num_nodes;
 	vec_t sketch_err = 10;
@@ -26,45 +26,114 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
         ett_nodes.emplace_back(seed, i, tier_num);
     }
 
-    update_buffer.reserve(batch_size + 1);
+    update_buffer = (StreamMessage*) malloc(sizeof(StreamMessage)*(batch_size+1));
+    this_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
+    next_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
+    root_buffer = (SkipListNode**) malloc(sizeof(SkipListNode*)*batch_size*2);
     greedy_refresh_buffer = (bool*) malloc(sizeof(bool)*(num_tiers+1));
 }
 
 TierNode::~TierNode() {
+    free(update_buffer);
+    free(this_sizes_buffer);
+    free(next_sizes_buffer);
+    free(root_buffer);
     free(greedy_refresh_buffer);
 }
 
 void TierNode::main() {
     while (true) {
         // Receive a batch of updates and check if it is the end of stream
-        START(initial_bcast_timer);
-        bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
-        STOP(initial_bcast_time, initial_bcast_timer);
+        bcast(&update_buffer[0], sizeof(StreamMessage)*(batch_size+1), 0);
         if (update_buffer[0].type == END) {
             std::cout << "============= TIER " << tier_num << " NODE =============" << std::endl;
-            std::cout << "Time in initial bcast (ms): " << initial_bcast_time/1000 << std::endl;
-            std::cout << "Sketch update time (ms): " << sketch_update_time/1000 << std::endl;
+            std::cout << "Greedy batch time (ms): " << greedy_batch_time/1000 << std::endl;
+            std::cout << "\tSketch update time (ms): " << sketch_update_time/1000 << std::endl;
+            std::cout << "\tSize message passing time (ms): " << size_message_passing_time/1000 << std::endl;
+            std::cout << "\tGreedy gather time (ms): " << greedy_batch_gather_time/1000 << std::endl;
             std::cout << "Greedy refresh time (ms): " << greedy_refresh_time/1000 << std::endl;
-            std::cout << "\tGreedy gather time (ms): " << greedy_gather_time/1000 << std::endl;
-            std::cout << "\tIsolation check time (ms): " << iso_check_time/1000 << std::endl;
+            std::cout << "\tGreedy gather time (ms): " << greedy_refresh_gather_time/1000 << std::endl;
             std::cout << "Normal refresh time (ms): " << normal_refresh_time/1000 << std::endl;
             return;
         }
-        // Process all the updates in the batch
-        for (uint32_t i = 1; i < update_buffer[0].update.edge.src; i++) {
+        // Do the greedy refresh check for all updates in the batch
+        START(greedy_batch_timer);
+        bool any_update_isolated = false;
+        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
             // Perform the sketch updating
             START(sketch_update_timer);
-            GraphUpdate update = update_buffer[i].update;
+            GraphUpdate update = update_buffer[i+1].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             unlikely_if (update.type == DELETE && ett_nodes[update.edge.src].has_edge_to(&ett_nodes[update.edge.dst])) {
                 ett_nodes[update.edge.src].cut(ett_nodes[update.edge.dst]);
             }
-            SkipListNode* root1 = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
-            SkipListNode* root2 = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
+            root_buffer[2*i] = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
+            root_buffer[2*i+1] = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
             STOP(sketch_update_time, sketch_update_timer);
-            START(greedy_refresh_timer);
             // Try the greedy parallel refresh
-            START(iso_check_timer1);
+            GreedyRefreshMessage this_sizes;
+            GreedyRefreshMessage next_sizes;
+            this_sizes.size1 = root_buffer[2*i]->size;
+            this_sizes.size2 = root_buffer[2*i+1]->size;
+            next_sizes.size1 = root_buffer[2*i]->size;
+            next_sizes.size2 = root_buffer[2*i+1]->size;
+            this_sizes_buffer[i] = this_sizes;
+            next_sizes_buffer[i] = next_sizes;
+
+        }
+        START(size_message_passing_timer);
+        if (tier_num == 0) {
+            MPI_Recv(next_sizes_buffer, batch_size*sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        } else if (tier_num == num_tiers-1) {
+            MPI_Send(this_sizes_buffer, batch_size*sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
+        } else if (tier_num%2 == 0) {
+            MPI_Send(this_sizes_buffer, batch_size*sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
+            MPI_Recv(next_sizes_buffer, batch_size*sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        } else if (tier_num%2 == 1) {
+            MPI_Recv(next_sizes_buffer, batch_size*sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Send(this_sizes_buffer, batch_size*sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
+        }
+        STOP(size_message_passing_time, size_message_passing_timer);
+        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
+            // Check if this tier is isolated for this update
+            bool isolated = false;
+            if (tier_num != num_tiers-1) {
+                if (this_sizes_buffer[i].size1 == next_sizes_buffer[i].size1) {
+                    root_buffer[2*i]->process_updates();
+                    if (root_buffer[2*i]->sketch_agg->query().second == GOOD)
+                        isolated = true;
+                }
+                if (this_sizes_buffer[i].size2 == next_sizes_buffer[i].size2) {
+                    root_buffer[2*i+1]->process_updates();
+                    if (root_buffer[2*i+1]->sketch_agg->query().second == GOOD)
+                        isolated = true;
+                }
+            }
+            if (isolated)
+                any_update_isolated = true;
+        }
+        START(greedy_batch_gather_timer);
+        allgather(&any_update_isolated, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
+        STOP(greedy_batch_gather_time, greedy_batch_gather_timer);
+        // Check for any isolation on any update on any tier
+        bool any_tier_or_update_isolated = false;
+        for (uint32_t i = 0; i < num_tiers+1; i++) {
+            unlikely_if (greedy_refresh_buffer[i]) {
+                any_tier_or_update_isolated = true;
+                break;
+            }
+        }
+        STOP(greedy_batch_time, greedy_batch_timer);
+        if (!any_tier_or_update_isolated)
+            continue;
+        // Process all the updates in the batch normally
+        for (uint32_t i = 1; i < update_buffer[0].update.edge.src; i++) {
+            GraphUpdate update = update_buffer[i].update;
+            edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
+            // Try the greedy parallel refresh
+            START(greedy_refresh_timer);
+            SkipListNode* root1 = ett_nodes[update.edge.src].get_root();
+            SkipListNode* root2 = ett_nodes[update.edge.dst].get_root();
             GreedyRefreshMessage this_sizes;
             GreedyRefreshMessage next_sizes;
             this_sizes.size1 = root1->size;
@@ -82,7 +151,6 @@ void TierNode::main() {
                 MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
             }
-
             // Check if this tier is isolated
             bool isolated = false;
             if (tier_num != num_tiers-1) {
@@ -97,13 +165,10 @@ void TierNode::main() {
                         isolated = true;
                 }
             }
-            STOP(iso_check_time, iso_check_timer1);
-            barrier();
-            START(greedy_gather_timer);
+            START(greedy_refresh_gather_timer);
             allgather(&isolated, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
-            STOP(greedy_gather_time, greedy_gather_timer);
+            STOP(greedy_refresh_gather_time, greedy_refresh_gather_timer);
             // Check for any isolation
-            START(iso_check_timer2);
             bool any_tier_isolated = false;
             for (uint32_t i = 0; i < num_tiers+1; i++) {
                 unlikely_if (greedy_refresh_buffer[i]) {
@@ -111,7 +176,6 @@ void TierNode::main() {
                     break;
                 }
             }
-            STOP(iso_check_time, iso_check_timer2);
             STOP(greedy_refresh_time, greedy_refresh_timer);
             if (!any_tier_isolated)
                 continue;
@@ -163,7 +227,6 @@ void TierNode::main() {
             }
             STOP(normal_refresh_time, normal_refresh_timer);
         }
-        update_buffer.clear();
     }
 }
 

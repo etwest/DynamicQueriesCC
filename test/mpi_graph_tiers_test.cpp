@@ -18,7 +18,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
     uint32_t world_size = world_size_buf;
 
-    int batch_size = 100;
+    int batch_size = 10;
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
     if (world_size != num_tiers+1) {
@@ -73,7 +73,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
     uint32_t world_size = world_size_buf;
 
-    int batch_size = 100;
+    int batch_size = 10;
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
     height_factor = 4./num_tiers;
@@ -85,7 +85,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
         long time = 0;
         InputNode input_node(stream.nodes(), num_tiers, batch_size);
         long edgecount = stream.edges();
-        long count = 5000000;
+        long count = 20000000;
         edgecount = std::min(edgecount, count);
         START(timer);
         for (long i = 0; i < edgecount; i++) {

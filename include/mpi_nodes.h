@@ -77,7 +77,11 @@ class TierNode {
   std::vector<EulerTourTree> ett_nodes;
   uint32_t tier_num;
   uint32_t num_tiers;
-  std::vector<StreamMessage> update_buffer;
+  int batch_size;
+  StreamMessage* update_buffer;
+  GreedyRefreshMessage* this_sizes_buffer;
+  GreedyRefreshMessage* next_sizes_buffer;
+  SkipListNode** root_buffer;
   bool* greedy_refresh_buffer;
   void update_tier(GraphUpdate update);
   void ett_update_tier(UpdateMessage message);

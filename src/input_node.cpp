@@ -31,11 +31,31 @@ void InputNode::process_updates() {
     // Broadcast the batch of updates to all nodes
     update_buffer[0].update.edge.src = update_buffer.size();
     bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
+    // Attempt to do the entire batch parallel with greedy refresh
+    START(input_greedy_gather_timer);
+    bool isolated_message = false;
+    allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
+    STOP(input_greedy_gather_time, input_greedy_gather_timer);
+    // Check for any isolation
+    bool any_update_isolated = false;
+    START(greedy_refresh_loop_timer);
+    for (uint32_t i = 0; i < num_tiers+1; i++) {
+        unlikely_if (greedy_refresh_buffer[i]) {
+            any_update_isolated = true;
+            break;
+        }
+    }
+    STOP(greedy_refresh_loop_time, greedy_refresh_loop_timer);
+    if (!any_update_isolated) {
+        update_buffer.clear();
+        StreamMessage msg;
+        update_buffer.push_back(msg);
+        return;
+    }
     // Process all those updates
     for (uint32_t i = 1; i < update_buffer.size(); i++) {
         GraphUpdate update = update_buffer[i].update;
         // Try the greedy parallel refresh
-        barrier();
         START(input_greedy_gather_timer);
         bool isolated_message = false;
         allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
