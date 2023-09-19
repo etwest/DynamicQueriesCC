@@ -1,6 +1,7 @@
 #include "../include/mpi_nodes.h"
 
 long sketch_update_time = 0;
+long sketch_query_time = 0;
 long greedy_batch_time = 0;
 long greedy_refresh_time = 0;
 long normal_refresh_time = 0;
@@ -12,8 +13,8 @@ long size_message_passing_time = 0;
 TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, int batch_size) :
     tier_num(tier_num), num_tiers(num_tiers), batch_size(batch_size) {
     // Algorithm parameters
-	vec_t sketch_len = ((vec_t)num_nodes) * num_nodes;
-	vec_t sketch_err = 10;
+	vec_t sketch_len = ((vec_t)num_nodes);
+	vec_t sketch_err = 2;
 	int seed = time(NULL);
 
 	// Configure the sketches globally
@@ -49,6 +50,7 @@ void TierNode::main() {
             std::cout << "============= TIER " << tier_num << " NODE =============" << std::endl;
             std::cout << "Greedy batch time (ms): " << greedy_batch_time/1000 << std::endl;
             std::cout << "\tSketch update time (ms): " << sketch_update_time/1000 << std::endl;
+            std::cout << "\tSketch query time (ms): " << sketch_query_time/1000 << std::endl;
             std::cout << "\tSize message passing time (ms): " << size_message_passing_time/1000 << std::endl;
             std::cout << "\tGreedy gather time (ms): " << greedy_batch_gather_time/1000 << std::endl;
             std::cout << "Greedy refresh time (ms): " << greedy_refresh_time/1000 << std::endl;
@@ -58,10 +60,9 @@ void TierNode::main() {
         }
         // Do the greedy refresh check for all updates in the batch
         START(greedy_batch_timer);
-        bool any_update_isolated = false;
+        START(sketch_update_timer);
         for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
             // Perform the sketch updating
-            START(sketch_update_timer);
             GraphUpdate update = update_buffer[i+1].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             unlikely_if (update.type == DELETE && ett_nodes[update.edge.src].has_edge_to(&ett_nodes[update.edge.dst])) {
@@ -69,18 +70,13 @@ void TierNode::main() {
             }
             root_buffer[2*i] = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
             root_buffer[2*i+1] = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
-            STOP(sketch_update_time, sketch_update_timer);
-            // Try the greedy parallel refresh
+            // Prepare greedy batch size messages
             GreedyRefreshMessage this_sizes;
-            GreedyRefreshMessage next_sizes;
             this_sizes.size1 = root_buffer[2*i]->size;
             this_sizes.size2 = root_buffer[2*i+1]->size;
-            next_sizes.size1 = root_buffer[2*i]->size;
-            next_sizes.size2 = root_buffer[2*i+1]->size;
             this_sizes_buffer[i] = this_sizes;
-            next_sizes_buffer[i] = next_sizes;
-
         }
+        STOP(sketch_update_time, sketch_update_timer);
         START(size_message_passing_timer);
         if (tier_num == 0) {
             MPI_Recv(next_sizes_buffer, batch_size*sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -94,27 +90,30 @@ void TierNode::main() {
             MPI_Send(this_sizes_buffer, batch_size*sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
         }
         STOP(size_message_passing_time, size_message_passing_timer);
+        bool any_update_isolated = false;
+        START(sketch_query_timer);
         for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
             // Check if this tier is isolated for this update
-            bool isolated = false;
             if (tier_num != num_tiers-1) {
                 if (this_sizes_buffer[i].size1 == next_sizes_buffer[i].size1) {
                     root_buffer[2*i]->process_updates();
-                    if (root_buffer[2*i]->sketch_agg->query().second == GOOD)
-                        isolated = true;
+                    if (root_buffer[2*i]->sketch_agg->query().second == GOOD) {
+                        any_update_isolated = true;
+                        break;
+                    }
                 }
                 if (this_sizes_buffer[i].size2 == next_sizes_buffer[i].size2) {
                     root_buffer[2*i+1]->process_updates();
-                    if (root_buffer[2*i+1]->sketch_agg->query().second == GOOD)
-                        isolated = true;
+                    if (root_buffer[2*i+1]->sketch_agg->query().second == GOOD) {
+                        any_update_isolated = true;
+                        break;
+                    }
                 }
             }
-            if (isolated)
-                any_update_isolated = true;
         }
+        STOP(sketch_query_time, sketch_query_timer);
         START(greedy_batch_gather_timer);
         allgather(&any_update_isolated, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
-        STOP(greedy_batch_gather_time, greedy_batch_gather_timer);
         // Check for any isolation on any update on any tier
         bool any_tier_or_update_isolated = false;
         for (uint32_t i = 0; i < num_tiers+1; i++) {
@@ -123,6 +122,7 @@ void TierNode::main() {
                 break;
             }
         }
+        STOP(greedy_batch_gather_time, greedy_batch_gather_timer);
         STOP(greedy_batch_time, greedy_batch_timer);
         if (!any_tier_or_update_isolated)
             continue;

@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <iostream>
 #include <fstream>
+#include <omp.h>
 #include "mpi_nodes.h"
 #include "binary_graph_stream.h"
 #include "mat_graph_verifier.h"
@@ -18,25 +19,28 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
     uint32_t world_size = world_size_buf;
 
-    int batch_size = 10;
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
     if (world_size != num_tiers+1) {
         FAIL() << "MPI world size too small for graph with " << stream.nodes() << " vertices. Correct world size is: " << num_tiers+1;
     }
 
+    int batch_size = 10;
+    height_factor = 4./num_tiers;
+
     if (world_rank == 0) {
         InputNode input_node(stream.nodes(), num_tiers, batch_size);
         MatGraphVerifier gv(stream.nodes());
         int edgecount = stream.edges();
-	    edgecount = 1000000;
+	    int count = 20000000;
+        edgecount = std::min(edgecount, count);
         for (int i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
             input_node.update(update);
             // Correctness testing by performing a cc query
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%100000 == 0 || i == edgecount-1) {
+            unlikely_if(i%10000 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = input_node.cc_query();
                 try {
                     gv.reset_cc_state();
@@ -73,10 +77,12 @@ TEST(GraphTierSuite, mpi_speed_test) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
     uint32_t world_size = world_size_buf;
 
-    int batch_size = 10;
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
+
+    int batch_size = 100;
     height_factor = 4./num_tiers;
+
     if (world_size != num_tiers+1) {
         FAIL() << "MPI world size too small for graph with " << stream.nodes() << " vertices. Correct world size is: " << num_tiers+1;
     }
@@ -85,7 +91,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
         long time = 0;
         InputNode input_node(stream.nodes(), num_tiers, batch_size);
         long edgecount = stream.edges();
-        long count = 20000000;
+        long count = 17000000;
         edgecount = std::min(edgecount, count);
         START(timer);
         for (long i = 0; i < edgecount; i++) {
