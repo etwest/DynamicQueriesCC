@@ -35,7 +35,6 @@ void InputNode::process_updates() {
     for (uint32_t i = 1; i < update_buffer.size(); i++) {
         GraphUpdate update = update_buffer[i].update;
         // Try the greedy parallel refresh
-        barrier();
         START(input_greedy_gather_timer);
         bool isolated_message = false;
         allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
