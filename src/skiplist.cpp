@@ -14,16 +14,14 @@ std::atomic<long> num_sketch_batches(0);
 SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
 	sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())), node(node) {
 	Sketch::makeSketch((char*)sketch_agg, seed);
-	//update_buffer = (vec_t*) malloc(buffer_cap*sizeof(vec_t));
 	buffer_capacity = buffer_cap;
 }
 
 SkipListNode::~SkipListNode() {
 	::operator delete(sketch_agg, Sketch::sketchSizeof());
-	//free(update_buffer);
 }
 
-void SkipListNode::uninit_element() {
+void SkipListNode::uninit_element(bool delete_bdry) {
 	SkipListNode* list_curr = this;
 	SkipListNode* list_prev;
 	SkipListNode* bdry_curr = this->left;
@@ -33,10 +31,12 @@ void SkipListNode::uninit_element() {
 		list_curr = list_prev->up;
 		delete list_prev;
 	}
-	while (bdry_curr) {
-		bdry_prev = bdry_curr;
-		bdry_curr = bdry_prev->up;
-		delete bdry_prev;
+	if (delete_bdry) {
+		while (bdry_curr) {
+			bdry_prev = bdry_curr;
+			bdry_curr = bdry_prev->up;
+			delete bdry_prev;
+		}
 	}
 }
 
@@ -170,6 +170,17 @@ std::set<EulerTourTree*> SkipListNode::get_component() {
 		curr = curr->right;
 	}
 	return nodes;
+}
+
+void SkipListNode::uninit_list() {
+	SkipListNode* curr = this->get_first();
+	SkipListNode* prev;
+	while (curr) {
+		prev = curr;
+		curr = prev->right;
+		prev->uninit_element(false);
+	}
+	prev->uninit_element(false);
 }
 
 SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {

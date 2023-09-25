@@ -26,6 +26,7 @@ public:
   EulerTourTree(long seed, node_id_t vertex, uint32_t tier);
   EulerTourTree(long seed);
   EulerTourTree(Sketch* sketch, long seed);
+  ~EulerTourTree();
   bool link(EulerTourTree& other);
   bool cut(EulerTourTree& other);
 

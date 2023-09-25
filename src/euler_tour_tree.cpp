@@ -25,6 +25,14 @@ EulerTourTree::EulerTourTree(Sketch* sketch, long seed) :
   this->make_edge(nullptr);
 }
 
+EulerTourTree::~EulerTourTree() {
+  ::operator delete(sketch, Sketch::sketchSizeof());
+  // Final boundary nodes are a memory leak
+  // Need to somehow delete all the skiplist nodes at the end
+  // for (auto edge : edges)
+  //   edge.second->uninit_element(false);
+}
+
 SkipListNode* EulerTourTree::make_edge(EulerTourTree* other) {
   assert(!other || this->tier == other->tier);
   //Constructing a new SkipListNode with pointer to this ETT object
@@ -41,7 +49,7 @@ SkipListNode* EulerTourTree::make_edge(EulerTourTree* other) {
 void EulerTourTree::delete_edge(EulerTourTree* other) {
   assert(!other || this->tier == other->tier);
   bool deleting_allowed = this->edges[other] == allowed_caller;
-  this->edges[other]->uninit_element();
+  this->edges[other]->uninit_element(true);
   this->edges.erase(other);
   if (deleting_allowed) {
     if (this->edges.empty()) {

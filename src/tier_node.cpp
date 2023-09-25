@@ -61,12 +61,14 @@ void TierNode::main() {
         // Do the greedy refresh check for all updates in the batch
         START(greedy_batch_timer);
         START(sketch_update_timer);
+        bool any_update_isolated = false;
         for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
             // Perform the sketch updating
             GraphUpdate update = update_buffer[i+1].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             unlikely_if (update.type == DELETE && ett_nodes[update.edge.src].has_edge_to(&ett_nodes[update.edge.dst])) {
                 ett_nodes[update.edge.src].cut(ett_nodes[update.edge.dst]);
+                any_update_isolated = true;
             }
             root_buffer[2*i] = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
             root_buffer[2*i+1] = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
@@ -90,23 +92,24 @@ void TierNode::main() {
             MPI_Send(this_sizes_buffer, batch_size*sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
         }
         STOP(size_message_passing_time, size_message_passing_timer);
-        bool any_update_isolated = false;
         START(sketch_query_timer);
-        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
-            // Check if this tier is isolated for this update
-            if (tier_num != num_tiers-1) {
-                if (this_sizes_buffer[i].size1 == next_sizes_buffer[i].size1) {
-                    root_buffer[2*i]->process_updates();
-                    if (root_buffer[2*i]->sketch_agg->query().second == GOOD) {
-                        any_update_isolated = true;
-                        break;
+        if (!any_update_isolated) {
+            for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
+                // Check if this tier is isolated for this update
+                if (tier_num != num_tiers-1) {
+                    if (this_sizes_buffer[i].size1 == next_sizes_buffer[i].size1) {
+                        root_buffer[2*i]->process_updates();
+                        if (root_buffer[2*i]->sketch_agg->query().second == GOOD) {
+                            any_update_isolated = true;
+                            break;
+                        }
                     }
-                }
-                if (this_sizes_buffer[i].size2 == next_sizes_buffer[i].size2) {
-                    root_buffer[2*i+1]->process_updates();
-                    if (root_buffer[2*i+1]->sketch_agg->query().second == GOOD) {
-                        any_update_isolated = true;
-                        break;
+                    if (this_sizes_buffer[i].size2 == next_sizes_buffer[i].size2) {
+                        root_buffer[2*i+1]->process_updates();
+                        if (root_buffer[2*i+1]->sketch_agg->query().second == GOOD) {
+                            any_update_isolated = true;
+                            break;
+                        }
                     }
                 }
             }
