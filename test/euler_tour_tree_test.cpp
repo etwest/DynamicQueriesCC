@@ -173,14 +173,14 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     SkipListNode* sentinel = nodes[i].edges.begin()->second->get_last();
     if (naive_aggs.find(sentinel) != naive_aggs.end())
     {
-      *naive_aggs[sentinel] += *nodes[i].sketch;
+      *naive_aggs[sentinel] += *nodes[i].allowed_caller->sketch_agg;
       naive_sizes[sentinel] += 1;
     }
     else
     {
       char *location = (char*)naive_cc_sketch_space + space*naive_aggs.size();
       naive_aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
-      *naive_aggs[sentinel] += *nodes[i].sketch;
+      *naive_aggs[sentinel] += *nodes[i].allowed_caller->sketch_agg;
       naive_sizes[sentinel] = 1;
     }
   }

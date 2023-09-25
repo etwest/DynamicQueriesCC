@@ -27,7 +27,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     int update_batch_size = 10;
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
+    vec_t sketch_len = ((vec_t)num_nodes*num_nodes/4);
 	vec_t sketch_err = 2;
 
 	// Configure the sketches globally
@@ -49,7 +49,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             input_node.update(update);
             // Correctness testing by performing a cc query
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%10000 == 0 || i == edgecount-1) {
+            unlikely_if(i%100 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = input_node.cc_query();
                 try {
                     gv.reset_cc_state();
@@ -94,7 +94,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     int update_batch_size = 10;
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
+    vec_t sketch_len = ((vec_t)num_nodes*num_nodes/4);
 	vec_t sketch_err = 2;
 
 	// Configure the sketches globally

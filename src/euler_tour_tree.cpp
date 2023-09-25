@@ -3,30 +3,17 @@
 #include <euler_tour_tree.h>
 
 
-EulerTourTree::EulerTourTree(long seed, node_id_t vertex, uint32_t tier) :
-    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed), vertex(vertex), tier(tier) {
-  // Initialize sketch
-  Sketch::makeSketch((char*)sketch, seed);
+EulerTourTree::EulerTourTree(long seed, node_id_t vertex, uint32_t tier) : seed(seed), vertex(vertex), tier(tier) {
   // Initialize sentinel
   this->make_edge(nullptr);
 }
 
-EulerTourTree::EulerTourTree(long seed) :
-    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed) {
-  // Initialize sketch
-  Sketch::makeSketch((char*)sketch, seed);
-  // Initialize sentinel
-  this->make_edge(nullptr);
-}
-
-EulerTourTree::EulerTourTree(Sketch* sketch, long seed) :
-  sketch(sketch), seed(seed) {
+EulerTourTree::EulerTourTree(long seed) : seed(seed) {
   // Initialize sentinel
   this->make_edge(nullptr);
 }
 
 EulerTourTree::~EulerTourTree() {
-  ::operator delete(sketch, Sketch::sketchSizeof());
   // Final boundary nodes are a memory leak
   // Need to somehow delete all the skiplist nodes at the end
   // for (auto edge : edges)
@@ -39,7 +26,11 @@ SkipListNode* EulerTourTree::make_edge(EulerTourTree* other) {
   SkipListNode* node = SkipListNode::init_element(this);
   if (allowed_caller == nullptr) {
     allowed_caller = node;
-    node->update_path_agg(this->sketch);
+    if (this->temp_sketch != nullptr) {
+      node->update_path_agg(this->temp_sketch);
+      ::operator delete(this->temp_sketch, Sketch::sketchSizeof());
+      this->temp_sketch = nullptr;
+    }
   }
   //Add the new SkipListNode to the edge list
   return this->edges.emplace(std::make_pair(other, node)).first->second;
@@ -48,22 +39,27 @@ SkipListNode* EulerTourTree::make_edge(EulerTourTree* other) {
 
 void EulerTourTree::delete_edge(EulerTourTree* other) {
   assert(!other || this->tier == other->tier);
-  bool deleting_allowed = this->edges[other] == allowed_caller;
-  this->edges[other]->uninit_element(true);
+  SkipListNode* node_to_delete = this->edges[other];
   this->edges.erase(other);
-  if (deleting_allowed) {
+  if (node_to_delete == allowed_caller) {
     if (this->edges.empty()) {
+      assert(this->temp_sketch == nullptr);
+      this->temp_sketch = (Sketch*) ::operator new(Sketch::sketchSizeof());
+      Sketch::makeSketch((char*)this->temp_sketch, seed);
+      allowed_caller->process_updates();
+      *this->temp_sketch += *allowed_caller->sketch_agg;
       allowed_caller = nullptr;
     } else {
       allowed_caller = this->edges.begin()->second;
-      allowed_caller->update_path_agg(this->sketch);
+      node_to_delete->process_updates();
+      allowed_caller->update_path_agg(node_to_delete->sketch_agg);
     }
   }
+  node_to_delete->uninit_element(true);
 }
 
 SkipListNode* EulerTourTree::update_sketch(vec_t update_idx) {
   assert(allowed_caller);
-  this->sketch->update(update_idx);
   return this->allowed_caller->update_path_agg(update_idx);
 }
 
