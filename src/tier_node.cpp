@@ -12,15 +12,8 @@ long size_message_passing_time = 0;
 
 TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, int batch_size) :
     tier_num(tier_num), num_tiers(num_tiers), batch_size(batch_size) {
-    // Algorithm parameters
-	vec_t sketch_len = ((vec_t)num_nodes);
-	vec_t sketch_err = 2;
-	int seed = time(NULL);
-
-	// Configure the sketches globally
-	Sketch::configure(sketch_len, sketch_err);
-
 	// Initialize all the ETT node
+    int seed = time(NULL);
     srand(seed);
     ett_nodes.reserve(num_nodes);
     for (node_id_t i = 0; i < num_nodes; ++i) {

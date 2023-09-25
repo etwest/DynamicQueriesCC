@@ -20,17 +20,26 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     uint32_t world_size = world_size_buf;
 
     BinaryGraphStream stream(stream_file, 100000);
-    uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
+    uint32_t num_nodes = stream.nodes();
+    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+
+    // Parameters
+    int update_batch_size = 10;
+    // skiplist_buffer_cap = 10;
+    height_factor = 4./num_tiers;
+    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
+	vec_t sketch_err = 2;
+
+	// Configure the sketches globally
+	Sketch::configure(sketch_len, sketch_err);
+
     if (world_size != num_tiers+1) {
-        FAIL() << "MPI world size too small for graph with " << stream.nodes() << " vertices. Correct world size is: " << num_tiers+1;
+        FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
     }
 
-    int batch_size = 10;
-    height_factor = 4./num_tiers;
-
     if (world_rank == 0) {
-        InputNode input_node(stream.nodes(), num_tiers, batch_size);
-        MatGraphVerifier gv(stream.nodes());
+        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        MatGraphVerifier gv(num_nodes);
         int edgecount = stream.edges();
 	    int count = 20000000;
         edgecount = std::min(edgecount, count);
@@ -64,7 +73,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
         input_node.end();
 
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(stream.nodes(), world_rank-1, num_tiers, batch_size);
+        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
         tier_node.main();
     }
 }
@@ -78,18 +87,26 @@ TEST(GraphTierSuite, mpi_speed_test) {
     uint32_t world_size = world_size_buf;
 
     BinaryGraphStream stream(stream_file, 100000);
-    uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
+    uint32_t num_nodes = stream.nodes();
+    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
-    int batch_size = 100;
+    // Parameters
+    int update_batch_size = 10;
+    // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
+    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
+	vec_t sketch_err = 2;
+
+	// Configure the sketches globally
+	Sketch::configure(sketch_len, sketch_err);
 
     if (world_size != num_tiers+1) {
-        FAIL() << "MPI world size too small for graph with " << stream.nodes() << " vertices. Correct world size is: " << num_tiers+1;
+        FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
     }
 
     if (world_rank == 0) {
         long time = 0;
-        InputNode input_node(stream.nodes(), num_tiers, batch_size);
+        InputNode input_node(num_nodes, num_tiers, update_batch_size);
         long edgecount = stream.edges();
         long count = 17000000;
         edgecount = std::min(edgecount, count);
@@ -112,7 +129,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
         file.close();
 
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(stream.nodes(), world_rank-1, num_tiers, batch_size);
+        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
         tier_node.main();
     }
 }

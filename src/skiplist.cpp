@@ -14,7 +14,6 @@ std::atomic<long> num_sketch_batches(0);
 SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
 	sketch_agg((Sketch*) ::operator new(Sketch::sketchSizeof())), node(node) {
 	Sketch::makeSketch((char*)sketch_agg, seed);
-	buffer_capacity = buffer_cap;
 }
 
 SkipListNode::~SkipListNode() {
@@ -129,7 +128,7 @@ Sketch* SkipListNode::get_list_aggregate() {
 void SkipListNode::update_agg(vec_t update_idx) {
 	num_sketch_updates++;
 	this->update_buffer[this->buffer_size++] = update_idx;
-	if (this->buffer_size == this->buffer_capacity)
+	if (this->buffer_size == skiplist_buffer_cap)
 		this->process_updates();
 }
 
