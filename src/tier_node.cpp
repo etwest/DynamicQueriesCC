@@ -165,24 +165,26 @@ void TierNode::main() {
             allgather(&isolated, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
             STOP(greedy_refresh_gather_time, greedy_refresh_gather_timer);
             // Check for any isolation
-            bool any_tier_isolated = false;
-            for (uint32_t i = 0; i < num_tiers+1; i++) {
-                unlikely_if (greedy_refresh_buffer[i]) {
-                    any_tier_isolated = true;
+            int tier_isolated = -1;
+            for (uint32_t j = 1; j < num_tiers+1; j++) {
+                unlikely_if (greedy_refresh_buffer[j]) {
+                    tier_isolated = j-1;
                     break;
                 }
             }
             STOP(greedy_refresh_time, greedy_refresh_timer);
-            if (!any_tier_isolated)
+            if (tier_isolated < 0)
                 continue;
+            uint32_t start_tier = std::max(0,tier_isolated-1);
             // Start the refreshing sequence
             START(normal_refresh_timer);
-            for (uint32_t tier = 0; tier < num_tiers; tier++) {
+            for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
                 int rank = tier + 1;
                 // If this node's tier is the current tier process the refresh message from previous tier or input node
                 if (tier == tier_num) {
                     RefreshMessage refresh_message;
-                    MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    int source = (tier == start_tier) ? 0 : tier_num;
+                    MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     refresh_tier(refresh_message);
                     // Send a refresh message to the next tier
                     if (tier < num_tiers-1) {

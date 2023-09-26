@@ -28,7 +28,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
     vec_t sketch_len = ((vec_t)num_nodes*num_nodes/4);
-	vec_t sketch_err = 2;
+	vec_t sketch_err = 10;
 
 	// Configure the sketches globally
 	Sketch::configure(sketch_len, sketch_err);
@@ -95,7 +95,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
     vec_t sketch_len = ((vec_t)num_nodes*num_nodes/4);
-	vec_t sketch_err = 2;
+	vec_t sketch_err = 10;
 
 	// Configure the sketches globally
 	Sketch::configure(sketch_len, sketch_err);
@@ -108,7 +108,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
         long time = 0;
         InputNode input_node(num_nodes, num_tiers, update_batch_size);
         long edgecount = stream.edges();
-        long count = 17000000;
+        long count = 18000000;
         edgecount = std::min(edgecount, count);
         START(timer);
         for (long i = 0; i < edgecount; i++) {

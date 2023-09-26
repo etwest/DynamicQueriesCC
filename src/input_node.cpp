@@ -61,25 +61,26 @@ void InputNode::process_updates() {
         allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
         STOP(input_greedy_gather_time, input_greedy_gather_timer);
         // Check for any isolation
-        bool any_tier_isolated = false;
+        int tier_isolated = -1;
         START(greedy_refresh_loop_timer);
-        for (uint32_t i = 0; i < num_tiers+1; i++) {
-            unlikely_if (greedy_refresh_buffer[i]) {
-                any_tier_isolated = true;
+        for (uint32_t j = 1; j < num_tiers+1; j++) {
+            unlikely_if (greedy_refresh_buffer[j]) {
+                tier_isolated = j-1;
                 break;
             }
         }
         STOP(greedy_refresh_loop_time, greedy_refresh_loop_timer);
-        if (!any_tier_isolated)
+        if (tier_isolated < 0)
             continue;
+        uint32_t start_tier = std::max(0,tier_isolated-1);
         // Initiate the refresh sequence and receive all the broadcasts
         RefreshEndpoint e1, e2;
         e1.v = update.edge.src;
         e2.v = update.edge.dst;
         RefreshMessage refresh_message;
         refresh_message.endpoints = {e1, e2};
-        MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, 1, 0, MPI_COMM_WORLD);
-        for (uint32_t tier = 0; tier < num_tiers; tier++) {
+        MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, start_tier+1, 0, MPI_COMM_WORLD);
+        for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
             int rank = tier + 1;
             for (auto endpoint : {0,1}) {
                 std::ignore = endpoint;

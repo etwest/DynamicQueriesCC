@@ -5,7 +5,7 @@
 
 class EulerTourTree;
 
-constexpr int skiplist_buffer_cap = 10;
+constexpr int skiplist_buffer_cap = 1;
 extern long skiplist_seed;
 extern double height_factor;
 
