@@ -111,19 +111,19 @@ void TierNode::main() {
         START(greedy_batch_gather_timer);
         allgather(&any_update_isolated, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
         // Check for any isolation on any update on any tier
-        bool any_tier_or_update_isolated = false;
+        int isolated_update = -1;
         for (uint32_t i = 0; i < num_tiers+1; i++) {
             unlikely_if (greedy_refresh_buffer[i]) {
-                any_tier_or_update_isolated = true;
+                isolated_update = i;
                 break;
             }
         }
         STOP(greedy_batch_gather_time, greedy_batch_gather_timer);
         STOP(greedy_batch_time, greedy_batch_timer);
-        if (!any_tier_or_update_isolated)
+        if (isolated_update < 0)
             continue;
         // Process all the updates in the batch normally
-        for (uint32_t i = 1; i < update_buffer[0].update.edge.src; i++) {
+        for (uint32_t i = isolated_update; i < update_buffer[0].update.edge.src; i++) {
             GraphUpdate update = update_buffer[i].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             // Try the greedy parallel refresh

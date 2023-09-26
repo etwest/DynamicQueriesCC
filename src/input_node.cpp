@@ -37,23 +37,23 @@ void InputNode::process_updates() {
     allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
     STOP(input_greedy_gather_time, input_greedy_gather_timer);
     // Check for any isolation
-    bool any_update_isolated = false;
+    int isolated_update = -1;
     START(greedy_refresh_loop_timer);
     for (uint32_t i = 0; i < num_tiers+1; i++) {
         unlikely_if (greedy_refresh_buffer[i]) {
-            any_update_isolated = true;
+            isolated_update = i;
             break;
         }
     }
     STOP(greedy_refresh_loop_time, greedy_refresh_loop_timer);
-    if (!any_update_isolated) {
+    if (isolated_update < 0) {
         update_buffer.clear();
         StreamMessage msg;
         update_buffer.push_back(msg);
         return;
     }
     // Process all those updates
-    for (uint32_t i = 1; i < update_buffer.size(); i++) {
+    for (uint32_t i = isolated_update; i < update_buffer.size(); i++) {
         GraphUpdate update = update_buffer[i].update;
         // Try the greedy parallel refresh
         START(input_greedy_gather_timer);
