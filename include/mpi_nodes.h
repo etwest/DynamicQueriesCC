@@ -1,7 +1,6 @@
 #pragma once
 
 #include "types.h"
-#include <vector>
 #include <mpi.h>
 
 #include "euler_tour_tree.h"
@@ -9,25 +8,25 @@
 #include "mpi_functions.h"
 
 
-enum StreamOperationType {
-  UPDATE, END
-};
+#define MAX_INT (std::numeric_limits<int>::max())
 
 enum TreeOperationType {
   NOT_ISOLATED=0, ISOLATED=1, EMPTY, LINK, CUT, LCT_QUERY
 };
 
 typedef struct {
-  StreamOperationType type = UPDATE;
+  long update_number = 0;
   GraphUpdate update;
-} StreamMessage;
+  bool updated_sketches = false;
+  bool end = false;
+} UpdateMessage;
 
 typedef struct {
   TreeOperationType type = EMPTY;
   node_id_t endpoint1 = 0;
   node_id_t endpoint2 = 0;
   uint32_t start_tier = 0;
-} UpdateMessage;
+} EttUpdateMessage;
 
 typedef struct {
   TreeOperationType type = EMPTY;
@@ -61,9 +60,13 @@ class InputNode {
   node_id_t num_nodes;
   uint32_t num_tiers;
   LinkCutTree link_cut_tree;
-  std::vector<StreamMessage> update_buffer;
+  UpdateMessage* update_buffer;
+  int buffer_size;
+  int buffer_capacity;
   bool* greedy_refresh_buffer;
+  int* greedy_batch_buffer;
   void process_updates();
+  void process_all_updates();
 public:
   InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size);
   ~InputNode();
@@ -78,13 +81,14 @@ class TierNode {
   uint32_t tier_num;
   uint32_t num_tiers;
   int batch_size;
-  StreamMessage* update_buffer;
+  UpdateMessage* update_buffer;
   GreedyRefreshMessage* this_sizes_buffer;
   GreedyRefreshMessage* next_sizes_buffer;
   SkipListNode** root_buffer;
   bool* greedy_refresh_buffer;
+  int* greedy_batch_buffer;
   void update_tier(GraphUpdate update);
-  void ett_update_tier(UpdateMessage message);
+  void ett_update_tier(EttUpdateMessage message);
   void refresh_tier(RefreshMessage messsage);
 public:
   TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, int batch_size);

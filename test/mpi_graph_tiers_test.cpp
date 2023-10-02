@@ -27,8 +27,8 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     int update_batch_size = 10;
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes/4);
-	vec_t sketch_err = 10;
+    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
+	vec_t sketch_err = 4;
 
 	// Configure the sketches globally
 	Sketch::configure(sketch_len, sketch_err);
@@ -58,9 +58,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
                 } catch (IncorrectCCException& e) {
                     std::cout << "Incorrect connected components found at update "  << i << std::endl;
                     std::cout << "GOT: " << cc.size() << std::endl;
-                    StreamMessage stream_message;
-                    stream_message.type = END;
-                    MPI_Bcast(&stream_message, sizeof(StreamMessage), MPI_BYTE, 0, MPI_COMM_WORLD);
+                    input_node.end();
                     FAIL();
                 }
             }
@@ -91,11 +89,11 @@ TEST(GraphTierSuite, mpi_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
     // Parameters
-    int update_batch_size = 10;
+    int update_batch_size = 100;
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes/4);
-	vec_t sketch_err = 10;
+    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
+	vec_t sketch_err = 4;
 
 	// Configure the sketches globally
 	Sketch::configure(sketch_len, sketch_err);
@@ -115,7 +113,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
             input_node.update(update);
-            unlikely_if(i%1000000 == 0 || i == edgecount-1) {
+            unlikely_if(i%100000 == 0 || i == edgecount-1) {
                 std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             }
         }
