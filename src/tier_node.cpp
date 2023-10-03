@@ -175,7 +175,7 @@ void TierNode::main() {
             STOP(greedy_refresh_time, greedy_refresh_timer);
             if (tier_isolated < 0)
                 continue;
-            uint32_t start_tier = std::max(0,tier_isolated-1);
+            uint32_t start_tier = tier_isolated;
             // Start the refreshing sequence
             START(normal_refresh_timer);
             for (uint32_t tier = start_tier; tier < num_tiers; tier++) {

@@ -24,11 +24,11 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
     // Parameters
-    int update_batch_size = 10;
+    int update_batch_size = 100;
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes/4);
-	vec_t sketch_err = 10;
+    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
+	vec_t sketch_err = 4;
 
 	// Configure the sketches globally
 	Sketch::configure(sketch_len, sketch_err);
@@ -91,11 +91,11 @@ TEST(GraphTierSuite, mpi_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
     // Parameters
-    int update_batch_size = 10;
+    int update_batch_size = 100;
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes/4);
-	vec_t sketch_err = 10;
+    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
+	vec_t sketch_err = 4;
 
 	// Configure the sketches globally
 	Sketch::configure(sketch_len, sketch_err);
