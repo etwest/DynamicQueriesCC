@@ -8,10 +8,12 @@ InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : 
     StreamMessage msg;
     update_buffer.push_back(msg);
     greedy_refresh_buffer = (bool*) malloc(sizeof(bool)*(num_tiers+1));
+    greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
 };
 
 InputNode::~InputNode() {
     free(greedy_refresh_buffer);
+    free(greedy_batch_buffer);
 }
 
 void InputNode::update(GraphUpdate update) {
@@ -29,30 +31,33 @@ void InputNode::process_updates() {
     update_buffer[0].update.edge.src = update_buffer.size();
     bcast(&update_buffer[0], sizeof(StreamMessage)*update_buffer.capacity(), 0);
     // Attempt to do the entire batch parallel with greedy refresh
-    for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
-        GraphUpdate update = update_buffer[i+1].update;
-        if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
-            link_cut_tree.cut(update.edge.src, update.edge.dst);
-    }
-    bool isolated_message = false;
-    allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
-    // Check for any isolation
-    int isolated_update = -1;
-    for (uint32_t i = 0; i < num_tiers+1; i++) {
-        unlikely_if (greedy_refresh_buffer[i]) {
-            isolated_update = i;
-            break;
+    int isolated_update = MAX_INT;
+    allgather(&isolated_update, sizeof(int), greedy_batch_buffer, sizeof(int));
+    // Check for any isolated update
+    int minimum_isolated_update = MAX_INT;
+    for (uint32_t i = 0; i < num_tiers+1; i++)
+        minimum_isolated_update = std::min(minimum_isolated_update, greedy_batch_buffer[i]);
+    if (minimum_isolated_update == MAX_INT) {
+        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
+            GraphUpdate update = update_buffer[i+1].update;
+            if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
+                link_cut_tree.cut(update.edge.src, update.edge.dst);
         }
-    }
-    if (isolated_update < 0) {
         update_buffer.clear();
         StreamMessage msg;
         update_buffer.push_back(msg);
         return;
     }
     // Process all those updates
-    for (uint32_t i = isolated_update; i < update_buffer.size(); i++) {
+    for (uint32_t i = 1; i < minimum_isolated_update; i++) {
         GraphUpdate update = update_buffer[i].update;
+        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
+            link_cut_tree.cut(update.edge.src, update.edge.dst);
+    }
+    for (uint32_t i = minimum_isolated_update; i < update_buffer.size(); i++) {
+        GraphUpdate update = update_buffer[i].update;
+        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
+            link_cut_tree.cut(update.edge.src, update.edge.dst);
         // Try the greedy parallel refresh
         bool isolated_message = false;
         allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));

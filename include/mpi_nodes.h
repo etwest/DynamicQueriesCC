@@ -9,6 +9,8 @@
 #include "mpi_functions.h"
 
 
+#define MAX_INT (std::numeric_limits<int>::max())
+
 enum StreamOperationType {
   UPDATE, END
 };
@@ -63,6 +65,7 @@ class InputNode {
   LinkCutTree link_cut_tree;
   std::vector<StreamMessage> update_buffer;
   bool* greedy_refresh_buffer;
+  int* greedy_batch_buffer;
   void process_updates();
 public:
   InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size);
@@ -83,6 +86,7 @@ class TierNode {
   GreedyRefreshMessage* next_sizes_buffer;
   SkipListNode** root_buffer;
   bool* greedy_refresh_buffer;
+  int* greedy_batch_buffer;
   void update_tier(GraphUpdate update);
   void ett_update_tier(UpdateMessage message);
   void refresh_tier(RefreshMessage messsage);

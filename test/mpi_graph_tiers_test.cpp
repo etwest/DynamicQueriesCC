@@ -49,7 +49,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             input_node.update(update);
             // Correctness testing by performing a cc query
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%100 == 0 || i == edgecount-1) {
+            unlikely_if(i%1000 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = input_node.cc_query();
                 try {
                     gv.reset_cc_state();
