@@ -24,7 +24,7 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
     if (world_size != num_tiers+1)
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
     // Parameters
-    int update_batch_size = 100;
+    int update_batch_size = 10;
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
     vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
@@ -63,6 +63,75 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
                 std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << i+2 << " components" << std::endl;
                 FAIL();
             }
+        }
+        // Communicate to all other nodes that the stream has ended
+        input_node.end();
+    } else if (world_rank < num_tiers+1) {
+        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
+        tier_node.main();
+    }
+}
+
+TEST(GraphTiersSuite, mpi_mini_replacement_test) {
+    int world_rank_buf;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
+    uint32_t world_rank = world_rank_buf;
+    int world_size_buf;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
+    uint32_t world_size = world_size_buf;
+
+    uint32_t num_nodes = 100;
+    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    if (world_size != num_tiers+1)
+        FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
+    // Parameters
+    int update_batch_size = 10;
+    // skiplist_buffer_cap = 10;
+    height_factor = 4./num_tiers;
+    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
+	vec_t sketch_err = 4;
+
+	// Configure the sketches globally
+	Sketch::configure(sketch_len, sketch_err);
+
+    if (world_rank == 0) {
+        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        MatGraphVerifier gv(num_nodes);
+        // Link all of the nodes into 1 connected component
+        for (node_id_t i = 0; i < num_nodes-1; i++) {
+            input_node.update({{i, i+1}, INSERT});
+            gv.edge_update(i,i+1);
+            std::vector<std::set<node_id_t>> cc = input_node.cc_query();
+            try {
+                gv.reset_cc_state();
+                gv.verify_soln(cc);
+            } catch (IncorrectCCException& e) {
+                std::cout << "Incorrect cc found after linking nodes " << i << " and " << i+1 << std::endl;
+                std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << num_nodes-i-1 << " components" << std::endl;
+                FAIL();
+            }
+        }
+        // Generate a random bridge
+        node_id_t first = rand() % num_nodes;
+        node_id_t second = rand() % num_nodes;
+        while(first == second || second == first+1 || first == second+1)
+            second = rand() % num_nodes;
+        input_node.update({{first, second}, INSERT});
+        gv.edge_update(first, second);
+        node_id_t distance = std::max(first, second) - std::min(first, second);
+        // Cut a random edge that should be replaced by the bridge
+        first = std::min(first, second) + rand() % (distance-1);
+        input_node.update({{first, first+1}, DELETE});
+        gv.edge_update(first, first+1);
+        // Check the coonected components
+        std::vector<std::set<node_id_t>> cc = input_node.cc_query();
+        try {
+            gv.reset_cc_state();
+            gv.verify_soln(cc);
+        } catch (IncorrectCCException& e) {
+            std::cout << "Incorrect cc found after cutting nodes " << first << " and " << first+1 << std::endl;
+            std::cout << "GOT: " << cc.size() << " components, EXPECTED: 1 components" << std::endl;
+            FAIL();
         }
         // Communicate to all other nodes that the stream has ended
         input_node.end();
