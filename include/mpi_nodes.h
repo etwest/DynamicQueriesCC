@@ -66,11 +66,11 @@ class InputNode {
   std::vector<StreamMessage> update_buffer;
   bool* greedy_refresh_buffer;
   int* greedy_batch_buffer;
-  void process_updates();
 public:
   InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size);
   ~InputNode();
   void update(GraphUpdate update);
+  void process_updates();
   bool connectivity_query(node_id_t a, node_id_t b);
   std::vector<std::set<node_id_t>> cc_query();
   void end();
