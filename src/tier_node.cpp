@@ -25,7 +25,7 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
     this_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
     next_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
     query_result_buffer = (SampleSketchRet*) malloc(sizeof(SampleSketchRet)*batch_size*2);
-    // root_buffer = (SkipListNode**) malloc(sizeof(SkipListNode*)*batch_size*2);
+    split_revert_buffer = (bool*) malloc(sizeof(bool)*batch_size);
     greedy_refresh_buffer = (bool*) malloc(sizeof(bool)*(num_tiers+1));
     greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
 }
@@ -35,7 +35,7 @@ TierNode::~TierNode() {
     free(this_sizes_buffer);
     free(next_sizes_buffer);
     free(query_result_buffer);
-    // (root_buffer);
+    free(split_revert_buffer);
     free(greedy_refresh_buffer);
     free(greedy_batch_buffer);
 }
@@ -64,10 +64,12 @@ void TierNode::main() {
             // Perform the sketch updating or root finding
             GraphUpdate update = update_buffer[i+1].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
+            split_revert_buffer[i] = false;
             unlikely_if (update.type == DELETE && ett_nodes[update.edge.src].has_edge_to(&ett_nodes[update.edge.dst])) {
                 ett_nodes[update.edge.src].cut(ett_nodes[update.edge.dst]);
                 if (first_cutting_update == MAX_INT)
                     first_cutting_update = i+1;
+                split_revert_buffer[i] = true;
             }
             SkipListNode* root1 = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
             SkipListNode* root2 = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
@@ -133,9 +135,8 @@ void TierNode::main() {
             GraphUpdate update = update_buffer[i].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             // How to correctly undo this part ??? note there could be a cut on a later update that actually needs to be rolled back
-            unlikely_if (update.type == DELETE && !ett_nodes[update.edge.src].has_edge_to(&ett_nodes[update.edge.dst])) {
+            unlikely_if (split_revert_buffer[i-1])
                 ett_nodes[update.edge.src].link(ett_nodes[update.edge.dst]);
-            }
             ett_nodes[update.edge.src].update_sketch((vec_t)edge);
             ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
         }

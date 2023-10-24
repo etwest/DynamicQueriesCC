@@ -83,7 +83,7 @@ class TierNode {
   GreedyRefreshMessage* this_sizes_buffer;
   GreedyRefreshMessage* next_sizes_buffer;
   SampleSketchRet* query_result_buffer;
-  // SkipListNode** root_buffer;
+  bool* split_revert_buffer;
   bool* greedy_refresh_buffer;
   int* greedy_batch_buffer;
   void update_tier(GraphUpdate update);
