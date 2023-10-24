@@ -25,8 +25,7 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
     // Parameters
     int update_batch_size = 1;
-    // skiplist_buffer_cap = 10;
-    height_factor = 4./num_tiers;
+    height_factor = 1;
     vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
 	vec_t sketch_err = 4;
 
@@ -86,8 +85,7 @@ TEST(GraphTiersSuite, mpi_mini_replacement_test) {
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
     // Parameters
     int update_batch_size = 1;
-    // skiplist_buffer_cap = 10;
-    height_factor = 4./num_tiers;
+    height_factor = 1;
     vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
 	vec_t sketch_err = 4;
 
@@ -155,8 +153,7 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
     // Parameters
     int update_batch_size = 10;
-    // skiplist_buffer_cap = 10;
-    height_factor = 4./num_tiers;
+    height_factor = 1;
     vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
 	vec_t sketch_err = 4;
 
@@ -275,7 +272,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     // Parameters
     int update_batch_size = 100;
     // skiplist_buffer_cap = 10;
-    height_factor = 4./num_tiers;
+    height_factor = 1./log2(log2(num_nodes));
     vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
 	vec_t sketch_err = 4;
 
@@ -340,7 +337,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     // Parameters
     int update_batch_size = 40;
     // skiplist_buffer_cap = 10;
-    height_factor = 4./num_tiers;
+    height_factor = 1./log2(log2(num_nodes));
     vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
 	vec_t sketch_err = 4;
 
