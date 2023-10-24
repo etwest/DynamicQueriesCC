@@ -24,7 +24,8 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
     update_buffer = (UpdateMessage*) malloc(sizeof(UpdateMessage)*(batch_size+1));
     this_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
     next_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
-    root_buffer = (SkipListNode**) malloc(sizeof(SkipListNode*)*batch_size*2);
+    query_result_buffer = (SampleSketchRet*) malloc(sizeof(SampleSketchRet)*batch_size*2);
+    // root_buffer = (SkipListNode**) malloc(sizeof(SkipListNode*)*batch_size*2);
     greedy_refresh_buffer = (bool*) malloc(sizeof(bool)*(num_tiers+1));
     greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
 }
@@ -33,7 +34,8 @@ TierNode::~TierNode() {
     free(update_buffer);
     free(this_sizes_buffer);
     free(next_sizes_buffer);
-    free(root_buffer);
+    free(query_result_buffer);
+    // (root_buffer);
     free(greedy_refresh_buffer);
     free(greedy_batch_buffer);
 }
@@ -67,12 +69,16 @@ void TierNode::main() {
                 if (first_cutting_update == MAX_INT)
                     first_cutting_update = i+1;
             }
-            root_buffer[2*i] = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
-            root_buffer[2*i+1] = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
+            SkipListNode* root1 = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
+            SkipListNode* root2 = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
+            root1->process_updates();
+            query_result_buffer[2*i] = root1->sketch_agg->query().second;
+            root2->process_updates();
+            query_result_buffer[2*i+1] = root2->sketch_agg->query().second;
             // Prepare greedy batch size messages
             GreedyRefreshMessage this_sizes;
-            this_sizes.size1 = root_buffer[2*i]->size;
-            this_sizes.size2 = root_buffer[2*i+1]->size;
+            this_sizes.size1 = root1->size;
+            this_sizes.size2 = root2->size;
             this_sizes_buffer[i] = this_sizes;
         }
         STOP(sketch_update_time, sketch_update_timer);
@@ -96,20 +102,16 @@ void TierNode::main() {
         for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
             // Check if this tier is isolated for this update
             if (tier_num != num_tiers-1) {
-                if (this_sizes_buffer[i].size1 == next_sizes_buffer[i].size1) {
-                    root_buffer[2*i]->process_updates();
-                    if (root_buffer[2*i]->sketch_agg->query().second == GOOD) {
+                if (this_sizes_buffer[i].size1 == next_sizes_buffer[i].size1)
+                    if (query_result_buffer[2*i] == GOOD) {
                         isolated_update = i+1;
                         break;
                     }
-                }
-                if (this_sizes_buffer[i].size2 == next_sizes_buffer[i].size2) {
-                    root_buffer[2*i+1]->process_updates();
-                    if (root_buffer[2*i+1]->sketch_agg->query().second == GOOD) {
+                if (this_sizes_buffer[i].size2 == next_sizes_buffer[i].size2)
+                    if (query_result_buffer[2*i+1] == GOOD) {
                         isolated_update = i+1;
                         break;
                     }
-                }
             }
         }
         isolated_update = std::min(isolated_update, first_cutting_update);

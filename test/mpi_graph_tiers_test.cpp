@@ -338,7 +338,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
     // Parameters
-    int update_batch_size = 100;
+    int update_batch_size = 40;
     // skiplist_buffer_cap = 10;
     height_factor = 4./num_tiers;
     vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
@@ -362,7 +362,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
             input_node.update(update);
-            unlikely_if(i%100000 == 0 || i == edgecount-1) {
+            unlikely_if(i%1000000 == 0 || i == edgecount-1) {
                 std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             }
         }

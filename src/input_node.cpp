@@ -28,7 +28,7 @@ void InputNode::update(GraphUpdate update) {
 }
 
 void InputNode::process_updates() {
-    if (buffer_size == 0)
+    if (buffer_size == 1)
         return;
     // Broadcast the batch of updates to all nodes
     update_buffer[0].update.edge.src = buffer_size;
