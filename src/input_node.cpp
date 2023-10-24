@@ -2,7 +2,6 @@
 
 
 long normal_refreshes = 0;
-long update_count = 0;
 
 InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes){
     update_buffer = (UpdateMessage*) malloc(sizeof(UpdateMessage)*(batch_size+1));
@@ -21,25 +20,19 @@ InputNode::~InputNode() {
 }
 
 void InputNode::update(GraphUpdate update) {
-    update_count++;
-    if (update.type == DELETE)
-        std::cout << "DELETE AT UPDATE " << update_count << std::endl;
     UpdateMessage update_message;
     update_message.update = update;
-    update_message.update_number = update_count;
     update_buffer[buffer_size++] = update_message;
     if (buffer_size == buffer_capacity)
         process_updates();
 }
 
 void InputNode::process_updates() {
+    if (buffer_size == 0)
+        return;
     // Broadcast the batch of updates to all nodes
-    std::cout << "BATCH: [ ";
-    for (int i = 0; i < buffer_capacity; i++)
-        std::cout << update_buffer[i].update_number << " ";
-    std::cout << "]" << std::endl;
     update_buffer[0].update.edge.src = buffer_size;
-    bcast(update_buffer, sizeof(UpdateMessage)*buffer_capacity, 0);
+    bcast(&update_buffer[0], sizeof(UpdateMessage)*buffer_capacity, 0);
     // Attempt to do the entire batch parallel with greedy refresh
     int isolated_update = MAX_INT;
     allgather(&isolated_update, sizeof(int), greedy_batch_buffer, sizeof(int));
@@ -48,11 +41,23 @@ void InputNode::process_updates() {
     for (uint32_t i = 0; i < num_tiers+1; i++)
         minimum_isolated_update = std::min(minimum_isolated_update, greedy_batch_buffer[i]);
     if (minimum_isolated_update == MAX_INT) {
+        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
+            GraphUpdate update = update_buffer[i+1].update;
+            if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
+                link_cut_tree.cut(update.edge.src, update.edge.dst);
+        }
         buffer_size = 1;
         return;
     }
-    std::cout << "==================== ISOLATION AT INDEX " << minimum_isolated_update << "=====================" << std::endl;
-    // Process the isolated update
+    // If there was an isolated update process all the updates up to that one
+    for (uint32_t i = 1; i <= minimum_isolated_update; i++) {
+        GraphUpdate update = update_buffer[i].update;
+        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
+            link_cut_tree.cut(update.edge.src, update.edge.dst);
+    }
+    // ======================================================================================
+    // ============================ PROCESS THE ISOLATED UPDATE =============================
+    // ======================================================================================
     GraphUpdate update = update_buffer[minimum_isolated_update].update;
     // Try the greedy parallel refresh
     bool isolated_message = false;
@@ -65,10 +70,15 @@ void InputNode::process_updates() {
             break;
         }
     }
-    uint32_t start_tier = 0;//std::max(0,tier_isolated-1);
-    // Initiate the refresh sequence and receive all the broadcasts
-    std::cout << "===============NORMAL REFRESHING==============" << std::endl;
+    if (tier_isolated < 0) {
+        for (int i = 0; i < buffer_size-minimum_isolated_update-1; i++)
+            update_buffer[i+1] = update_buffer[minimum_isolated_update+i+1];
+        buffer_size = buffer_size-minimum_isolated_update;
+        return;
+    }
+    uint32_t start_tier = 0;//tier_isolated;
     normal_refreshes++;
+    // Initiate the refresh sequence and receive all the broadcasts
     RefreshEndpoint e1, e2;
     e1.v = update.edge.src;
     e2.v = update.edge.dst;
@@ -76,13 +86,12 @@ void InputNode::process_updates() {
     refresh_message.endpoints = {e1, e2};
     MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, start_tier+1, 0, MPI_COMM_WORLD);
     for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
-        std::cout << "REFRESH TIER " << tier << std::endl;
         int rank = tier + 1;
         for (auto endpoint : {0,1}) {
             std::ignore = endpoint;
             // Receive a broadcast to see if the current tier/endpoint is isolated or not
             EttUpdateMessage update_message;
-            bcast(&update_message, sizeof(EttUpdateMessage), rank);
+            bcast(&update_message, sizeof(UpdateMessage), rank);
             if (update_message.type == NOT_ISOLATED) continue;
             // Process a LCT query message first
             LctResponseMessage response_message;
@@ -93,6 +102,7 @@ void InputNode::process_updates() {
                 response_message.weight = max.second;
             }
             MPI_Send(&response_message, sizeof(LctResponseMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD);
+
             // Then process two update broadcasts to potentially cut and link in the LCT
             for (auto broadcast : {0,1}) {
                 std::ignore = broadcast;
@@ -107,12 +117,9 @@ void InputNode::process_updates() {
             }
         }
     }
-    std::cout << "=============FINISHED NORMAL REFRESH===============" << std::endl;
     // Shift the rest of the updates to the beginning of the buffer
-    for (int i = 0; i < buffer_size-minimum_isolated_update-1; i++) {
+    for (int i = 0; i < buffer_size-minimum_isolated_update-1; i++)
         update_buffer[i+1] = update_buffer[minimum_isolated_update+i+1];
-        update_buffer[i+1].updated_sketches = true;
-    }
     buffer_size = buffer_size-minimum_isolated_update;
 }
 

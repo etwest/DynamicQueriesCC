@@ -5,6 +5,7 @@ include (FetchContent)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
+#set(INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Make the default build type Release. If user or another
 # project sets a different value than use that
