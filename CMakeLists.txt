@@ -43,7 +43,7 @@ FetchContent_Declare(
   GraphZeppelinVerifyCC
 
   GIT_REPOSITORY      https://github.com/GraphStreamingProject/GraphZeppelin
-  GIT_TAG             main
+  GIT_TAG             refactor
 )
 
 FetchContent_MakeAvailable(GraphZeppelinVerifyCC)

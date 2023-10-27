@@ -74,11 +74,11 @@ void TierNode::main() {
             SkipListNode* root1 = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
             SkipListNode* root2 = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
             root1->process_updates();
-            root1->sketch_agg->reset_queried();
-            query_result_buffer[2*i] = root1->sketch_agg->query().second;
+            root1->sketch_agg->reset_sample_state();
+            query_result_buffer[2*i] = root1->sketch_agg->sample().second;
             root2->process_updates();
-            root2->sketch_agg->reset_queried();
-            query_result_buffer[2*i+1] = root2->sketch_agg->query().second;
+            root2->sketch_agg->reset_sample_state();
+            query_result_buffer[2*i+1] = root2->sketch_agg->sample().second;
             // Prepare greedy batch size messages
             GreedyRefreshMessage this_sizes;
             this_sizes.size1 = root1->size;
@@ -172,14 +172,14 @@ void TierNode::main() {
         if (tier_num != num_tiers-1) {
             if (this_sizes.size1 == next_sizes.size1) {
                 root1->process_updates();
-                root1->sketch_agg->reset_queried();
-                if (root1->sketch_agg->query().second == GOOD)
+                root1->sketch_agg->reset_sample_state();
+                if (root1->sketch_agg->sample().second == GOOD)
                     isolated = true;
             }
             if (this_sizes.size2 == next_sizes.size2) {
                 root2->process_updates();
-                root2->sketch_agg->reset_queried();
-                if (root2->sketch_agg->query().second == GOOD)
+                root2->sketch_agg->reset_sample_state();
+                if (root2->sketch_agg->sample().second == GOOD)
                     isolated = true;
             }
         }
@@ -219,8 +219,8 @@ void TierNode::main() {
                         SkipListNode* root = ett_nodes[e->v].get_root();
                         root->process_updates();
                         Sketch* ett_agg = root->sketch_agg;
-                        ett_agg->reset_queried();
-                        std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
+                        ett_agg->reset_sample_state();
+                        std::pair<vec_t, SampleSketchRet> query_result = ett_agg->sample();
                         e->sketch_query_result_type = query_result.second;
                         e->sketch_query_result = query_result.first;
                     }

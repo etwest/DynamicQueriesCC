@@ -28,7 +28,7 @@ SkipListNode* EulerTourTree::make_edge(EulerTourTree* other) {
     allowed_caller = node;
     if (this->temp_sketch != nullptr) {
       node->update_path_agg(this->temp_sketch);
-      ::operator delete(this->temp_sketch, Sketch::sketchSizeof());
+      delete this->temp_sketch;
       this->temp_sketch = nullptr;
     }
   }
@@ -44,10 +44,9 @@ void EulerTourTree::delete_edge(EulerTourTree* other) {
   if (node_to_delete == allowed_caller) {
     if (this->edges.empty()) {
       assert(this->temp_sketch == nullptr);
-      this->temp_sketch = (Sketch*) ::operator new(Sketch::sketchSizeof());
-      Sketch::makeSketch((char*)this->temp_sketch, seed);
+      this->temp_sketch = new Sketch(sketch_len, seed);
       allowed_caller->process_updates();
-      *this->temp_sketch += *allowed_caller->sketch_agg;
+      this->temp_sketch->merge(*allowed_caller->sketch_agg);
       allowed_caller = nullptr;
     } else {
       allowed_caller = this->edges.begin()->second;

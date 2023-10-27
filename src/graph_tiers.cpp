@@ -20,13 +20,10 @@ edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
 GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
 	link_cut_tree(num_nodes), use_parallelism(use_parallelism) {
 	// Algorithm parameters
-	vec_t sketch_len = ((vec_t)num_nodes) * num_nodes;
-	vec_t sketch_err = 10;
+	sketch_len = ((vec_t)num_nodes) * num_nodes;
+	sketch_err = 10;
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 	int seed = time(NULL);
-
-	// Configure the sketches globally
-	Sketch::configure(sketch_len, sketch_err);
 
 	// Initialize all the ETT node
 	for (uint32_t i = 0; i < num_tiers; i++) {
@@ -77,7 +74,8 @@ void GraphTiers::refresh(GraphUpdate update) {
 		if (tier_size1 == next_size1) {
 			root_nodes[2*tier]->process_updates();
 			Sketch* ett_agg1 = root_nodes[2*tier]->sketch_agg;
-			std::pair<vec_t, SampleSketchRet> query_result1 = ett_agg1->query();
+			ett_agg1->reset_sample_state();
+			std::pair<vec_t, SampleSketchRet> query_result1 = ett_agg1->sample();
 			if (query_result1.second == GOOD) {
 				isolated = true;
 				continue;
@@ -89,7 +87,8 @@ void GraphTiers::refresh(GraphUpdate update) {
 		if (tier_size2 == next_size2) {
 			root_nodes[2*tier+1]->process_updates();
 			Sketch* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
-			std::pair<vec_t, SampleSketchRet> query_result2 = ett_agg2->query();
+			ett_agg2->reset_sample_state();
+			std::pair<vec_t, SampleSketchRet> query_result2 = ett_agg2->sample();
 			if (query_result2.second == GOOD) {
 				isolated = true;
 				continue;
@@ -117,7 +116,8 @@ void GraphTiers::refresh(GraphUpdate update) {
 			Sketch* ett_agg = root->sketch_agg;
 			STOP(ett_get_agg, agg);
 			START(sq);
-			std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
+			ett_agg->reset_sample_state();
+			std::pair<vec_t, SampleSketchRet> query_result = ett_agg->sample();
 			STOP(sketch_query, sq);
 
 			// Check for new edge to eliminate isolation

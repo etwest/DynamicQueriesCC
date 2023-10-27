@@ -11,6 +11,9 @@
 #include "util.h"
 
 
+const int DEFAULT_BATCH_SIZE = 50;
+const vec_t DEFAULT_SKETCH_ERR = 4;
+
 TEST(GraphTiersSuite, mpi_mini_correctness_test) {
     int world_rank_buf;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
@@ -26,11 +29,8 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
     // Parameters
     int update_batch_size = 1;
     height_factor = 1;
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
-	vec_t sketch_err = 4;
-
-	// Configure the sketches globally
-	Sketch::configure(sketch_len, sketch_err);
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
 
     if (world_rank == 0) {
         InputNode input_node(num_nodes, num_tiers, update_batch_size);
@@ -86,11 +86,8 @@ TEST(GraphTiersSuite, mpi_mini_replacement_test) {
     // Parameters
     int update_batch_size = 1;
     height_factor = 1;
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
-	vec_t sketch_err = 4;
-
-	// Configure the sketches globally
-	Sketch::configure(sketch_len, sketch_err);
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
 
     if (world_rank == 0) {
         InputNode input_node(num_nodes, num_tiers, update_batch_size);
@@ -154,11 +151,8 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
     // Parameters
     int update_batch_size = 10;
     height_factor = 1;
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
-	vec_t sketch_err = 4;
-
-	// Configure the sketches globally
-	Sketch::configure(sketch_len, sketch_err);
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
 
     if (world_rank == 0) {
         InputNode input_node(num_nodes, num_tiers, update_batch_size);
@@ -179,7 +173,7 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
         }
         // Add a batch that has no isolations
         input_node.process_all_updates();
-        for (int i=0; i<update_batch_size; i++) {
+        for (node_id_t i=0; i<(node_id_t)update_batch_size; i++) {
             input_node.update({{i, i+2}, INSERT});
             gv.edge_update(i,i+2);
         }
@@ -193,19 +187,19 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
             std::cout << "GOT: " << cc.size() << " components, EXPECTED: 1 components" << std::endl;
             FAIL();
         }
-        for (int i=0; i<update_batch_size; i++) {
+        for (node_id_t i=0; i<(node_id_t)update_batch_size; i++) {
             input_node.update({{i, i+2}, DELETE});
             gv.edge_update(i,i+2);
         }
         input_node.process_all_updates();
         // Add a batch that has one isolated deletion in the middle
-        for (int i=0; i<update_batch_size/2-2; i++) {
+        for (node_id_t i=0; i<(node_id_t)update_batch_size/2-2; i++) {
             input_node.update({{i, i+2}, INSERT});
             gv.edge_update(i,i+2);
         }
-        input_node.update({{update_batch_size/2, update_batch_size/2+1}, DELETE});
+        input_node.update({{(node_id_t)update_batch_size/2, (node_id_t)update_batch_size/2+1}, DELETE});
         gv.edge_update(update_batch_size/2, update_batch_size/2+1);
-        for (int i=update_batch_size/2+1; i<update_batch_size+2; i++) {
+        for (node_id_t i=(node_id_t)update_batch_size/2+1; i<(node_id_t)update_batch_size+2; i++) {
             input_node.update({{i, i+3}, INSERT});
             gv.edge_update(i,i+3);
         }
@@ -219,23 +213,23 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
             std::cout << "GOT: " << cc.size() << " components, EXPECTED: 1 components" << std::endl;
             FAIL();
         }
-        input_node.update({{update_batch_size/2, update_batch_size/2+1}, INSERT});
+        input_node.update({{(node_id_t)update_batch_size/2, (node_id_t)update_batch_size/2+1}, INSERT});
         gv.edge_update(update_batch_size/2, update_batch_size/2+1);
         input_node.process_all_updates();
         // Add a batch with multiple forest edge deletions
-        for (int i=0; i<update_batch_size/2-2; i++) {
+        for (node_id_t i=0; i<(node_id_t)update_batch_size/2-2; i++) {
             input_node.update({{i, i+3}, INSERT});
             gv.edge_update(i,i+3);
         }
-        input_node.update({{2*update_batch_size, 2*update_batch_size+2}, INSERT}); // Add a replacement edge
+        input_node.update({{2*(node_id_t)update_batch_size, 2*(node_id_t)update_batch_size+2}, INSERT}); // Add a replacement edge
         gv.edge_update(2*update_batch_size, 2*update_batch_size+2);
-        input_node.update({{2*update_batch_size+2, 2*update_batch_size+3}, DELETE}); // First isolation
+        input_node.update({{2*(node_id_t)update_batch_size+2, 2*(node_id_t)update_batch_size+3}, DELETE}); // First isolation
         gv.edge_update(2*update_batch_size+2, 2*update_batch_size+3);
-        input_node.update({{2*update_batch_size+4, 2*update_batch_size+5}, DELETE}); // Non-replacing delete
+        input_node.update({{2*(node_id_t)update_batch_size+4, 2*(node_id_t)update_batch_size+5}, DELETE}); // Non-replacing delete
         gv.edge_update(2*update_batch_size+4, 2*update_batch_size+5);
-        input_node.update({{2*update_batch_size, 2*update_batch_size+1}, DELETE}); // Replacement delete
+        input_node.update({{2*(node_id_t)update_batch_size, 2*(node_id_t)update_batch_size+1}, DELETE}); // Replacement delete
         gv.edge_update(2*update_batch_size, 2*update_batch_size+1);
-        for (int i=update_batch_size/2+1; i<update_batch_size; i++) {
+        for (node_id_t i=(node_id_t)update_batch_size/2+1; i<(node_id_t)update_batch_size; i++) {
             input_node.update({{i, i+3}, INSERT});
             gv.edge_update(i,i+3);
         }
@@ -270,18 +264,13 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
     // Parameters
-    int update_batch_size = 100;
-    // skiplist_buffer_cap = 10;
+    int update_batch_size = DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
-	vec_t sketch_err = 4;
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
 
-	// Configure the sketches globally
-	Sketch::configure(sketch_len, sketch_err);
-
-    if (world_size != num_tiers+1) {
+    if (world_size != num_tiers+1)
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
-    }
 
     if (world_rank == 0) {
         InputNode input_node(num_nodes, num_tiers, update_batch_size);
@@ -335,18 +324,13 @@ TEST(GraphTierSuite, mpi_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
     // Parameters
-    int update_batch_size = 40;
-    // skiplist_buffer_cap = 10;
+    int update_batch_size = DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
-    vec_t sketch_len = ((vec_t)num_nodes*num_nodes);
-	vec_t sketch_err = 4;
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
 
-	// Configure the sketches globally
-	Sketch::configure(sketch_len, sketch_err);
-
-    if (world_size != num_tiers+1) {
+    if (world_size != num_tiers+1)
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
-    }
 
     if (world_rank == 0) {
         long time = 0;
