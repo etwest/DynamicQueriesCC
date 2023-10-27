@@ -1,5 +1,6 @@
 #include "../include/mpi_nodes.h"
 
+
 long sketch_update_time = 0;
 long sketch_query_time = 0;
 long greedy_batch_time = 0;
@@ -128,8 +129,10 @@ void TierNode::main() {
             minimum_isolated_update = std::min(minimum_isolated_update, greedy_batch_buffer[i]);
         STOP(greedy_batch_gather_time, greedy_batch_gather_timer);
         STOP(greedy_batch_time, greedy_batch_timer);
-        if (minimum_isolated_update == MAX_INT)
+        if (minimum_isolated_update == MAX_INT) {
+            using_sliding_window = true;
             continue;
+        }
         // First undo all the sketch updates we did after isolated update
         for (uint32_t i = minimum_isolated_update; i < update_buffer[0].update.edge.src; i++) {
             GraphUpdate update = update_buffer[i].update;
@@ -141,113 +144,115 @@ void TierNode::main() {
             ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
         }
         // ======================================================================================
-        // ============================ PROCESS THE ISOLATED UPDATE =============================
+        // =========================== PROCESS THE ISOLATED UPDATES ===============+=============
         // ======================================================================================
-        GraphUpdate update = update_buffer[minimum_isolated_update].update;
-        edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
-        unlikely_if (update.type == DELETE && ett_nodes[update.edge.src].has_edge_to(&ett_nodes[update.edge.dst])) {
-            ett_nodes[update.edge.src].cut(ett_nodes[update.edge.dst]);
-        }
-        SkipListNode* root1 = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
-        SkipListNode* root2 = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
-        // Try the greedy parallel refresh
-        START(greedy_refresh_timer);
-        GreedyRefreshMessage this_sizes;
-        GreedyRefreshMessage next_sizes;
-        this_sizes.size1 = root1->size;
-        this_sizes.size2 = root2->size;
-        if (tier_num == 0) {
-            MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        } else if (tier_num == num_tiers-1) {
-            MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
-        } else if (tier_num%2 == 0) {
-            MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
-            MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        } else if (tier_num%2 == 1) {
-            MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
-        }
-        // Check if this tier is isolated
-        bool isolated = false;
-        if (tier_num != num_tiers-1) {
-            if (this_sizes.size1 == next_sizes.size1) {
-                root1->process_updates();
-                root1->sketch_agg->reset_sample_state();
-                if (root1->sketch_agg->sample().second == GOOD)
-                    isolated = true;
+        int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : update_buffer[0].update.edge.src;
+        for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
+            GraphUpdate update = update_buffer[update_idx].update;
+            edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
+            unlikely_if (update.type == DELETE && ett_nodes[update.edge.src].has_edge_to(&ett_nodes[update.edge.dst])) {
+                ett_nodes[update.edge.src].cut(ett_nodes[update.edge.dst]);
             }
-            if (this_sizes.size2 == next_sizes.size2) {
-                root2->process_updates();
-                root2->sketch_agg->reset_sample_state();
-                if (root2->sketch_agg->sample().second == GOOD)
-                    isolated = true;
+            SkipListNode* root1 = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
+            SkipListNode* root2 = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
+            // Try the greedy parallel refresh
+            START(greedy_refresh_timer);
+            GreedyRefreshMessage this_sizes;
+            GreedyRefreshMessage next_sizes;
+            this_sizes.size1 = root1->size;
+            this_sizes.size2 = root2->size;
+            if (tier_num == 0) {
+                MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            } else if (tier_num == num_tiers-1) {
+                MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
+            } else if (tier_num%2 == 0) {
+                MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
+                MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            } else if (tier_num%2 == 1) {
+                MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
             }
-        }
-        START(greedy_refresh_gather_timer);
-        allgather(&isolated, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
-        STOP(greedy_refresh_gather_time, greedy_refresh_gather_timer);
-        // Check for any isolation
-        int tier_isolated = -1;
-        for (uint32_t j = 1; j < num_tiers+1; j++) {
-            unlikely_if (greedy_refresh_buffer[j]) {
-                tier_isolated = j-1;
-                break;
-            }
-        }
-        //std::cout << "TIER NODE TI: " << tier_isolated << std::endl;
-        STOP(greedy_refresh_time, greedy_refresh_timer);
-        if (tier_isolated < 0)
-            continue;
-        uint32_t start_tier = 0;//tier_isolated;
-        // Start the refreshing sequence
-        START(normal_refresh_timer);
-        for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
-            int rank = tier + 1;
-            // If this node's tier is the current tier process the refresh message from previous tier or input node
-            if (tier == tier_num) {
-                RefreshMessage refresh_message;
-                int source = (tier == start_tier) ? 0 : tier_num;
-                MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                refresh_tier(refresh_message);
-                // Send a refresh message to the next tier
-                if (tier < num_tiers-1) {
-                    RefreshEndpoint e1, e2;
-                    e1.v = refresh_message.endpoints.first.v;
-                    e2.v = refresh_message.endpoints.second.v;
-                    for (RefreshEndpoint* e : {&e1, &e2}) {
-                        e->prev_tier_size = ett_nodes[e->v].get_size();
-                        SkipListNode* root = ett_nodes[e->v].get_root();
-                        root->process_updates();
-                        Sketch* ett_agg = root->sketch_agg;
-                        ett_agg->reset_sample_state();
-                        std::pair<vec_t, SampleSketchRet> query_result = ett_agg->sample();
-                        e->sketch_query_result_type = query_result.second;
-                        e->sketch_query_result = query_result.first;
-                    }
-                    RefreshMessage next_refresh_message;
-                    next_refresh_message.endpoints = {e1, e2};
-                    MPI_Send(&next_refresh_message, sizeof(RefreshMessage), MPI_BYTE, rank+1, 0, MPI_COMM_WORLD);
+            // Check if this tier is isolated
+            bool isolated = false;
+            if (tier_num != num_tiers-1) {
+                if (this_sizes.size1 == next_sizes.size1) {
+                    root1->process_updates();
+                    root1->sketch_agg->reset_sample_state();
+                    if (root1->sketch_agg->sample().second == GOOD)
+                        isolated = true;
                 }
-                continue;
+                if (this_sizes.size2 == next_sizes.size2) {
+                    root2->process_updates();
+                    root2->sketch_agg->reset_sample_state();
+                    if (root2->sketch_agg->sample().second == GOOD)
+                        isolated = true;
+                }
             }
-            // For every other tier just receive and perform update messages
-            for (int endpoint : {0,1}) {
-                std::ignore = endpoint;
-                // Receive a broadcast to see if the endpoint at the current tier is isolated or not
-                EttUpdateMessage update_message;
-                bcast(&update_message, sizeof(EttUpdateMessage), rank);
-                if (update_message.type == NOT_ISOLATED) continue;
-                // Get the two broadcasts and perform ett updates
-                for (int broadcast : {0,1}) {
-                    std::ignore = broadcast;
+            START(greedy_refresh_gather_timer);
+            allgather(&isolated, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
+            STOP(greedy_refresh_gather_time, greedy_refresh_gather_timer);
+            // Check for any isolation
+            int tier_isolated = -1;
+            for (uint32_t j = 1; j < num_tiers+1; j++) {
+                unlikely_if (greedy_refresh_buffer[j]) {
+                    tier_isolated = j-1;
+                    break;
+                }
+            }
+            STOP(greedy_refresh_time, greedy_refresh_timer);
+            if (tier_isolated < 0)
+                continue;
+            uint32_t start_tier = 0;//tier_isolated;
+            // Start the refreshing sequence
+            START(normal_refresh_timer);
+            for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
+                int rank = tier + 1;
+                // If this node's tier is the current tier process the refresh message from previous tier or input node
+                if (tier == tier_num) {
+                    RefreshMessage refresh_message;
+                    int source = (tier == start_tier) ? 0 : tier_num;
+                    MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    refresh_tier(refresh_message);
+                    // Send a refresh message to the next tier
+                    if (tier < num_tiers-1) {
+                        RefreshEndpoint e1, e2;
+                        e1.v = refresh_message.endpoints.first.v;
+                        e2.v = refresh_message.endpoints.second.v;
+                        for (RefreshEndpoint* e : {&e1, &e2}) {
+                            e->prev_tier_size = ett_nodes[e->v].get_size();
+                            SkipListNode* root = ett_nodes[e->v].get_root();
+                            root->process_updates();
+                            Sketch* ett_agg = root->sketch_agg;
+                            ett_agg->reset_sample_state();
+                            std::pair<vec_t, SampleSketchRet> query_result = ett_agg->sample();
+                            e->sketch_query_result_type = query_result.second;
+                            e->sketch_query_result = query_result.first;
+                        }
+                        RefreshMessage next_refresh_message;
+                        next_refresh_message.endpoints = {e1, e2};
+                        MPI_Send(&next_refresh_message, sizeof(RefreshMessage), MPI_BYTE, rank+1, 0, MPI_COMM_WORLD);
+                    }
+                    continue;
+                }
+                // For every other tier just receive and perform update messages
+                for (int endpoint : {0,1}) {
+                    std::ignore = endpoint;
+                    // Receive a broadcast to see if the endpoint at the current tier is isolated or not
                     EttUpdateMessage update_message;
                     bcast(&update_message, sizeof(EttUpdateMessage), rank);
-                    ett_update_tier(update_message);
-                    if (update_message.type == LINK) break;
+                    if (update_message.type == NOT_ISOLATED) continue;
+                    // Get the two broadcasts and perform ett updates
+                    for (int broadcast : {0,1}) {
+                        std::ignore = broadcast;
+                        EttUpdateMessage update_message;
+                        bcast(&update_message, sizeof(EttUpdateMessage), rank);
+                        ett_update_tier(update_message);
+                        if (update_message.type == LINK) break;
+                    }
                 }
             }
+            STOP(normal_refresh_time, normal_refresh_timer);
         }
-        STOP(normal_refresh_time, normal_refresh_timer);
     }
 }
 

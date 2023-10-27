@@ -47,80 +47,90 @@ void InputNode::process_updates() {
                 link_cut_tree.cut(update.edge.src, update.edge.dst);
         }
         buffer_size = 1;
+        using_sliding_window = true;
         return;
     }
     // If there was an isolated update process all the updates up to that one
-    for (uint32_t i = 1; i <= minimum_isolated_update; i++) {
+    for (uint32_t i = 1; i < minimum_isolated_update; i++) {
         GraphUpdate update = update_buffer[i].update;
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
             link_cut_tree.cut(update.edge.src, update.edge.dst);
     }
     // ======================================================================================
-    // ============================ PROCESS THE ISOLATED UPDATE =============================
+    // =========================== PROCESS THE ISOLATED UPDATES =============================
     // ======================================================================================
-    GraphUpdate update = update_buffer[minimum_isolated_update].update;
-    // Try the greedy parallel refresh
-    bool isolated_message = false;
-    allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
-    // Check for any isolation
-    int tier_isolated = -1;
-    for (uint32_t j = 1; j < num_tiers+1; j++) {
-        unlikely_if (greedy_refresh_buffer[j]) {
-            tier_isolated = j-1;
-            break;
-        }
-    }
-    if (tier_isolated < 0) {
-        for (int i = 0; i < buffer_size-minimum_isolated_update-1; i++)
-            update_buffer[i+1] = update_buffer[minimum_isolated_update+i+1];
-        buffer_size = buffer_size-minimum_isolated_update;
-        return;
-    }
-    uint32_t start_tier = 0;//tier_isolated;
-    normal_refreshes++;
-    // Initiate the refresh sequence and receive all the broadcasts
-    RefreshEndpoint e1, e2;
-    e1.v = update.edge.src;
-    e2.v = update.edge.dst;
-    RefreshMessage refresh_message;
-    refresh_message.endpoints = {e1, e2};
-    MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, start_tier+1, 0, MPI_COMM_WORLD);
-    for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
-        int rank = tier + 1;
-        for (auto endpoint : {0,1}) {
-            std::ignore = endpoint;
-            // Receive a broadcast to see if the current tier/endpoint is isolated or not
-            EttUpdateMessage update_message;
-            bcast(&update_message, sizeof(UpdateMessage), rank);
-            if (update_message.type == NOT_ISOLATED) continue;
-            // Process a LCT query message first
-            LctResponseMessage response_message;
-            response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
-            if (response_message.connected) {
-                std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(update_message.endpoint1, update_message.endpoint2);
-                response_message.cycle_edge = max.first;
-                response_message.weight = max.second;
+    int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : update_buffer[0].update.edge.src;
+    for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
+        GraphUpdate update = update_buffer[update_idx].update;
+        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
+            link_cut_tree.cut(update.edge.src, update.edge.dst);
+        // Try the greedy parallel refresh
+        bool isolated_message = false;
+        allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
+        // Check for any isolation
+        int tier_isolated = -1;
+        for (uint32_t j = 1; j < num_tiers+1; j++) {
+            unlikely_if (greedy_refresh_buffer[j]) {
+                tier_isolated = j-1;
+                break;
             }
-            MPI_Send(&response_message, sizeof(LctResponseMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD);
-
-            // Then process two update broadcasts to potentially cut and link in the LCT
-            for (auto broadcast : {0,1}) {
-                std::ignore = broadcast;
+        }
+        if (tier_isolated < 0) {
+            for (int i = 0; i < buffer_size-minimum_isolated_update-1; i++)
+                update_buffer[i+1] = update_buffer[minimum_isolated_update+i+1];
+            buffer_size = buffer_size-minimum_isolated_update;
+            continue;
+        }
+        uint32_t start_tier = 0;//tier_isolated;
+        normal_refreshes++;
+        // Initiate the refresh sequence and receive all the broadcasts
+        RefreshEndpoint e1, e2;
+        e1.v = update.edge.src;
+        e2.v = update.edge.dst;
+        RefreshMessage refresh_message;
+        refresh_message.endpoints = {e1, e2};
+        MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, start_tier+1, 0, MPI_COMM_WORLD);
+        for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
+            int rank = tier + 1;
+            for (auto endpoint : {0,1}) {
+                std::ignore = endpoint;
+                // Receive a broadcast to see if the current tier/endpoint is isolated or not
                 EttUpdateMessage update_message;
-                bcast(&update_message, sizeof(EttUpdateMessage), rank);
-                if (update_message.type == LINK) {
-                    link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
-                    break;
-                } else if (update_message.type == CUT) {
-                    link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
+                bcast(&update_message, sizeof(UpdateMessage), rank);
+                if (update_message.type == NOT_ISOLATED) continue;
+                // Process a LCT query message first
+                LctResponseMessage response_message;
+                response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
+                if (response_message.connected) {
+                    std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(update_message.endpoint1, update_message.endpoint2);
+                    response_message.cycle_edge = max.first;
+                    response_message.weight = max.second;
+                }
+                MPI_Send(&response_message, sizeof(LctResponseMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD);
+
+                // Then process two update broadcasts to potentially cut and link in the LCT
+                for (auto broadcast : {0,1}) {
+                    std::ignore = broadcast;
+                    EttUpdateMessage update_message;
+                    bcast(&update_message, sizeof(EttUpdateMessage), rank);
+                    if (update_message.type == LINK) {
+                        link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
+                        break;
+                    } else if (update_message.type == CUT) {
+                        link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
+                    }
                 }
             }
         }
     }
     // Shift the rest of the updates to the beginning of the buffer
-    for (int i = 0; i < buffer_size-minimum_isolated_update-1; i++)
-        update_buffer[i+1] = update_buffer[minimum_isolated_update+i+1];
-    buffer_size = buffer_size-minimum_isolated_update;
+    if (using_sliding_window) {
+        for (int i = 0; i < buffer_size-minimum_isolated_update-1; i++)
+            update_buffer[i+1] = update_buffer[minimum_isolated_update+i+1];
+        buffer_size = buffer_size-minimum_isolated_update;
+    } else {
+        buffer_size = 1;
+    }
 }
 
 void InputNode::process_all_updates() {
