@@ -75,8 +75,8 @@ void GraphTiers::refresh(GraphUpdate update) {
 			root_nodes[2*tier]->process_updates();
 			Sketch* ett_agg1 = root_nodes[2*tier]->sketch_agg;
 			ett_agg1->reset_sample_state();
-			std::pair<vec_t, SampleSketchRet> query_result1 = ett_agg1->sample();
-			if (query_result1.second == GOOD) {
+			SketchSample query_result1 = ett_agg1->sample();
+			if (query_result1.result == GOOD) {
 				isolated = true;
 				continue;
 			}
@@ -88,8 +88,8 @@ void GraphTiers::refresh(GraphUpdate update) {
 			root_nodes[2*tier+1]->process_updates();
 			Sketch* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
 			ett_agg2->reset_sample_state();
-			std::pair<vec_t, SampleSketchRet> query_result2 = ett_agg2->sample();
-			if (query_result2.second == GOOD) {
+			SketchSample query_result2 = ett_agg2->sample();
+			if (query_result2.result == GOOD) {
 				isolated = true;
 				continue;
 			}
@@ -117,15 +117,15 @@ void GraphTiers::refresh(GraphUpdate update) {
 			STOP(ett_get_agg, agg);
 			START(sq);
 			ett_agg->reset_sample_state();
-			std::pair<vec_t, SampleSketchRet> query_result = ett_agg->sample();
+			SketchSample query_result = ett_agg->sample();
 			STOP(sketch_query, sq);
 
 			// Check for new edge to eliminate isolation
-			if (query_result.second != GOOD)
+			if (query_result.result != GOOD)
 				continue;
 
 			tiers_grown++;
-			edge_id_t edge = query_result.first;
+			edge_id_t edge = query_result.idx;
 			node_id_t a = (node_id_t)edge;
 			node_id_t b = (node_id_t)(edge>>32);
 

@@ -25,7 +25,7 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
     update_buffer = (UpdateMessage*) malloc(sizeof(UpdateMessage)*(batch_size+1));
     this_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
     next_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
-    query_result_buffer = (SampleSketchRet*) malloc(sizeof(SampleSketchRet)*batch_size*2);
+    query_result_buffer = (SampleResult*) malloc(sizeof(SampleResult)*batch_size*2);
     split_revert_buffer = (bool*) malloc(sizeof(bool)*batch_size);
     greedy_refresh_buffer = (bool*) malloc(sizeof(bool)*(num_tiers+1));
     greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
@@ -76,10 +76,10 @@ void TierNode::main() {
             SkipListNode* root2 = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
             root1->process_updates();
             root1->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i] = root1->sketch_agg->sample().second;
+            query_result_buffer[2*i] = root1->sketch_agg->sample().result;
             root2->process_updates();
             root2->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i+1] = root2->sketch_agg->sample().second;
+            query_result_buffer[2*i+1] = root2->sketch_agg->sample().result;
             // Prepare greedy batch size messages
             GreedyRefreshMessage this_sizes;
             this_sizes.size1 = root1->size;
@@ -178,13 +178,13 @@ void TierNode::main() {
                 if (this_sizes.size1 == next_sizes.size1) {
                     root1->process_updates();
                     root1->sketch_agg->reset_sample_state();
-                    if (root1->sketch_agg->sample().second == GOOD)
+                    if (root1->sketch_agg->sample().result == GOOD)
                         isolated = true;
                 }
                 if (this_sizes.size2 == next_sizes.size2) {
                     root2->process_updates();
                     root2->sketch_agg->reset_sample_state();
-                    if (root2->sketch_agg->sample().second == GOOD)
+                    if (root2->sketch_agg->sample().result == GOOD)
                         isolated = true;
                 }
             }
@@ -224,9 +224,7 @@ void TierNode::main() {
                             root->process_updates();
                             Sketch* ett_agg = root->sketch_agg;
                             ett_agg->reset_sample_state();
-                            std::pair<vec_t, SampleSketchRet> query_result = ett_agg->sample();
-                            e->sketch_query_result_type = query_result.second;
-                            e->sketch_query_result = query_result.first;
+                            e->sketch_query_result = ett_agg->sample();
                         }
                         RefreshMessage next_refresh_message;
                         next_refresh_message.endpoints = {e1, e2};
@@ -279,12 +277,12 @@ void TierNode::refresh_tier(RefreshMessage message) {
         uint32_t prev_tier_size = endpoint.prev_tier_size;
         uint32_t this_tier_size = ett_nodes[endpoint.v].get_size();
         
-        node_id_t a = (node_id_t)endpoint.sketch_query_result;
-        node_id_t b = (node_id_t)(endpoint.sketch_query_result>>32);
+        node_id_t a = (node_id_t)endpoint.sketch_query_result.idx;
+        node_id_t b = (node_id_t)(endpoint.sketch_query_result.idx>>32);
         
         // Tell all other nodes an isolation was found
         EttUpdateMessage update_message;
-        update_message.type = (TreeOperationType)(!(prev_tier_size != this_tier_size || endpoint.sketch_query_result_type != GOOD));
+        update_message.type = (TreeOperationType)(!(prev_tier_size != this_tier_size || endpoint.sketch_query_result.result != GOOD));
         update_message.endpoint1 = a;
         update_message.endpoint2 = b;
         bcast(&update_message, sizeof(EttUpdateMessage), tier_num+1);

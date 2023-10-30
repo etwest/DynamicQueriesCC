@@ -41,8 +41,7 @@ typedef struct {
 typedef struct {
   node_id_t v = 0;
   uint32_t prev_tier_size = 0;
-  SampleSketchRet sketch_query_result_type = ZERO;
-  edge_id_t sketch_query_result = 0;
+  SketchSample sketch_query_result;
 } RefreshEndpoint;
 
 typedef struct {
@@ -83,7 +82,7 @@ class TierNode {
   UpdateMessage* update_buffer;
   GreedyRefreshMessage* this_sizes_buffer;
   GreedyRefreshMessage* next_sizes_buffer;
-  SampleSketchRet* query_result_buffer;
+  SampleResult* query_result_buffer;
   bool* split_revert_buffer;
   bool* greedy_refresh_buffer;
   int* greedy_batch_buffer;
