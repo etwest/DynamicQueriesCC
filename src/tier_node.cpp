@@ -137,7 +137,7 @@ void TierNode::main() {
         for (uint32_t i = minimum_isolated_update; i < update_buffer[0].update.edge.src; i++) {
             GraphUpdate update = update_buffer[i].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
-            // How to correctly undo this part ??? note there could be a cut on a later update that actually needs to be rolled back
+            // There could be a cut on a later update that needs to be rolled back
             unlikely_if (split_revert_buffer[i-1])
                 ett_nodes[update.edge.src].link(ett_nodes[update.edge.dst]);
             ett_nodes[update.edge.src].update_sketch((vec_t)edge);
@@ -155,54 +155,7 @@ void TierNode::main() {
             }
             SkipListNode* root1 = ett_nodes[update.edge.src].update_sketch((vec_t)edge);
             SkipListNode* root2 = ett_nodes[update.edge.dst].update_sketch((vec_t)edge);
-            // Try the greedy parallel refresh
-            START(greedy_refresh_timer);
-            GreedyRefreshMessage this_sizes;
-            GreedyRefreshMessage next_sizes;
-            this_sizes.size1 = root1->size;
-            this_sizes.size2 = root2->size;
-            if (tier_num == 0) {
-                MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            } else if (tier_num == num_tiers-1) {
-                MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
-            } else if (tier_num%2 == 0) {
-                MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
-                MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            } else if (tier_num%2 == 1) {
-                MPI_Recv(&next_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num+2, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Send(&this_sizes, sizeof(GreedyRefreshMessage), MPI_BYTE, tier_num, 0, MPI_COMM_WORLD);
-            }
-            // Check if this tier is isolated
-            bool isolated = false;
-            if (tier_num != num_tiers-1) {
-                if (this_sizes.size1 == next_sizes.size1) {
-                    root1->process_updates();
-                    root1->sketch_agg->reset_sample_state();
-                    if (root1->sketch_agg->sample().result == GOOD)
-                        isolated = true;
-                }
-                if (this_sizes.size2 == next_sizes.size2) {
-                    root2->process_updates();
-                    root2->sketch_agg->reset_sample_state();
-                    if (root2->sketch_agg->sample().result == GOOD)
-                        isolated = true;
-                }
-            }
-            START(greedy_refresh_gather_timer);
-            allgather(&isolated, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
-            STOP(greedy_refresh_gather_time, greedy_refresh_gather_timer);
-            // Check for any isolation
-            int tier_isolated = -1;
-            for (uint32_t j = 1; j < num_tiers+1; j++) {
-                unlikely_if (greedy_refresh_buffer[j]) {
-                    tier_isolated = j-1;
-                    break;
-                }
-            }
-            STOP(greedy_refresh_time, greedy_refresh_timer);
-            if (tier_isolated < 0)
-                continue;
-            uint32_t start_tier = 0;//tier_isolated;
+            uint32_t start_tier = 0;
             // Start the refreshing sequence
             START(normal_refresh_timer);
             for (uint32_t tier = start_tier; tier < num_tiers; tier++) {

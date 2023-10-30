@@ -64,24 +64,7 @@ void InputNode::process_updates() {
         GraphUpdate update = update_buffer[update_idx].update;
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
             link_cut_tree.cut(update.edge.src, update.edge.dst);
-        // Try the greedy parallel refresh
-        bool isolated_message = false;
-        allgather(&isolated_message, sizeof(bool), greedy_refresh_buffer, sizeof(bool));
-        // Check for any isolation
-        int tier_isolated = -1;
-        for (uint32_t j = 1; j < num_tiers+1; j++) {
-            unlikely_if (greedy_refresh_buffer[j]) {
-                tier_isolated = j-1;
-                break;
-            }
-        }
-        if (tier_isolated < 0) {
-            for (int i = 0; i < buffer_size-minimum_isolated_update-1; i++)
-                update_buffer[i+1] = update_buffer[minimum_isolated_update+i+1];
-            buffer_size = buffer_size-minimum_isolated_update;
-            continue;
-        }
-        uint32_t start_tier = 0;//tier_isolated;
+        uint32_t start_tier = 0;
         normal_refreshes++;
         // Initiate the refresh sequence and receive all the broadcasts
         RefreshEndpoint e1, e2;
