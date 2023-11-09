@@ -4,11 +4,9 @@
 long sketch_update_time = 0;
 long sketch_query_time = 0;
 long greedy_batch_time = 0;
-long greedy_refresh_time = 0;
 long normal_refresh_time = 0;
 
 long greedy_batch_gather_time = 0;
-long greedy_refresh_gather_time = 0;
 long size_message_passing_time = 0;
 
 TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, int batch_size) :
@@ -52,8 +50,6 @@ void TierNode::main() {
             std::cout << "\tSketch query time (ms): " << sketch_query_time/1000 << std::endl;
             std::cout << "\tSize message passing time (ms): " << size_message_passing_time/1000 << std::endl;
             std::cout << "\tGreedy gather time (ms): " << greedy_batch_gather_time/1000 << std::endl;
-            std::cout << "Greedy refresh time (ms): " << greedy_refresh_time/1000 << std::endl;
-            std::cout << "\tGreedy gather time (ms): " << greedy_refresh_gather_time/1000 << std::endl;
             std::cout << "Normal refresh time (ms): " << normal_refresh_time/1000 << std::endl;
             return;
         }
