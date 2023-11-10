@@ -102,6 +102,8 @@ TEST(EulerTourTreeSuite, stress_test) {
           << nodes;
     }
   }
+
+  EulerTourTree::free_nodes(nodes);
 }
 
 TEST(EulerTourTreeSuite, random_links_and_cuts) {
@@ -190,6 +192,8 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
       << *agg.second << "\n\n\n" << *naive_aggs[agg.first] << std::endl;
   }
   free(cc_sketch_space);
+  free(naive_cc_sketch_space);
+  EulerTourTree::free_nodes(nodes);
   for (auto size: sizes) {
     // Euler tour has length 2n-1
     ASSERT_EQ(size.second-1, 2*naive_sizes[size.first]-1);
@@ -231,4 +235,6 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   // Check that the ETT aggregate is properly maintained and gotten
   Sketch* aggregate = nodes[0].get_aggregate();
   ASSERT_TRUE(*aggregate == *true_aggregate);
+  ::operator delete(true_aggregate, Sketch::sketchSizeof());
+  EulerTourTree::free_nodes(nodes);
 }

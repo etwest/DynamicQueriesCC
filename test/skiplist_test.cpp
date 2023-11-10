@@ -39,7 +39,9 @@ bool aggregate_correct(SkipListNode* node) {
         naive_agg->update(ett_node->vertex);
     }
     Sketch* list_agg = node->get_list_aggregate();
-    return *naive_agg == *list_agg;
+    bool result = *naive_agg == *list_agg;
+    ::operator delete(naive_agg, Sketch::sketchSizeof());
+    return result;
 }
 
 TEST(SkipListSuite, join_split_test) {
@@ -85,4 +87,5 @@ TEST(SkipListSuite, join_split_test) {
         ASSERT_TRUE(nodes[i]->isvalid());
         ASSERT_TRUE(aggregate_correct(nodes[i])) << "Node " << i << " agg incorrect";
     }
+    EulerTourTree::free_nodes(ett_nodes);
 }

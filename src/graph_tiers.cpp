@@ -41,7 +41,32 @@ GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
 	root_nodes.reserve(num_tiers*2);
 }
 
-GraphTiers::~GraphTiers() {}
+GraphTiers::~GraphTiers() {
+	for (uint32_t i = 0; i < this->ett_nodes.size(); i++) {
+		this->free_tier(i);
+	}
+}
+
+void GraphTiers::free_tier(uint32_t tier) {
+	std::set<EulerTourTree*> visited;
+	std::vector<std::set<EulerTourTree*>> components;
+
+	for (uint32_t i = 0; i < this->ett_nodes[tier].size(); i++) {
+		if (visited.find(&(this->ett_nodes[tier][i])) == visited.end()) {
+			std::set<EulerTourTree*> pointer_component = this->ett_nodes[tier][i].get_component();
+			components.push_back(pointer_component);
+			// add each node in component to visited node
+			for (EulerTourTree* node : pointer_component) {
+				visited.insert(node);
+			}
+		}
+
+	}
+
+	for (std::set<EulerTourTree*> component : components) {
+		SkipListNode::uninit_tree((*component.begin())->allowed_caller);
+	}
+}
 
 void GraphTiers::update(GraphUpdate update) {
 	START(su);

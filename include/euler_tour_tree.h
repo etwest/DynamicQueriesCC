@@ -12,7 +12,7 @@ class EulerTourTree {
   
   std::unordered_map<EulerTourTree*, SkipListNode*> edges;
 
-  SkipListNode* allowed_caller = nullptr;
+  // SkipListNode* allowed_caller = nullptr;
   Sketch* temp_sketch = nullptr;
   long seed = 0;
 
@@ -20,12 +20,16 @@ class EulerTourTree {
   void delete_edge(EulerTourTree* other);
 
 public:
+  SkipListNode* allowed_caller = nullptr;
   const node_id_t vertex = 0;
   const uint32_t tier = 0;
 
   EulerTourTree(long seed, node_id_t vertex, uint32_t tier);
   EulerTourTree(long seed);
+  EulerTourTree(Sketch* sketch, long seed);
   ~EulerTourTree();
+  static void free_nodes(std::vector<EulerTourTree>& nodes);
+  
   bool link(EulerTourTree& other);
   bool cut(EulerTourTree& other);
 

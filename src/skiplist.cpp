@@ -74,6 +74,24 @@ SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
 	return root->get_last();
 }
 
+void SkipListNode::uninit_tree(SkipListNode* root) {
+	SkipListNode* curr_column = root->get_first();
+	SkipListNode* next_column = curr_column;  
+	SkipListNode* next_node = curr_column;
+	while (next_column) {
+		curr_column = next_column;
+		next_column = next_column->next();
+
+		while (curr_column != nullptr) {
+		next_node = curr_column->up;
+		delete curr_column;
+		curr_column = next_node;
+		}
+	}
+
+}
+
+
 SkipListNode* SkipListNode::get_parent() {
 	// SkipListNode* curr = this;
 	// while (curr && !curr->up) {

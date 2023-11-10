@@ -31,6 +31,7 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
 }
 
 TierNode::~TierNode() {
+    EulerTourTree::free_nodes(ett_nodes);
     free(update_buffer);
     free(this_sizes_buffer);
     free(next_sizes_buffer);

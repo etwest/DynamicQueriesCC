@@ -34,6 +34,7 @@ public:
   static SkipListNode* init_element(EulerTourTree* node);
   void uninit_element(bool delete_bdry);
   void uninit_list();
+  static void uninit_tree(SkipListNode* root);
 
   // Returns the closest node on the next level up at or left of the current
   SkipListNode* get_parent();

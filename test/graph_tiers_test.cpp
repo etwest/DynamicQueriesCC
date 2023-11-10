@@ -110,7 +110,6 @@ TEST(GraphTiersSuite, deletion_replace_correctness_test) {
         std::cout << "GOT: " << cc.size() << " components, EXPECTED: 1 components" << std::endl;
         FAIL();
     }
-
 }
 
 TEST(GraphTiersSuite, omp_correctness_test) {
@@ -178,7 +177,6 @@ TEST(GraphTiersSuite, omp_speed_test) {
         file.open ("omp_kron_results.txt", std::ios_base::app);
         file << stream_file << " time (ms): "<< time/1000 << std::endl;
         file.close();
-
     } catch (BadStreamException& e) {
         std::cout << "ERROR: Stream binary file not found." << std::endl;
     }
@@ -191,33 +189,57 @@ TEST(GraphTiersSuite, query_speed_test) {
         BinaryGraphStream stream(stream_file, 100000);
         int nodecount = stream.nodes();
         GraphTiers gt(nodecount, true);
-        int edgecount = 150000;
+        int edgecount = 17500000;
 
-        std::cout << "Building up graph..." <<  std::endl;
+        int seed = time(NULL);
+        srand(seed);
+        int querycount = 1000000;
+        int running_count = querycount;
+        int cc_running_count = querycount/100;
+
+        double total_querytime = 0;
+        double total_ccquerytime = 0;
+
+        auto start = std::chrono::high_resolution_clock::now();
+        auto stop = std::chrono::high_resolution_clock::now();
+       
+        std::cout << "Building up graph and performing queries..." <<  std::endl;
         for (int i = 0; i < edgecount; i++) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
+
+            if(running_count == 0) {
+                break;
+            }
+
+            // time taken to perform connectivity query
+            if (running_count > 0  && static_cast<double>(std::rand()) / RAND_MAX < .3) {
+                start = std::chrono::high_resolution_clock::now();
+                gt.is_connected(rand()%nodecount, rand()%nodecount);
+                stop = std::chrono::high_resolution_clock::now();
+
+                total_querytime += std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+
+                if (cc_running_count > 0 && static_cast<double>(std::rand()) / RAND_MAX < .5) {
+                    start = std::chrono::high_resolution_clock::now();
+                    gt.get_cc();
+                    stop = std::chrono::high_resolution_clock::now();
+
+                    total_ccquerytime += std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+                    --cc_running_count;
+                }
+                --running_count;
+            }
+              
         }
 
-        int querycount = 1000000;
-        int seed = time(NULL);
-        srand(seed);
-        std::cout << "Performing queries..." << std::endl;
-        auto start = std::chrono::high_resolution_clock::now();
-        for (int i = 0; i < querycount; i++) {
-            gt.is_connected(rand()%nodecount, rand()%nodecount);
-        }
-        auto stop = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-        std::cout << querycount << " Connectivity Queries, Time:  " << duration.count() << std::endl;
-        start = std::chrono::high_resolution_clock::now();
-        for (int i = 0; i < querycount/100; i++) {
-            gt.get_cc();
-        }
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-        std::cout << querycount/100 << " Connected Components Queries, Time:  " << duration.count() << std::endl;
+        int query_trials = querycount - running_count;
+        double querytime_seconds = total_querytime / 1e6;
+        int cc_trials = (querycount/100) - cc_running_count;
+        double cc_time_seconds = total_ccquerytime / 1e6;
 
+        std::cout << query_trials << " Connectivity Queries, Time:  " << querytime_seconds  << "s, " << query_trials/querytime_seconds << " queries/s" << std::endl;
+        std::cout << cc_trials << " Connected Components Queries, Time:  " << cc_time_seconds << "s, " << cc_trials/cc_time_seconds << " queries/s" << std::endl;
 
     } catch (BadStreamException& e) {
         std::cout << "ERROR: Stream binary file not found." << std::endl;

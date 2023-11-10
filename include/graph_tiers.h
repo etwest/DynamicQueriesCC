@@ -36,6 +36,7 @@ private:
 public:
   GraphTiers(node_id_t num_nodes, bool use_parallelism);
   ~GraphTiers();
+  void free_tier(uint32_t tier);
 
   // apply an edge update
   void update(GraphUpdate update);

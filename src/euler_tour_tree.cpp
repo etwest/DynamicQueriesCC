@@ -14,10 +14,25 @@ EulerTourTree::EulerTourTree(long seed) : seed(seed) {
 }
 
 EulerTourTree::~EulerTourTree() {
-  // Final boundary nodes are a memory leak
-  // Need to somehow delete all the skiplist nodes at the end
-  // for (auto edge : edges)
-  //   edge.second->uninit_element(false);
+  ::operator delete(temp_sketch, Sketch::sketchSizeof());;
+}
+
+void EulerTourTree::free_nodes(std::vector<EulerTourTree>& nodes) {
+  std::set<EulerTourTree*> visited;
+	std::vector<std::set<EulerTourTree*>> components;
+  for (int i = 0; i < nodes.size(); i++) {
+    if (visited.find(&nodes[i]) == visited.end()) {
+			std::set<EulerTourTree*> pointer_component = nodes[i].get_component();
+			components.push_back(pointer_component);
+			for (EulerTourTree* node : pointer_component) {
+				visited.insert(node);
+			}
+		}
+  }
+
+  for (std::set<EulerTourTree*> component : components) {
+		SkipListNode::uninit_tree((*component.begin())->allowed_caller);
+	}
 }
 
 SkipListNode* EulerTourTree::make_edge(EulerTourTree* other) {
