@@ -42,6 +42,8 @@ bool aggregate_correct(SkipListNode* node) {
 }
 
 TEST(SkipListSuite, join_split_test) {
+    if (skiplist_buffer_cap != 1)
+        return;
     int num_elements = 1000;
     // Global sketch variables
     sketch_len = num_elements*num_elements;

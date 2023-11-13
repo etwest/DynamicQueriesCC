@@ -336,14 +336,14 @@ TEST(GraphTierSuite, mpi_speed_test) {
         long time = 0;
         InputNode input_node(num_nodes, num_tiers, update_batch_size);
         long edgecount = stream.edges();
-        long count = 1000000;
-        edgecount = std::min(edgecount, count);
+        // long count = 1000000;
+        // edgecount = std::min(edgecount, count);
         START(timer);
         for (long i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
             input_node.update(update);
-            unlikely_if(i%1000 == 0 || i == edgecount-1) {
+            unlikely_if(i%100000 == 0 || i == edgecount-1) {
                 std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             }
         }

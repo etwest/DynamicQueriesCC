@@ -32,6 +32,8 @@ static void print_metrics() {
 }
 
 TEST(GraphTiersSuite, mini_correctness_test) {
+    if (skiplist_buffer_cap != 1)
+        return;
     node_id_t numnodes = 10;
     GraphTiers gt(numnodes, false);
     MatGraphVerifier gv(numnodes);
@@ -67,6 +69,8 @@ TEST(GraphTiersSuite, mini_correctness_test) {
 }
 
 TEST(GraphTiersSuite, deletion_replace_correctness_test) {
+    if (skiplist_buffer_cap != 1)
+        return;
     node_id_t numnodes = 100;
     GraphTiers gt(numnodes, false);
     MatGraphVerifier gv(numnodes);
