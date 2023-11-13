@@ -33,7 +33,7 @@ void InputNode::process_updates() {
     if (buffer_size == 1)
         return;
     // If less than 1/10 of the last updates are isolated use sliding window
-    using_sliding_window = (isolation_count>history_size/10) ? false : true;
+    using_sliding_window = (isolation_count<history_size/10) ? true : false;
     // Broadcast the batch of updates to all nodes
     update_buffer[0].update.edge.src = buffer_size;
     update_buffer[0].update.edge.dst = (int)using_sliding_window;
@@ -93,19 +93,9 @@ void InputNode::process_updates() {
                 // Receive a broadcast to see if the current tier/endpoint is isolated or not
                 EttUpdateMessage update_message;
                 bcast(&update_message, sizeof(UpdateMessage), rank);
-                if (update_message.type == NOT_ISOLATED) {
-                    // Update isolation history
-                    isolation_count -= (int)isolation_history_queue.front();
-                    isolation_history_queue.pop();
-                    isolation_history_queue.push(false);
+                if (update_message.type == NOT_ISOLATED)
                     continue;
-                } else {
-                    // Update isolation history
-                    isolation_count -= (int)isolation_history_queue.front();
-                    isolation_history_queue.pop();
-                    isolation_history_queue.push(true);
-                    isolation_count += 1;
-                }
+                this_update_isolated = true;
                 // Process a LCT query message first
                 LctResponseMessage response_message;
                 response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
@@ -130,6 +120,13 @@ void InputNode::process_updates() {
                 }
             }
         }
+        isolation_count -= (int)isolation_history_queue.front();
+        isolation_history_queue.pop();
+        if (this_update_isolated) {
+            isolation_history_queue.push(true);
+            isolation_count += 1;
+        } else
+            isolation_history_queue.push(false);
     }
     // Shift the rest of the updates to the beginning of the buffer
     if (using_sliding_window) {
