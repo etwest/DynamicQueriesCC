@@ -1,8 +1,9 @@
 #pragma once
 
-#include "types.h"
 #include <mpi.h>
+#include <queue>
 
+#include "types.h"
 #include "euler_tour_tree.h"
 #include "link_cut_tree.h"
 #include "mpi_functions.h"
@@ -60,9 +61,11 @@ class InputNode {
   UpdateMessage* update_buffer;
   int buffer_size;
   int buffer_capacity;
-  bool* greedy_refresh_buffer;
   int* greedy_batch_buffer;
   void process_updates();
+  std::queue<bool> isolation_history_queue;
+  int history_size;
+  int isolation_count;
   bool using_sliding_window = false;
 public:
   InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size);
@@ -84,7 +87,6 @@ class TierNode {
   GreedyRefreshMessage* next_sizes_buffer;
   SampleResult* query_result_buffer;
   bool* split_revert_buffer;
-  bool* greedy_refresh_buffer;
   int* greedy_batch_buffer;
   bool using_sliding_window = false;
   void update_tier(GraphUpdate update);

@@ -25,7 +25,6 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
     next_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
     query_result_buffer = (SampleResult*) malloc(sizeof(SampleResult)*batch_size*2);
     split_revert_buffer = (bool*) malloc(sizeof(bool)*batch_size);
-    greedy_refresh_buffer = (bool*) malloc(sizeof(bool)*(num_tiers+1));
     greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
 }
 
@@ -35,7 +34,6 @@ TierNode::~TierNode() {
     free(next_sizes_buffer);
     free(query_result_buffer);
     free(split_revert_buffer);
-    free(greedy_refresh_buffer);
     free(greedy_batch_buffer);
 }
 
@@ -53,6 +51,7 @@ void TierNode::main() {
             std::cout << "Normal refresh time (ms): " << normal_refresh_time/1000 << std::endl;
             return;
         }
+        using_sliding_window = (bool)update_buffer[0].update.edge.dst;
         // Do the greedy refresh check for all updates in the batch
         START(greedy_batch_timer);
         START(sketch_update_timer);
@@ -125,10 +124,8 @@ void TierNode::main() {
             minimum_isolated_update = std::min(minimum_isolated_update, greedy_batch_buffer[i]);
         STOP(greedy_batch_gather_time, greedy_batch_gather_timer);
         STOP(greedy_batch_time, greedy_batch_timer);
-        if (minimum_isolated_update == MAX_INT) {
-            using_sliding_window = true;
+        if (minimum_isolated_update == MAX_INT)
             continue;
-        }
         // First undo all the sketch updates we did after isolated update
         for (uint32_t i = minimum_isolated_update; i < update_buffer[0].update.edge.src; i++) {
             GraphUpdate update = update_buffer[i].update;

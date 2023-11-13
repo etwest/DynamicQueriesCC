@@ -9,13 +9,15 @@ InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : 
     UpdateMessage msg;
     update_buffer[0] = msg;
     buffer_size = 1;
-    greedy_refresh_buffer = (bool*) malloc(sizeof(bool)*(num_tiers+1));
     greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
+    history_size = 2*batch_size;
+    for (int i=0; i<history_size; i++)
+        isolation_history_queue.push(true);
+    isolation_count = history_size;
 };
 
 InputNode::~InputNode() {
     free(update_buffer);
-    free(greedy_refresh_buffer);
     free(greedy_batch_buffer);
 }
 
@@ -30,8 +32,11 @@ void InputNode::update(GraphUpdate update) {
 void InputNode::process_updates() {
     if (buffer_size == 1)
         return;
+    // If less than 1/10 of the last updates are isolated use sliding window
+    using_sliding_window = (isolation_count>history_size/10) ? false : true;
     // Broadcast the batch of updates to all nodes
     update_buffer[0].update.edge.src = buffer_size;
+    update_buffer[0].update.edge.dst = (int)using_sliding_window;
     bcast(&update_buffer[0], sizeof(UpdateMessage)*buffer_capacity, 0);
     // Attempt to do the entire batch parallel with greedy refresh
     int isolated_update = MAX_INT;
@@ -45,9 +50,12 @@ void InputNode::process_updates() {
             GraphUpdate update = update_buffer[i+1].update;
             if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
                 link_cut_tree.cut(update.edge.src, update.edge.dst);
+            // Update isolation history
+            isolation_count -= (int)isolation_history_queue.front();
+            isolation_history_queue.pop();
+            isolation_history_queue.push(false);
         }
         buffer_size = 1;
-        using_sliding_window = true;
         return;
     }
     // If there was an isolated update process all the updates up to that one
@@ -55,6 +63,10 @@ void InputNode::process_updates() {
         GraphUpdate update = update_buffer[i].update;
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
             link_cut_tree.cut(update.edge.src, update.edge.dst);
+        // Update isolation history
+        isolation_count -= (int)isolation_history_queue.front();
+        isolation_history_queue.pop();
+        isolation_history_queue.push(false);
     }
     // ======================================================================================
     // =========================== PROCESS THE ISOLATED UPDATES =============================
@@ -66,6 +78,7 @@ void InputNode::process_updates() {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
         uint32_t start_tier = 0;
         normal_refreshes++;
+        bool this_update_isolated = false;
         // Initiate the refresh sequence and receive all the broadcasts
         RefreshEndpoint e1, e2;
         e1.v = update.edge.src;
@@ -80,7 +93,19 @@ void InputNode::process_updates() {
                 // Receive a broadcast to see if the current tier/endpoint is isolated or not
                 EttUpdateMessage update_message;
                 bcast(&update_message, sizeof(UpdateMessage), rank);
-                if (update_message.type == NOT_ISOLATED) continue;
+                if (update_message.type == NOT_ISOLATED) {
+                    // Update isolation history
+                    isolation_count -= (int)isolation_history_queue.front();
+                    isolation_history_queue.pop();
+                    isolation_history_queue.push(false);
+                    continue;
+                } else {
+                    // Update isolation history
+                    isolation_count -= (int)isolation_history_queue.front();
+                    isolation_history_queue.pop();
+                    isolation_history_queue.push(true);
+                    isolation_count += 1;
+                }
                 // Process a LCT query message first
                 LctResponseMessage response_message;
                 response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
