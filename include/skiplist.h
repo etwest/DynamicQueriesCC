@@ -20,7 +20,7 @@ class SkipListNode {
   // Store the first node to the left on the next level up
   SkipListNode* parent = nullptr;
 
-  vec_t update_buffer[skiplist_buffer_cap];
+  SketchDelta update_buffer[skiplist_buffer_cap];
   int buffer_size = 0;
   int buffer_capacity;
 
@@ -56,7 +56,7 @@ public:
   SkipListNode* update_path_agg(Sketch* sketch);
 
   // Update just this node's aggregate sketch
-  void update_agg(vec_t update_idx);
+  void update_agg(SketchDelta delta);
 
   // Apply all the sketch updates currently in the update buffer
   void process_updates();

@@ -125,9 +125,9 @@ Sketch* SkipListNode::get_list_aggregate() {
 	return this->get_root()->sketch_agg;
 }
 
-void SkipListNode::update_agg(vec_t update_idx) {
+void SkipListNode::update_agg(SketchDelta delta) {
 	num_sketch_updates++;
-	this->update_buffer[this->buffer_size++] = update_idx;
+	this->update_buffer[this->buffer_size++] = delta;
 	if (this->buffer_size == skiplist_buffer_cap)
 		this->process_updates();
 }
@@ -135,15 +135,16 @@ void SkipListNode::update_agg(vec_t update_idx) {
 void SkipListNode::process_updates() {
 	num_sketch_batches++;
 	for (int i = 0; i < buffer_size; i++)
-		this->sketch_agg->update(update_buffer[i]);
+		this->sketch_agg->apply_delta(update_buffer[i]);
 	this->buffer_size = 0;
 }
 
 SkipListNode* SkipListNode::update_path_agg(vec_t update_idx) {
+	SketchDelta delta = this->sketch_agg->get_delta(update_idx);
 	SkipListNode* curr = this;
 	SkipListNode* prev;
 	while (curr) {
-		curr->update_agg(update_idx);
+		curr->update_agg(delta);
 		prev = curr;
 		curr = prev->get_parent();
 	}
