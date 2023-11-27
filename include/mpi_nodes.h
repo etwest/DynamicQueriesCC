@@ -5,6 +5,7 @@
 
 #include "types.h"
 #include "euler_tour_tree.h"
+#include "sketchless_euler_tour_tree.h"
 #include "link_cut_tree.h"
 #include "mpi_functions.h"
 
@@ -58,6 +59,7 @@ class InputNode {
   node_id_t num_nodes;
   uint32_t num_tiers;
   LinkCutTree link_cut_tree;
+  std::vector<SketchlessEulerTourTree> query_ett;
   UpdateMessage* update_buffer;
   int buffer_size;
   int buffer_capacity;
