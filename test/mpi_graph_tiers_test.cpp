@@ -326,6 +326,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     // Parameters
     int update_batch_size = DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
+    sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
 
@@ -334,6 +335,8 @@ TEST(GraphTierSuite, mpi_speed_test) {
 
     if (world_rank == 0) {
         long time = 0;
+        sketch_len = 1;
+	    sketch_err = 1;
         InputNode input_node(num_nodes, num_tiers, update_batch_size);
         long edgecount = stream.edges();
         // long count = 1000000;
@@ -343,7 +346,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
             input_node.update(update);
-            unlikely_if(i%100000 == 0 || i == edgecount-1) {
+            unlikely_if(i%1000000 == 0 || i == edgecount-1) {
                 std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             }
         }
