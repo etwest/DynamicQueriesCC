@@ -274,7 +274,6 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_nodes = stream.nodes();
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
-
     // Parameters
     int update_batch_size = DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
@@ -378,6 +377,73 @@ TEST(GraphTierSuite, mpi_speed_test) {
         srand(seed);
         std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
         TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
+        tier_node.main();
+    }
+}
+
+TEST(GraphTiersSuite, mpi_queries_speed_test) {
+    int world_rank_buf;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
+    uint32_t world_rank = world_rank_buf;
+    int world_size_buf;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
+    uint32_t world_size = world_size_buf;
+
+    BinaryGraphStream stream(stream_file, 1000000);
+    uint32_t num_nodes = stream.nodes();
+    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    int nodecount = stream.nodes();
+    int edgecount = stream.edges();
+	int count = 20000000;
+    edgecount = std::min(edgecount, count);
+
+    // Parameters
+    int update_batch_size = DEFAULT_BATCH_SIZE;
+    height_factor = 1./log2(log2(num_nodes));
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
+
+    if (world_size != num_tiers+1)
+        FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
+
+    if (world_rank == 0) {
+        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+
+        std::cout << "Building up graph..." <<  std::endl;
+        for (int i = 0; i < edgecount; i++) {
+            GraphUpdate update = stream.get_edge();
+            input_node.update(update);
+        }
+
+        int querycount = 1000000;
+        int cc_querycount = querycount/100;
+
+        long con_query_time = 0;
+        long cc_query_time = 0;
+        std::cout << "Performing queries..." << std::endl;
+        START(con_query_timer);
+        for (int i = 0; i < querycount; i++) {
+            input_node.connectivity_query(rand()%nodecount, rand()%nodecount);
+        }
+        STOP(con_query_time, con_query_timer);
+        std::cout << querycount << " Connectivity Queries, Time:  " << con_query_time/1000 << std::endl;
+        START(cc_query_timer);
+        for (int i = 0; i < cc_querycount; i++) {
+            input_node.cc_query();
+        }
+        STOP(cc_query_time, cc_query_timer);
+        std::cout << cc_querycount << " Connected Components Queries, Time:  " << cc_query_time/1000 << std::endl;
+
+        input_node.end();
+
+        std::ofstream file;
+        file.open ("mpi_kron_query_results.txt", std::ios_base::app);
+        file << stream_file << " connectivity queries/s: " << 1000*querycount/(con_query_time/1000) << std::endl;
+        file << stream_file << " cc queries/s: " << 1000*cc_querycount/(cc_query_time/1000) << std::endl;
+        file.close();
+
+    } else if (world_rank < num_tiers+1) {
+        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
         tier_node.main();
     }
 }
