@@ -93,7 +93,7 @@ class TierNode {
   void ett_update_tier(EttUpdateMessage message);
   void refresh_tier(RefreshMessage messsage);
 public:
-  TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, int batch_size);
+  TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, int batch_size, int seed);
   ~TierNode();
   void main();
 };

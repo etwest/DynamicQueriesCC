@@ -53,7 +53,7 @@ class EulerTourTree {
 public:
   std::vector<EulerTourNode> ett_nodes;
   
-  EulerTourTree(node_id_t num_nodes, uint32_t tier_num);
+  EulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed);
 
   void link(node_id_t u, node_id_t v);
   void cut(node_id_t u, node_id_t v);

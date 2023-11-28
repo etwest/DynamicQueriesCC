@@ -24,7 +24,10 @@ GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
 
 	// Initialize all the ETTs
 	for (uint32_t i = 0; i < num_tiers; i++) {
-		ett.emplace_back(num_nodes, i);
+		int seed = time(NULL)*i;
+		srand(seed);
+		std::cout << "Tier " << i << " seed: " << seed << std::endl;
+		ett.emplace_back(num_nodes, i, seed);
 	}
 
 	root_nodes.reserve(num_tiers*2);

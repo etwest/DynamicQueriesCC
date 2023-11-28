@@ -2,11 +2,8 @@
 
 #include <euler_tour_tree.h>
 
-EulerTourTree::EulerTourTree(node_id_t num_nodes, uint32_t tier_num) {
+EulerTourTree::EulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed) {
   // Initialize all the ETT node
-    int seed = time(NULL)*tier_num;
-    srand(seed);
-    std::cout << seed << std::endl;
     ett_nodes.reserve(num_nodes);
     for (node_id_t i = 0; i < num_nodes; ++i) {
         ett_nodes.emplace_back(seed, i, tier_num);

@@ -66,7 +66,11 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
         // Communicate to all other nodes that the stream has ended
         input_node.end();
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
+        int tier_num = world_rank-1;
+        int seed = time(NULL)*tier_num;
+        srand(seed);
+        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
         tier_node.main();
     }
 }
@@ -131,7 +135,11 @@ TEST(GraphTiersSuite, mpi_mini_replacement_test) {
         // Communicate to all other nodes that the stream has ended
         input_node.end();
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
+        int tier_num = world_rank-1;
+        int seed = time(NULL)*tier_num;
+        srand(seed);
+        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
         tier_node.main();
     }
 }
@@ -246,7 +254,11 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
         // Communicate to all other nodes that the stream has ended
         input_node.end();
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
+        int tier_num = world_rank-1;
+        int seed = time(NULL)*tier_num;
+        srand(seed);
+        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
         tier_node.main();
     }
 }
@@ -306,7 +318,11 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
         input_node.end();
 
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
+        int tier_num = world_rank-1;
+        int seed = time(NULL)*tier_num;
+        srand(seed);
+        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
         tier_node.main();
     }
 }
@@ -357,7 +373,11 @@ TEST(GraphTierSuite, mpi_speed_test) {
         file.close();
 
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
+        int tier_num = world_rank-1;
+        int seed = time(NULL)*tier_num;
+        srand(seed);
+        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
         tier_node.main();
     }
 }
