@@ -37,29 +37,26 @@ bool aggregate_correct(SkipListNode* node) {
     for (auto ett_node : component) {
         naive_agg->update(ett_node->vertex);
     }
+    node->get_root()->process_updates();
     Sketch* list_agg = node->get_list_aggregate();
     return *naive_agg == *list_agg;
 }
 
 TEST(SkipListSuite, join_split_test) {
-    if (skiplist_buffer_cap != 1)
-        return;
     int num_elements = 1000;
     // Global sketch variables
     sketch_len = num_elements*num_elements;
     sketch_err = 100;
 
-    std::vector<EulerTourNode> ett_nodes;
-    ett_nodes.reserve(num_elements);
-    SkipListNode* nodes[num_elements];
     long seed = time(NULL);
     srand(seed);
+    EulerTourTree ett(num_elements, 0, seed);
+    SkipListNode* nodes[num_elements];
 
     // Construct all of the ett_nodes and singleton SkipList nodes
     for (int i = 0; i < num_elements; i++) {
-        ett_nodes.emplace_back(seed, i, 0);
-        ett_nodes[i].update_sketch(i);
-        nodes[i] = ett_nodes[i].allowed_caller;
+        ett.update_sketch(i, (vec_t)i);
+        nodes[i] = ett.ett_nodes[i].allowed_caller;
     }
 
     // Link all the nodes two at a time, then link them all
