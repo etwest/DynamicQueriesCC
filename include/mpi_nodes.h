@@ -78,7 +78,7 @@ public:
 };
 
 class TierNode {
-  std::vector<EulerTourTree> ett_nodes;
+  EulerTourTree ett;
   uint32_t tier_num;
   uint32_t num_tiers;
   int batch_size;

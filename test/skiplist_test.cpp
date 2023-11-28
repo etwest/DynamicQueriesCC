@@ -33,7 +33,7 @@ int SkipListNode::print_list() {
 
 bool aggregate_correct(SkipListNode* node) {
     Sketch* naive_agg = new Sketch(sketch_len, node->node->get_seed());
-    std::set<EulerTourTree*> component = node->get_component();
+    std::set<EulerTourNode*> component = node->get_component();
     for (auto ett_node : component) {
         naive_agg->update(ett_node->vertex);
     }
@@ -49,7 +49,7 @@ TEST(SkipListSuite, join_split_test) {
     sketch_len = num_elements*num_elements;
     sketch_err = 100;
 
-    std::vector<EulerTourTree> ett_nodes;
+    std::vector<EulerTourNode> ett_nodes;
     ett_nodes.reserve(num_elements);
     SkipListNode* nodes[num_elements];
     long seed = time(NULL);

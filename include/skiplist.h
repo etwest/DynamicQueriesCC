@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 #include "sketch.h"
 
-class EulerTourTree;
+class EulerTourNode;
 
 constexpr int skiplist_buffer_cap = 10;//25;
 extern long skiplist_seed;
@@ -29,11 +29,11 @@ public:
 
   uint32_t size = 1;
 
-  EulerTourTree* node;
+  EulerTourNode* node;
 
-  SkipListNode(EulerTourTree* node, long seed);
+  SkipListNode(EulerTourNode* node, long seed);
   ~SkipListNode();
-  static SkipListNode* init_element(EulerTourTree* node);
+  static SkipListNode* init_element(EulerTourNode* node);
   void uninit_element(bool delete_bdry);
   void uninit_list();
 
@@ -61,7 +61,7 @@ public:
   // Apply all the sketch updates currently in the update buffer
   void process_updates();
 
-  std::set<EulerTourTree*> get_component();
+  std::set<EulerTourNode*> get_component();
 
   // Returns the root of a new skiplist formed by joining the lists containing left and right
   static SkipListNode* join(SkipListNode* left, SkipListNode* right);

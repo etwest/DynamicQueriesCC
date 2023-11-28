@@ -13,7 +13,7 @@ vec_t sketch_err;
 std::atomic<long> num_sketch_updates(0);
 std::atomic<long> num_sketch_batches(0);
 
-SkipListNode::SkipListNode(EulerTourTree* node, long seed) :
+SkipListNode::SkipListNode(EulerTourNode* node, long seed) :
 	sketch_agg(new Sketch(sketch_len, seed)), node(node) {}
 
 SkipListNode::~SkipListNode() {
@@ -39,7 +39,7 @@ void SkipListNode::uninit_element(bool delete_bdry) {
 	}
 }
 
-SkipListNode* SkipListNode::init_element(EulerTourTree* node) {
+SkipListNode* SkipListNode::init_element(EulerTourNode* node) {
 	long seed = node->get_seed();
 	// NOTE: WE SHOULD MAKE IT SO DIFFERENT SKIPLIST NODES FOR THE SAME ELEMENT CAN BE DIFFERENT HEIGHTS
 	uint64_t element_height = height_factor*__builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), skiplist_seed))+1;
@@ -161,8 +161,8 @@ SkipListNode* SkipListNode::update_path_agg(Sketch* sketch) {
 	return prev;
 }
 
-std::set<EulerTourTree*> SkipListNode::get_component() {
-	std::set<EulerTourTree*> nodes;
+std::set<EulerTourNode*> SkipListNode::get_component() {
+	std::set<EulerTourNode*> nodes;
 	SkipListNode* curr = this->get_first()->right; //Skip over the boundary node
 	while (curr) {
 		nodes.insert(curr->node);

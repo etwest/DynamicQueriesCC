@@ -6,7 +6,7 @@
 
 // #include <euler_tour_tree.h>
 
-// bool EulerTourTree::isvalid() const {
+// bool EulerTourNode::isvalid() const {
 //   bool invalid = false;
 //   // validate allowed_caller is null iff edges is empty
 //   EXPECT_EQ(allowed_caller == nullptr, this->edges.empty()) << (invalid = true, "");
@@ -45,10 +45,10 @@
 //   return true;
 // }
 
-// std::ostream& operator<<(std::ostream& os, const EulerTourTree& ett) {
-//   os << "EulerTourTree " << &ett << std::endl;
+// std::ostream& operator<<(std::ostream& os, const EulerTourNode& ett) {
+//   os << "EulerTourNode " << &ett << std::endl;
 //   for (const auto& [k, v] : ett.edges) {
-//     os << "to EulerTourTree " << k << " is " << &v << std::endl;
+//     os << "to EulerTourNode " << k << " is " << &v << std::endl;
 //     os << v << std::endl;
 //   }
 //   os << std::endl;
@@ -56,7 +56,7 @@
 // }
 
 // std::ostream& operator<<(std::ostream& os,
-//     const std::vector<EulerTourTree>& nodes) {
+//     const std::vector<EulerTourNode>& nodes) {
 //   for (const auto& node : nodes) {
 //     os << node;
 //   }
@@ -78,7 +78,7 @@
 //   int seed = time(NULL);
 //   srand(seed);
 //   std::cout << "Seeding stress test with " << seed << std::endl;
-//   std::vector<EulerTourTree> nodes;
+//   std::vector<EulerTourNode> nodes;
 //   nodes.reserve(nodecount);
 
 //   for (int i = 0; i < nodecount; i++)
@@ -117,7 +117,7 @@
 //   int seed = time(NULL);
 //   srand(seed);
 //   std::cout << "Seeding random links and cuts test with " << seed << std::endl;
-//   std::vector<EulerTourTree> nodes;
+//   std::vector<EulerTourNode> nodes;
 //   nodes.reserve(nodecount);
 //   for (int i = 0; i < nodecount; i++)
 //   {
@@ -212,7 +212,7 @@
 //   Sketch::makeSketch(true_aggregate, seed);
 
 //   int nodecount = 1000;
-//   std::vector<EulerTourTree> nodes;
+//   std::vector<EulerTourNode> nodes;
 //   nodes.reserve(nodecount);
 
 //   // Add value to each sketch, update the manual aggregate
