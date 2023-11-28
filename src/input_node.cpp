@@ -32,8 +32,11 @@ void InputNode::update(GraphUpdate update) {
 void InputNode::process_updates() {
     if (buffer_size == 1)
         return;
-    // If less than 1/10 of the last updates are isolated use sliding window
-    using_sliding_window = (isolation_count<history_size/10) ? true : false;
+    // If less than 1/5 of the last updates are isolated use sliding window
+    bool prev_strat = using_sliding_window;
+    using_sliding_window = (isolation_count<history_size/5) ? true : false;
+    if (using_sliding_window != prev_strat)
+        std::cout << "SWITCHED TO " << (using_sliding_window ? "SLIDING WINDOW" : "NORMAL STRAT") << std::endl;
     // Broadcast the batch of updates to all nodes
     update_buffer[0].update.edge.src = buffer_size;
     update_buffer[0].update.edge.dst = (int)using_sliding_window;
@@ -45,9 +48,10 @@ void InputNode::process_updates() {
     int minimum_isolated_update = MAX_INT;
     for (uint32_t i = 0; i < num_tiers+1; i++)
         minimum_isolated_update = std::min(minimum_isolated_update, greedy_batch_buffer[i]);
+    // If there was no isolated update just do the necessary cuts
     if (minimum_isolated_update == MAX_INT) {
-        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
-            GraphUpdate update = update_buffer[i+1].update;
+        for (uint32_t i = 1; i < update_buffer[0].update.edge.src; i++) {
+            GraphUpdate update = update_buffer[i].update;
             if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
                 link_cut_tree.cut(update.edge.src, update.edge.dst);
             // Update isolation history
