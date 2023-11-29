@@ -443,7 +443,11 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
         file.close();
 
     } else if (world_rank < num_tiers+1) {
-        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size);
+        int tier_num = world_rank-1;
+        int seed = time(NULL)*tier_num;
+        srand(seed);
+        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
+        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size, seed);
         tier_node.main();
     }
 }
