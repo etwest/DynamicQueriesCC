@@ -9,6 +9,8 @@
 #include "mat_graph_verifier.h"
 #include "util.h"
 
+const vec_t DEFAULT_SKETCH_ERR = 4;
+
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -116,8 +118,12 @@ TEST(GraphTiersSuite, deletion_replace_correctness_test) {
 TEST(GraphTiersSuite, omp_correctness_test) {
     omp_set_dynamic(1);
     try {
-
         BinaryGraphStream stream(stream_file, 100000);
+
+        height_factor = 1/log2(log2(stream.nodes()));
+        sketch_len = Sketch::calc_vector_length(stream.nodes());
+        sketch_err = DEFAULT_SKETCH_ERR;
+
         GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
         edgecount = 1000000;
@@ -154,9 +160,13 @@ TEST(GraphTiersSuite, omp_correctness_test) {
 TEST(GraphTiersSuite, omp_speed_test) {
     omp_set_dynamic(1);
     try {
-
 	    long time = 0;
         BinaryGraphStream stream(stream_file, 100000);
+
+        height_factor = 1/log2(log2(stream.nodes()));
+        sketch_len = Sketch::calc_vector_length(stream.nodes());
+        sketch_err = DEFAULT_SKETCH_ERR;
+
         GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
         edgecount = 1000000;
@@ -189,6 +199,11 @@ TEST(GraphTiersSuite, query_speed_test) {
     try {
 
         BinaryGraphStream stream(stream_file, 100000);
+
+        height_factor = 1/log2(log2(stream.nodes()));
+        sketch_len = Sketch::calc_vector_length(stream.nodes());
+        sketch_err = DEFAULT_SKETCH_ERR;
+        
         int nodecount = stream.nodes();
         GraphTiers gt(nodecount);
         int edgecount = 150000;

@@ -35,12 +35,12 @@ GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
 GraphTiers::~GraphTiers() {}
 
 void GraphTiers::update(GraphUpdate update) {
-	START(su);
 	edge_id_t edge = vertices_to_edge(update.edge.src, update.edge.dst);
 	// Update the sketches of both endpoints of the edge in all tiers
 	if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
 		link_cut_tree.cut(update.edge.src, update.edge.dst);
 	}
+	START(su);
 	#pragma omp parallel for
 	for (uint32_t i = 0; i < ett.size(); i++) {
 		if (update.type == DELETE && ett[i].has_edge(update.edge.src, update.edge.dst)) {
