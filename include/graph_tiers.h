@@ -31,10 +31,8 @@ private:
   LinkCutTree link_cut_tree;
   void refresh(GraphUpdate update);
 
-  bool use_parallelism;
-
 public:
-  GraphTiers(node_id_t num_nodes, bool use_parallelism);
+  GraphTiers(node_id_t num_nodes);
   ~GraphTiers();
 
   // apply an edge update

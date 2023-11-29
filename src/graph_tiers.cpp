@@ -17,8 +17,7 @@ edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
    return a<b ? (((edge_id_t)a)<<32) + ((edge_id_t)b) : (((edge_id_t)b)<<32) + ((edge_id_t)a);
 };
 
-GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
-	link_cut_tree(num_nodes), use_parallelism(use_parallelism) {
+GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
 	// Algorithm parameters
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 

@@ -35,7 +35,7 @@ TEST(GraphTiersSuite, mini_correctness_test) {
     if (skiplist_buffer_cap != 1)
         return;
     node_id_t numnodes = 10;
-    GraphTiers gt(numnodes, false);
+    GraphTiers gt(numnodes);
     MatGraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -72,7 +72,7 @@ TEST(GraphTiersSuite, deletion_replace_correctness_test) {
     if (skiplist_buffer_cap != 1)
         return;
     node_id_t numnodes = 100;
-    GraphTiers gt(numnodes, false);
+    GraphTiers gt(numnodes);
     MatGraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -122,7 +122,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
     try {
 
         BinaryGraphStream stream(stream_file, 100000);
-        GraphTiers gt(stream.nodes(), true);
+        GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
         MatGraphVerifier gv(stream.nodes());
         start = std::chrono::high_resolution_clock::now();
@@ -160,7 +160,7 @@ TEST(GraphTiersSuite, omp_speed_test) {
 
 	    long time = 0;
         BinaryGraphStream stream(stream_file, 100000);
-        GraphTiers gt(stream.nodes(), true);
+        GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
         edgecount = 1000000;
         start = std::chrono::high_resolution_clock::now();
@@ -193,7 +193,7 @@ TEST(GraphTiersSuite, query_speed_test) {
 
         BinaryGraphStream stream(stream_file, 100000);
         int nodecount = stream.nodes();
-        GraphTiers gt(nodecount, true);
+        GraphTiers gt(nodecount);
         int edgecount = 150000;
 
         std::cout << "Building up graph..." <<  std::endl;
