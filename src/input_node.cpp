@@ -101,27 +101,22 @@ void InputNode::process_updates() {
                     continue;
                 this_update_isolated = true;
                 // Process a LCT query message first
-                LctResponseMessage response_message;
-                response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
-                if (response_message.connected) {
+                EttUpdateMessage cut_message;
+                cut_message.type = (link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2)) ? CUT : EMPTY;
+                if (cut_message.type == CUT) {
                     std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(update_message.endpoint1, update_message.endpoint2);
-                    response_message.cycle_edge = max.first;
-                    response_message.weight = max.second;
+                    node_id_t c = (node_id_t)max.first;
+                    node_id_t d = (node_id_t)(max.first>>32);
+                    cut_message.endpoint1 = c;
+                    cut_message.endpoint2 = d;
+                    cut_message.start_tier = max.second;
                 }
-                MPI_Send(&response_message, sizeof(LctResponseMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD);
+                bcast(&cut_message, sizeof(EttUpdateMessage), 0);
 
-                // Then process two update broadcasts to potentially cut and link in the LCT
-                for (auto broadcast : {0,1}) {
-                    std::ignore = broadcast;
-                    EttUpdateMessage update_message;
-                    bcast(&update_message, sizeof(EttUpdateMessage), rank);
-                    if (update_message.type == LINK) {
-                        link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
-                        break;
-                    } else if (update_message.type == CUT) {
-                        link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
-                    }
-                }
+                // Then perform the cut and the link
+                if (cut_message.type == CUT)
+                    link_cut_tree.cut(cut_message.endpoint1, cut_message.endpoint2);
+                link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
             }
         }
         isolation_count -= (int)isolation_history_queue.front();

@@ -12,7 +12,7 @@
 #define MAX_INT (std::numeric_limits<int>::max())
 
 enum TreeOperationType {
-  NOT_ISOLATED=0, ISOLATED=1, EMPTY, LINK, CUT, LCT_QUERY
+  NOT_ISOLATED=0, LINK=1, CUT, EMPTY, LCT_QUERY
 };
 
 typedef struct {
@@ -26,18 +26,6 @@ typedef struct {
   node_id_t endpoint2 = 0;
   uint32_t start_tier = 0;
 } EttUpdateMessage;
-
-typedef struct {
-  TreeOperationType type = EMPTY;
-  node_id_t endpoint1 = 0;
-  node_id_t endpoint2 = 0;
-} LctQueryMessage;
-
-typedef struct {
-  bool connected = false;
-  edge_id_t cycle_edge = 0;
-  uint32_t weight = 0;
-} LctResponseMessage;
 
 typedef struct {
   node_id_t v = 0;

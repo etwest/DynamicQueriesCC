@@ -176,14 +176,11 @@ void TierNode::main() {
                     EttUpdateMessage update_message;
                     bcast(&update_message, sizeof(EttUpdateMessage), rank);
                     if (update_message.type == NOT_ISOLATED) continue;
-                    // Get the two broadcasts and perform ett updates
-                    for (int broadcast : {0,1}) {
-                        std::ignore = broadcast;
-                        EttUpdateMessage update_message;
-                        bcast(&update_message, sizeof(EttUpdateMessage), rank);
-                        ett_update_tier(update_message);
-                        if (update_message.type == LINK) break;
-                    }
+                    // Get the possible cut message from the input node
+                    EttUpdateMessage cut_message;
+                    bcast(&cut_message, sizeof(EttUpdateMessage), 0);
+                    ett_update_tier(cut_message);       // Either of type CUT or EMPTY
+                    ett_update_tier(update_message);    // Must be of type LINK
                 }
             }
             STOP(normal_refresh_time, normal_refresh_timer);
@@ -222,38 +219,19 @@ void TierNode::refresh_tier(RefreshMessage message) {
         update_message.type = (TreeOperationType)(!(prev_tier_size != this_tier_size || endpoint.sketch_query_result.result != GOOD));
         update_message.endpoint1 = a;
         update_message.endpoint2 = b;
+        update_message.start_tier = tier_num;
         bcast(&update_message, sizeof(EttUpdateMessage), tier_num+1);
 				
         if (update_message.type == NOT_ISOLATED)
             continue;
 				
-        // Query LCT node to check if this new edge forms a cycle
-        LctResponseMessage lct_response;
-        MPI_Recv(&lct_response, sizeof(LctResponseMessage), MPI_BYTE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        // Receive the cut broadcast and cut if input node found a cycle edge
+        EttUpdateMessage cut_message;
+        bcast(&cut_message, sizeof(EttUpdateMessage), 0);
+        if (cut_message.type == CUT && tier_num >= cut_message.start_tier)
+                ett.cut(cut_message.endpoint1, cut_message.endpoint2);
 
-        // If there is a cycle formed, tell all necessary nodes to delete that edge
-        if (lct_response.connected) {
-            node_id_t c = (node_id_t)lct_response.cycle_edge;
-            node_id_t d = (node_id_t)(lct_response.cycle_edge>>32);
-
-            EttUpdateMessage cut_message;
-            cut_message.type = CUT;
-            cut_message.endpoint1 = c;
-            cut_message.endpoint2 = d;
-            cut_message.start_tier = lct_response.weight;
-            bcast(&cut_message, sizeof(EttUpdateMessage), tier_num+1);
-
-            if (tier_num >= lct_response.weight)
-                ett.cut(c,d);
-        }
-
-        // Tell all nodes above and including the current tier to add the new edge
-        EttUpdateMessage link_message;
-        link_message.type = LINK;
-        link_message.endpoint1 = a;
-        link_message.endpoint2 = b;
-        link_message.start_tier = tier_num;
-        bcast(&link_message, sizeof(EttUpdateMessage), tier_num+1);
+        // Link the endpoints returned from the sketch query
         ett.link(a,b);
     }
 }
