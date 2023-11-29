@@ -85,13 +85,6 @@ target_include_directories(mpi_dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PA
 add_dependencies(mpi_dynamicCC_tests GraphZeppelinVerifyCC)
 target_link_libraries(mpi_dynamicCC_tests PRIVATE GraphZeppelinVerifyCC ${MPI_LIBRARIES})
 
-add_executable(generate_stream
-  tools/stream_generator.cpp
-)
-
-add_dependencies(generate_stream GraphZeppelinVerifyCC)
-target_link_libraries(generate_stream PRIVATE GraphZeppelinVerifyCC)
-
 #######
 # TODO: Is MPI INCLUDE PATH necessary?
 if(MPI_COMPILE_FLAGS)
