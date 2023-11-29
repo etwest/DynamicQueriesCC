@@ -139,16 +139,14 @@ void TierNode::main() {
             }
             SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
             SkipListNode* root2 = ett.update_sketch(update.edge.dst, (vec_t)edge);
-            uint32_t start_tier = 0;
             // Start the refreshing sequence
             START(normal_refresh_timer);
-            for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
+            for (uint32_t tier = 0; tier < num_tiers; tier++) {
                 int rank = tier + 1;
                 // If this node's tier is the current tier process the refresh message from previous tier or input node
                 if (tier == tier_num) {
                     RefreshMessage refresh_message;
-                    int source = (tier == start_tier) ? 0 : tier_num;
-                    MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, rank-1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     refresh_tier(refresh_message);
                     // Send a refresh message to the next tier
                     if (tier < num_tiers-1) {
@@ -186,8 +184,8 @@ void TierNode::main() {
 
 void TierNode::update_tier(TierUpdateMessage message) {
     if (message.cut_message.type == CUT && tier_num >= message.cut_message.start_tier)
-            ett.cut(message.cut_message.endpoint1, message.cut_message.endpoint2);
-        ett.link(message.link_message.endpoint1, message.link_message.endpoint2);
+        ett.cut(message.cut_message.endpoint1, message.cut_message.endpoint2);
+    ett.link(message.link_message.endpoint1, message.link_message.endpoint2);
 }
 
 void TierNode::refresh_tier(RefreshMessage message) {

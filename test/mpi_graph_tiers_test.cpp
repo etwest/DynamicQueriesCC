@@ -11,7 +11,7 @@
 #include "util.h"
 
 
-const int DEFAULT_BATCH_SIZE = 50;
+const int DEFAULT_BATCH_SIZE = 100;
 const vec_t DEFAULT_SKETCH_ERR = 4;
 
 TEST(GraphTiersSuite, mpi_mini_correctness_test) {
