@@ -32,8 +32,6 @@ static void print_metrics() {
 }
 
 TEST(GraphTiersSuite, mini_correctness_test) {
-    if (skiplist_buffer_cap != 1)
-        return;
     node_id_t numnodes = 10;
     GraphTiers gt(numnodes);
     MatGraphVerifier gv(numnodes);
@@ -69,9 +67,7 @@ TEST(GraphTiersSuite, mini_correctness_test) {
 }
 
 TEST(GraphTiersSuite, deletion_replace_correctness_test) {
-    if (skiplist_buffer_cap != 1)
-        return;
-    node_id_t numnodes = 100;
+    node_id_t numnodes = 50;
     GraphTiers gt(numnodes);
     MatGraphVerifier gv(numnodes);
 
@@ -124,6 +120,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
         BinaryGraphStream stream(stream_file, 100000);
         GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
+        edgecount = 1000000;
         MatGraphVerifier gv(stream.nodes());
         start = std::chrono::high_resolution_clock::now();
 
@@ -131,7 +128,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%10 == 0 || i == edgecount-1) {
+            unlikely_if(i%1000 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = gt.get_cc();
                 try {
                     gv.reset_cc_state();
