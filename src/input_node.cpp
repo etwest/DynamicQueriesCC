@@ -95,28 +95,31 @@ void InputNode::process_updates() {
             for (auto endpoint : {0,1}) {
                 std::ignore = endpoint;
                 // Receive a broadcast to see if the current tier/endpoint is isolated or not
-                EttUpdateMessage update_message;
-                bcast(&update_message, sizeof(UpdateMessage), rank);
-                if (update_message.type == NOT_ISOLATED)
+                EttUpdateMessage isolation_message;
+                MPI_Recv(&isolation_message, sizeof(EttUpdateMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                // If the endpoint is not isolated just broadcast that and continue
+                TierUpdateMessage update_message;
+                if (isolation_message.type == NOT_ISOLATED) {
+                    update_message.cut_message.type = NOT_ISOLATED;
+                    bcast(&update_message, sizeof(TierUpdateMessage), 0);
                     continue;
-                this_update_isolated = true;
-                // Process a LCT query message first
-                EttUpdateMessage cut_message;
-                cut_message.type = (link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2)) ? CUT : EMPTY;
-                if (cut_message.type == CUT) {
-                    std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(update_message.endpoint1, update_message.endpoint2);
-                    node_id_t c = (node_id_t)max.first;
-                    node_id_t d = (node_id_t)(max.first>>32);
-                    cut_message.endpoint1 = c;
-                    cut_message.endpoint2 = d;
-                    cut_message.start_tier = max.second;
                 }
-                bcast(&cut_message, sizeof(EttUpdateMessage), 0);
+                // Otherwise check if you need to cut a cycle edge
+                this_update_isolated = true;
+                update_message.cut_message.type = (link_cut_tree.find_root(isolation_message.endpoint1) == link_cut_tree.find_root(isolation_message.endpoint2)) ? CUT : EMPTY;
+                if (update_message.cut_message.type == CUT) {
+                    std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(isolation_message.endpoint1, isolation_message.endpoint2);
+                    update_message.cut_message.endpoint1 = (node_id_t)max.first;
+                    update_message.cut_message.endpoint2 = (node_id_t)(max.first>>32);
+                    update_message.cut_message.start_tier = max.second;
+                }
+                update_message.link_message = isolation_message;
+                bcast(&update_message, sizeof(TierUpdateMessage), 0);
 
                 // Then perform the cut and the link
-                if (cut_message.type == CUT)
-                    link_cut_tree.cut(cut_message.endpoint1, cut_message.endpoint2);
-                link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
+                if (update_message.cut_message.type == CUT)
+                    link_cut_tree.cut(update_message.cut_message.endpoint1, update_message.cut_message.endpoint2);
+                link_cut_tree.link(update_message.link_message.endpoint1, update_message.link_message.endpoint2, update_message.link_message.start_tier);
             }
         }
         isolation_count -= (int)isolation_history_queue.front();

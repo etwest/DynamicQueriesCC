@@ -173,14 +173,10 @@ void TierNode::main() {
                 for (int endpoint : {0,1}) {
                     std::ignore = endpoint;
                     // Receive a broadcast to see if the endpoint at the current tier is isolated or not
-                    EttUpdateMessage update_message;
-                    bcast(&update_message, sizeof(EttUpdateMessage), rank);
-                    if (update_message.type == NOT_ISOLATED) continue;
-                    // Get the possible cut message from the input node
-                    EttUpdateMessage cut_message;
-                    bcast(&cut_message, sizeof(EttUpdateMessage), 0);
-                    ett_update_tier(cut_message);       // Either of type CUT or EMPTY
-                    ett_update_tier(update_message);    // Must be of type LINK
+                    TierUpdateMessage update_message;
+                    bcast(&update_message, sizeof(TierUpdateMessage), 0);
+                    if (update_message.cut_message.type != NOT_ISOLATED)
+                        update_tier(update_message);
                 }
             }
             STOP(normal_refresh_time, normal_refresh_timer);
@@ -188,21 +184,10 @@ void TierNode::main() {
     }
 }
 
-void TierNode::update_tier(GraphUpdate update) {
-    edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
-    ett.update_sketch(update.edge.src, (vec_t)edge);
-    ett.update_sketch(update.edge.dst, (vec_t)edge);
-    unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
-        ett.cut(update.edge.src, update.edge.dst);
-    }
-}
-
-void TierNode::ett_update_tier(EttUpdateMessage message) {
-    if (message.type == LINK && tier_num > message.start_tier) {
-        ett.link(message.endpoint1, message.endpoint2);
-    } else if (message.type == CUT && tier_num > message.start_tier) {
-        ett.cut(message.endpoint1, message.endpoint2);
-    }
+void TierNode::update_tier(TierUpdateMessage message) {
+    if (message.cut_message.type == CUT && tier_num >= message.cut_message.start_tier)
+            ett.cut(message.cut_message.endpoint1, message.cut_message.endpoint2);
+        ett.link(message.link_message.endpoint1, message.link_message.endpoint2);
 }
 
 void TierNode::refresh_tier(RefreshMessage message) {
@@ -211,27 +196,18 @@ void TierNode::refresh_tier(RefreshMessage message) {
         uint32_t prev_tier_size = endpoint.prev_tier_size;
         uint32_t this_tier_size = ett.get_size(endpoint.v);
         
-        node_id_t a = (node_id_t)endpoint.sketch_query_result.idx;
-        node_id_t b = (node_id_t)(endpoint.sketch_query_result.idx>>32);
-        
-        // Tell all other nodes an isolation was found
-        EttUpdateMessage update_message;
-        update_message.type = (TreeOperationType)(!(prev_tier_size != this_tier_size || endpoint.sketch_query_result.result != GOOD));
-        update_message.endpoint1 = a;
-        update_message.endpoint2 = b;
-        update_message.start_tier = tier_num;
-        bcast(&update_message, sizeof(EttUpdateMessage), tier_num+1);
-				
-        if (update_message.type == NOT_ISOLATED)
-            continue;
-				
-        // Receive the cut broadcast and cut if input node found a cycle edge
-        EttUpdateMessage cut_message;
-        bcast(&cut_message, sizeof(EttUpdateMessage), 0);
-        if (cut_message.type == CUT && tier_num >= cut_message.start_tier)
-                ett.cut(cut_message.endpoint1, cut_message.endpoint2);
+        // Tell input node whether an isolation was found
+        EttUpdateMessage isolation_message;
+        isolation_message.type = (TreeOperationType)(!(prev_tier_size != this_tier_size || endpoint.sketch_query_result.result != GOOD));
+        isolation_message.endpoint1 = (node_id_t)endpoint.sketch_query_result.idx;
+        isolation_message.endpoint2 = (node_id_t)(endpoint.sketch_query_result.idx>>32);
+        isolation_message.start_tier = tier_num;
+        MPI_Send(&isolation_message, sizeof(EttUpdateMessage), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
 
-        // Link the endpoints returned from the sketch query
-        ett.link(a,b);
+        // Receive the tier update message from the input node and update if necessary
+        TierUpdateMessage update_message;
+        bcast(&update_message, sizeof(TierUpdateMessage), 0);
+        if (update_message.cut_message.type != NOT_ISOLATED)    // type is CUT or EMPTY
+            update_tier(update_message);
     }
 }
