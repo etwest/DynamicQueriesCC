@@ -410,13 +410,13 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
     int nodecount = stream.nodes();
     int edgecount = stream.edges();
-	int count = 15000000;
+	int count = /**15000000;*/ edgecount/2;
     edgecount = std::min(edgecount, count);
 
     // Parameters
     int update_batch_size = DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
-    sketchless_height_factor = height_factor;
+	sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
 
