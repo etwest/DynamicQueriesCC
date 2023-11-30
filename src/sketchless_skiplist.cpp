@@ -8,7 +8,7 @@
 double sketchless_height_factor;
 long sketchless_skiplist_seed = time(NULL);
 
-SketchlessSkipListNode::SketchlessSkipListNode(SketchlessEulerTourTree* node) : node(node) {}
+SketchlessSkipListNode::SketchlessSkipListNode(SketchlessEulerTourNode* node) : node(node) {}
 
 void SketchlessSkipListNode::uninit_element(bool delete_bdry) {
 	SketchlessSkipListNode* list_curr = this;
@@ -29,7 +29,7 @@ void SketchlessSkipListNode::uninit_element(bool delete_bdry) {
 	}
 }
 
-SketchlessSkipListNode* SketchlessSkipListNode::init_element(SketchlessEulerTourTree* node) {
+SketchlessSkipListNode* SketchlessSkipListNode::init_element(SketchlessEulerTourNode* node) {
 	long seed = node->get_seed();
 	// NOTE: WE SHOULD MAKE IT SO DIFFERENT SKIPLIST NODES FOR THE SAME ELEMENT CAN BE DIFFERENT HEIGHTS
 	uint64_t element_height = sketchless_height_factor*__builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), sketchless_skiplist_seed))+1;
@@ -106,8 +106,8 @@ SketchlessSkipListNode* SketchlessSkipListNode::get_last() {
 	return prev;
 }
 
-std::set<SketchlessEulerTourTree*> SketchlessSkipListNode::get_component() {
-	std::set<SketchlessEulerTourTree*> nodes;
+std::set<SketchlessEulerTourNode*> SketchlessSkipListNode::get_component() {
+	std::set<SketchlessEulerTourNode*> nodes;
 	SketchlessSkipListNode* curr = this->get_first()->right; //Skip over the boundary node
 	while (curr) {
 		nodes.insert(curr->node);

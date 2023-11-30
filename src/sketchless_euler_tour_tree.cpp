@@ -3,24 +3,45 @@
 #include <sketchless_euler_tour_tree.h>
 
 
-SketchlessEulerTourTree::SketchlessEulerTourTree(long seed, node_id_t vertex, uint32_t tier) : seed(seed), vertex(vertex), tier(tier) {
+SketchlessEulerTourTree::SketchlessEulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed) {
+  // Initialize all the ETT node
+  ett_nodes.reserve(num_nodes);
+  for (node_id_t i = 0; i < num_nodes; ++i) {
+      ett_nodes.emplace_back(seed, i, tier_num);
+  }
+}
+
+void SketchlessEulerTourTree::link(node_id_t u, node_id_t v) {
+  ett_nodes[u].link(ett_nodes[v]);
+}
+
+void SketchlessEulerTourTree::cut(node_id_t u, node_id_t v) {
+  ett_nodes[u].cut(ett_nodes[v]);
+}
+
+bool SketchlessEulerTourTree::has_edge(node_id_t u, node_id_t v) {
+  return ett_nodes[u].has_edge_to(&ett_nodes[v]);
+}
+
+SketchlessSkipListNode* SketchlessEulerTourTree::get_root(node_id_t u) {
+  return ett_nodes[u].get_root();
+}
+
+SketchlessEulerTourNode::SketchlessEulerTourNode(long seed, node_id_t vertex, uint32_t tier) : seed(seed), vertex(vertex), tier(tier) {
   // Initialize sentinel
   this->make_edge(nullptr);
 }
 
-SketchlessEulerTourTree::SketchlessEulerTourTree(long seed) : seed(seed) {
+SketchlessEulerTourNode::SketchlessEulerTourNode(long seed) : seed(seed) {
   // Initialize sentinel
   this->make_edge(nullptr);
 }
 
-SketchlessEulerTourTree::~SketchlessEulerTourTree() {
-  // Final boundary nodes are a memory leak
-  // Need to somehow delete all the skiplist nodes at the end
-  // for (auto edge : edges)
-  //   edge.second->uninit_element(false);
+SketchlessEulerTourNode::~SketchlessEulerTourNode(){
+  
 }
 
-SketchlessSkipListNode* SketchlessEulerTourTree::make_edge(SketchlessEulerTourTree* other) {
+SketchlessSkipListNode* SketchlessEulerTourNode::make_edge(SketchlessEulerTourNode* other) {
   assert(!other || this->tier == other->tier);
   //Constructing a new SkipListNode with pointer to this ETT object
   SketchlessSkipListNode* node = SketchlessSkipListNode::init_element(this);
@@ -32,7 +53,7 @@ SketchlessSkipListNode* SketchlessEulerTourTree::make_edge(SketchlessEulerTourTr
   //Returns the new node pointer or the one that already existed if it did
 }
 
-void SketchlessEulerTourTree::delete_edge(SketchlessEulerTourTree* other) {
+void SketchlessEulerTourNode::delete_edge(SketchlessEulerTourNode* other) {
   assert(!other || this->tier == other->tier);
   SketchlessSkipListNode* node_to_delete = this->edges[other];
   this->edges.erase(other);
@@ -46,19 +67,19 @@ void SketchlessEulerTourTree::delete_edge(SketchlessEulerTourTree* other) {
   node_to_delete->uninit_element(true);
 }
 
-SketchlessSkipListNode* SketchlessEulerTourTree::get_root() {
+SketchlessSkipListNode* SketchlessEulerTourNode::get_root() {
   return this->allowed_caller->get_root();
 }
 
-bool SketchlessEulerTourTree::has_edge_to(SketchlessEulerTourTree* other) {
+bool SketchlessEulerTourNode::has_edge_to(SketchlessEulerTourNode* other) {
   return !(this->edges.find(other) == this->edges.end());
 }
 
-std::set<SketchlessEulerTourTree*> SketchlessEulerTourTree::get_component() {
+std::set<SketchlessEulerTourNode*> SketchlessEulerTourNode::get_component() {
   return this->allowed_caller->get_component();
 }
 
-bool SketchlessEulerTourTree::link(SketchlessEulerTourTree& other) {
+bool SketchlessEulerTourNode::link(SketchlessEulerTourNode& other) {
   assert(this->tier == other.tier);
   SketchlessSkipListNode* this_sentinel = this->edges.begin()->second->get_last();
   SketchlessSkipListNode* other_sentinel = other.edges.begin()->second->get_last();
@@ -110,7 +131,7 @@ bool SketchlessEulerTourTree::link(SketchlessEulerTourTree& other) {
   return true;
 }
 
-bool SketchlessEulerTourTree::cut(SketchlessEulerTourTree& other) {
+bool SketchlessEulerTourNode::cut(SketchlessEulerTourNode& other) {
   assert(this->tier == other.tier);
   if (this->edges.find(&other) == this->edges.end()) {
     assert(other.edges.find(this) == other.edges.end());

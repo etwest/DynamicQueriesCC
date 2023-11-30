@@ -4,14 +4,8 @@
 long normal_refreshes = 0;
 long dt_operation_time = 0;
 
-InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes){
-    int seed = time(NULL);
-    srand(seed);
-    std::cout << seed << std::endl;
-    query_ett.reserve(num_nodes);
-    for (node_id_t i = 0; i < num_nodes; ++i) {
-        query_ett.emplace_back(seed);
-    }
+InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size, int seed) :
+    num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed) {
     update_buffer = (UpdateMessage*) malloc(sizeof(UpdateMessage)*(batch_size+1));
     buffer_capacity = batch_size+1;
     UpdateMessage msg;
@@ -62,7 +56,7 @@ void InputNode::process_updates() {
             GraphUpdate update = update_buffer[i+1].update;
             if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
                 link_cut_tree.cut(update.edge.src, update.edge.dst);
-                query_ett[update.edge.src].cut(query_ett[update.edge.dst]);
+                query_ett.cut(update.edge.src, update.edge.dst);
             }
             // Update isolation history
             isolation_count -= (int)isolation_history_queue.front();
@@ -93,7 +87,7 @@ void InputNode::process_updates() {
         START(dt_operation_timer1);
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
-            query_ett[update.edge.src].cut(query_ett[update.edge.dst]);
+            query_ett.cut(update.edge.src, update.edge.dst);
         }
         STOP(dt_operation_time, dt_operation_timer1);
         uint32_t start_tier = 0;
@@ -134,11 +128,11 @@ void InputNode::process_updates() {
                     START(dt_operation_timer2);
                     if (update_message.type == LINK) {
                         link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
-                        query_ett[update_message.endpoint1].link(query_ett[update_message.endpoint2]);
+                        query_ett.link(update_message.endpoint1, update_message.endpoint2);
                         break;
                     } else if (update_message.type == CUT) {
                         link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
-                        query_ett[update_message.endpoint1].cut(query_ett[update_message.endpoint2]);
+                        query_ett.cut(update_message.endpoint1, update_message.endpoint2);
                     }
                     STOP(dt_operation_time, dt_operation_timer2);
                 }

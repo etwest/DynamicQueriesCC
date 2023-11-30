@@ -33,7 +33,10 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
 	sketch_err = DEFAULT_SKETCH_ERR;
 
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         MatGraphVerifier gv(num_nodes);
         // Link all of the nodes into 1 connected component
         for (node_id_t i = 0; i < num_nodes-1; i++) {
@@ -94,7 +97,10 @@ TEST(GraphTiersSuite, mpi_mini_replacement_test) {
 	sketch_err = DEFAULT_SKETCH_ERR;
 
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         MatGraphVerifier gv(num_nodes);
         // Link all of the nodes into 1 connected component
         for (node_id_t i = 0; i < num_nodes-1; i++) {
@@ -163,7 +169,10 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
 	sketch_err = DEFAULT_SKETCH_ERR;
 
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         MatGraphVerifier gv(num_nodes);
         // Link all of the nodes into 1 connected component
         for (node_id_t i = 0; i < num_nodes-1; i++) {
@@ -284,7 +293,10 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
 
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         MatGraphVerifier gv(num_nodes);
         int edgecount = stream.edges();
 	    int count = 20000000;
@@ -349,13 +361,14 @@ TEST(GraphTierSuite, mpi_speed_test) {
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
 
     if (world_rank == 0) {
-        long time = 0;
-        sketch_len = 1;
-	    sketch_err = 1;
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         long edgecount = stream.edges();
         // long count = 1000000;
         // edgecount = std::min(edgecount, count);
+        long time = 0;
         START(timer);
         for (long i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
@@ -403,6 +416,7 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
     // Parameters
     int update_batch_size = DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
+    sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
 
@@ -410,7 +424,10 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
 
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
 
         std::cout << "Building up graph..." <<  std::endl;
         for (int i = 0; i < edgecount; i++) {

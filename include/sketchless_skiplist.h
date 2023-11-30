@@ -2,7 +2,7 @@
 
 #include <set>
 
-class SketchlessEulerTourTree;
+class SketchlessEulerTourNode;
 
 extern long sketchless_skiplist_seed;
 extern double sketchless_height_factor;
@@ -17,10 +17,11 @@ class SketchlessSkipListNode {
   SketchlessSkipListNode* parent = nullptr;
 
 public:
-  SketchlessEulerTourTree* node;
 
-  SketchlessSkipListNode(SketchlessEulerTourTree* node);
-  static SketchlessSkipListNode* init_element(SketchlessEulerTourTree* node);
+  SketchlessEulerTourNode* node;
+
+  SketchlessSkipListNode(SketchlessEulerTourNode* node);
+  static SketchlessSkipListNode* init_element(SketchlessEulerTourNode* node);
   void uninit_element(bool delete_bdry);
   void uninit_list();
 
@@ -33,10 +34,7 @@ public:
   // Returns the bottom right node of the skiplist
   SketchlessSkipListNode* get_last();
 
-  // Return the aggregate size at the root of the list
-  uint32_t get_list_size();
-
-  std::set<SketchlessEulerTourTree*> get_component();
+  std::set<SketchlessEulerTourNode*> get_component();
 
   // Returns the root of a new skiplist formed by joining the lists containing left and right
   static SketchlessSkipListNode* join(SketchlessSkipListNode* left, SketchlessSkipListNode* right);
