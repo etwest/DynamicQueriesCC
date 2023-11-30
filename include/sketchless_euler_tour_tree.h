@@ -33,7 +33,6 @@ public:
   bool has_edge_to(SketchlessEulerTourNode* other);
 
   std::set<SketchlessEulerTourNode*> get_component();
-  bool is_connected();
 
   long get_seed() {return seed;};
 
@@ -50,6 +49,6 @@ public:
   void link(node_id_t u, node_id_t v);
   void cut(node_id_t u, node_id_t v);
   bool has_edge(node_id_t u, node_id_t v);
-  bool is_connected(node_id_t u);
   SketchlessSkipListNode* get_root(node_id_t u);
+  bool is_connected(node_id_t u, node_id_t v);
 };

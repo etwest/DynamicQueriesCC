@@ -27,6 +27,10 @@ SketchlessSkipListNode* SketchlessEulerTourTree::get_root(node_id_t u) {
   return ett_nodes[u].get_root();
 }
 
+bool SketchlessEulerTourTree::is_connected(node_id_t u, node_id_t v) {
+  return get_root(u) == get_root(v);
+}
+
 SketchlessEulerTourNode::SketchlessEulerTourNode(long seed, node_id_t vertex, uint32_t tier) : seed(seed), vertex(vertex), tier(tier) {
   // Initialize sentinel
   this->make_edge(nullptr);

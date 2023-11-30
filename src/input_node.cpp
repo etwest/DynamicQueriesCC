@@ -163,11 +163,26 @@ void InputNode::process_all_updates() {
 
 bool InputNode::connectivity_query(node_id_t a, node_id_t b) {
     process_all_updates();
+    // return query_ett.is_connected(a, b);
     return link_cut_tree.find_root(a) == link_cut_tree.find_root(b);
 }
 
 std::vector<std::set<node_id_t>> InputNode::cc_query() {
     process_all_updates();
+    // std::vector<std::set<node_id_t>> cc;
+	// std::set<SketchlessEulerTourNode*> visited;
+	// for (uint32_t i = 0; i < query_ett.ett_nodes.size(); i++) {
+	// 	if (visited.find(&query_ett.ett_nodes[i]) == visited.end()) {
+	// 		std::set<SketchlessEulerTourNode*> pointer_component = query_ett.ett_nodes[i].get_component();
+	// 		std::set<node_id_t> component;
+	// 		for (auto pointer : pointer_component) {
+	// 			component.insert(pointer->vertex);
+	// 			visited.insert(pointer);
+	// 		}
+	// 		cc.push_back(component);
+	// 	}
+	// }
+	// return cc; 
     return link_cut_tree.get_cc();
 }
 

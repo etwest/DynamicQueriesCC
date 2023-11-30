@@ -410,7 +410,7 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
     int nodecount = stream.nodes();
     int edgecount = stream.edges();
-	int count = 20000000;
+	int count = 15000000;
     edgecount = std::min(edgecount, count);
 
     // Parameters
@@ -435,8 +435,8 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
             input_node.update(update);
         }
 
-        int querycount = 1000000;
-        int cc_querycount = querycount/100;
+        long querycount = 100000000;
+        long cc_querycount = 1000;
 
         long con_query_time = 0;
         long cc_query_time = 0;
@@ -446,19 +446,19 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
             input_node.connectivity_query(rand()%nodecount, rand()%nodecount);
         }
         STOP(con_query_time, con_query_timer);
-        std::cout << querycount << " Connectivity Queries, Time:  " << con_query_time/1000 << std::endl;
+        std::cout << querycount << " Connectivity Queries, Time (ms):  " << con_query_time/1000 << std::endl;
         START(cc_query_timer);
         for (int i = 0; i < cc_querycount; i++) {
             input_node.cc_query();
         }
         STOP(cc_query_time, cc_query_timer);
-        std::cout << cc_querycount << " Connected Components Queries, Time:  " << cc_query_time/1000 << std::endl;
+        std::cout << cc_querycount << " Connected Components Queries, Time (ms):  " << cc_query_time/1000 << std::endl;
 
         input_node.end();
 
         std::ofstream file;
         file.open ("mpi_kron_query_results.txt", std::ios_base::app);
-        file << stream_file << " connectivity queries/s: " << 1000*querycount/(con_query_time/1000) << std::endl;
+        file << stream_file << " connectivity queries/s: " << querycount/(con_query_time/1000)*1000 << std::endl;
         file << stream_file << " cc queries/s: " << 1000*cc_querycount/(cc_query_time/1000) << std::endl;
         file.close();
 
