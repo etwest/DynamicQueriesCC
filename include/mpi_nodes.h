@@ -87,6 +87,7 @@ class TierNode {
   GreedyRefreshMessage* next_sizes_buffer;
   SampleResult* query_result_buffer;
   bool* split_revert_buffer;
+  // bool* query_result_buffer;
   int* greedy_batch_buffer;
   bool using_sliding_window = false;
   void update_tier(GraphUpdate update);

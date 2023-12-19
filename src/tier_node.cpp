@@ -24,6 +24,7 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
     this_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
     next_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
     query_result_buffer = (SampleResult*) malloc(sizeof(SampleResult)*batch_size*2);
+    // query_result_buffer = (bool*) malloc(sizeof(bool)*batch_size*2);
     split_revert_buffer = (bool*) malloc(sizeof(bool)*batch_size);
     greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
 }
@@ -75,6 +76,8 @@ void TierNode::main() {
             root2->process_updates();
             root2->sketch_agg->reset_sample_state();
             query_result_buffer[2*i+1] = root2->sketch_agg->sample().result;
+            // query_result_buffer[2*i] = !root1->sketch_agg->empty();
+            // query_result_buffer[2*i+1] = !root2->sketch_agg->empty();
             // Prepare greedy batch size messages
             GreedyRefreshMessage this_sizes;
             this_sizes.size1 = root1->size;
@@ -104,11 +107,13 @@ void TierNode::main() {
             if (tier_num != num_tiers-1) {
                 if (this_sizes_buffer[i].size1 == next_sizes_buffer[i].size1)
                     if (query_result_buffer[2*i] == GOOD) {
+                    // if (query_result_buffer[2*i] == true) {
                         isolated_update = i+1;
                         break;
                     }
                 if (this_sizes_buffer[i].size2 == next_sizes_buffer[i].size2)
                     if (query_result_buffer[2*i+1] == GOOD) {
+                    // if (query_result_buffer[2*i+1] == true) {
                         isolated_update = i+1;
                         break;
                     }

@@ -145,6 +145,8 @@ SkipListNode* SkipListNode::update_path_agg(vec_t update_idx) {
 	SkipListNode* prev;
 	while (curr) {
 		curr->update_agg(delta);
+		// curr->sketch_agg->apply_deterministic_delta(delta);
+		// curr->sketch_agg->update(update_idx);
 		prev = curr;
 		curr = prev->get_parent();
 	}
