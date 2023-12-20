@@ -10,7 +10,6 @@ InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : 
     update_buffer[0] = msg;
     buffer_size = 1;
     split_revert_buffer = (int*) malloc(sizeof(int)*batch_size);
-    greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
     history_size = 2*batch_size;
     for (int i=0; i<history_size; i++)
         isolation_history_queue.push(true);
@@ -20,7 +19,6 @@ InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : 
 InputNode::~InputNode() {
     free(update_buffer);
     free(split_revert_buffer);
-    free(greedy_batch_buffer);
 }
 
 void InputNode::update(GraphUpdate update) {

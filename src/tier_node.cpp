@@ -16,7 +16,6 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
     next_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
     query_result_buffer = (SampleResult*) malloc(sizeof(SampleResult)*batch_size*2);
     split_revert_buffer = (bool*) malloc(sizeof(bool)*batch_size);
-    greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
 }
 
 TierNode::~TierNode() {
@@ -25,7 +24,6 @@ TierNode::~TierNode() {
     free(next_sizes_buffer);
     free(query_result_buffer);
     free(split_revert_buffer);
-    free(greedy_batch_buffer);
 }
 
 void TierNode::main() {

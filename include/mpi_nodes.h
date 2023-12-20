@@ -62,7 +62,6 @@ class InputNode {
   int buffer_size;
   int buffer_capacity;
   int* split_revert_buffer;
-  int* greedy_batch_buffer;
   void process_updates();
   std::queue<bool> isolation_history_queue;
   int history_size;
@@ -88,7 +87,6 @@ class TierNode {
   GreedyRefreshMessage* next_sizes_buffer;
   SampleResult* query_result_buffer;
   bool* split_revert_buffer;
-  int* greedy_batch_buffer;
   bool using_sliding_window = false;
   void update_tier(GraphUpdate update);
   void ett_update_tier(EttUpdateMessage message);
