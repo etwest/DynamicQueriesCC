@@ -33,13 +33,13 @@ void TierNode::main() {
         // Receive a batch of updates and check if it is the end of stream
         bcast(update_buffer, sizeof(UpdateMessage)*(batch_size+1), 0);
         if (update_buffer[0].end) {
-            std::cout << "============= TIER " << tier_num << " NODE =============" << std::endl;
-            std::cout << "Greedy batch time (ms): " << greedy_batch_time/1000 << std::endl;
-            std::cout << "\tSketch update time (ms): " << sketch_update_time/1000 << std::endl;
-            std::cout << "\tSketch query time (ms): " << sketch_query_time/1000 << std::endl;
-            std::cout << "\tSize message passing time (ms): " << size_message_passing_time/1000 << std::endl;
-            std::cout << "\tGreedy gather time (ms): " << greedy_batch_gather_time/1000 << std::endl;
-            std::cout << "Normal refresh time (ms): " << normal_refresh_time/1000 << std::endl;
+            // std::cout << "============= TIER " << tier_num << " NODE =============" << std::endl;
+            // std::cout << "Greedy batch time (ms): " << greedy_batch_time/1000 << std::endl;
+            // std::cout << "\tSketch update time (ms): " << sketch_update_time/1000 << std::endl;
+            // std::cout << "\tSketch query time (ms): " << sketch_query_time/1000 << std::endl;
+            // std::cout << "\tSize message passing time (ms): " << size_message_passing_time/1000 << std::endl;
+            // std::cout << "\tGreedy gather time (ms): " << greedy_batch_gather_time/1000 << std::endl;
+            // std::cout << "Normal refresh time (ms): " << normal_refresh_time/1000 << std::endl;
             return;
         }
         using_sliding_window = (bool)update_buffer[0].update.edge.dst;
