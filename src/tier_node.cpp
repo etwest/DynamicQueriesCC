@@ -42,12 +42,13 @@ void TierNode::main() {
             // std::cout << "Normal refresh time (ms): " << normal_refresh_time/1000 << std::endl;
             return;
         }
+        uint32_t num_updates = update_buffer[0].update.edge.src;
         using_sliding_window = (bool)update_buffer[0].update.edge.dst;
         // Do the greedy refresh check for all updates in the batch
         START(greedy_batch_timer);
         START(sketch_update_timer);
         int first_cutting_update = MAX_INT;
-        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
+        for (uint32_t i = 0; i < num_updates; i++) {
             // Perform the sketch updating or root finding
             GraphUpdate update = update_buffer[i+1].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
@@ -90,7 +91,7 @@ void TierNode::main() {
         int isolated_update;
         // Check if this tier is isolated for each update
         isolated_update = MAX_INT;
-        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
+        for (uint32_t i = 0; i < num_updates; i++) {
             // Check if this tier is isolated for this update
             if (tier_num != num_tiers-1) {
                 if (this_sizes_buffer[i].size1 == next_sizes_buffer[i].size1)
@@ -118,11 +119,11 @@ void TierNode::main() {
         if (minimum_isolated_update == MAX_INT)
             continue;
         // First undo all the sketch updates we did after isolated update
-        for (uint32_t i = minimum_isolated_update; i < update_buffer[0].update.edge.src; i++) {
-            GraphUpdate update = update_buffer[i].update;
+        for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
+            GraphUpdate update = update_buffer[update_idx].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             // There could be a cut on a later update that needs to be rolled back
-            unlikely_if (split_revert_buffer[i-1])
+            unlikely_if (split_revert_buffer[update_idx-1])
                 ett.link(update.edge.src, update.edge.dst);
             ett.update_sketch(update.edge.src, (vec_t)edge);
             ett.update_sketch(update.edge.dst, (vec_t)edge);
@@ -130,7 +131,7 @@ void TierNode::main() {
         // ======================================================================================
         // =========================== PROCESS THE ISOLATED UPDATES ===============+=============
         // ======================================================================================
-        int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : update_buffer[0].update.edge.src;
+        int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : num_updates+1;
         for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
             GraphUpdate update = update_buffer[update_idx].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);

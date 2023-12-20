@@ -61,6 +61,7 @@ class InputNode {
   UpdateMessage* update_buffer;
   int buffer_size;
   int buffer_capacity;
+  int* split_revert_buffer;
   int* greedy_batch_buffer;
   void process_updates();
   std::queue<bool> isolation_history_queue;
