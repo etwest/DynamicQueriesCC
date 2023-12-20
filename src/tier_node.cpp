@@ -109,11 +109,9 @@ void TierNode::main() {
         isolated_update = std::min(isolated_update, first_cutting_update);
         STOP(sketch_query_time, sketch_query_timer);
         START(greedy_batch_gather_timer);
-        allgather(&isolated_update, sizeof(int), greedy_batch_buffer, sizeof(int));
+        int minimum_isolated_update;
+        allreduce(&isolated_update, &minimum_isolated_update);
         // Check for any isolation on any update on any tier
-        int minimum_isolated_update = MAX_INT;
-        for (uint32_t i = 0; i < num_tiers+1; i++)
-            minimum_isolated_update = std::min(minimum_isolated_update, greedy_batch_buffer[i]);
         STOP(greedy_batch_gather_time, greedy_batch_gather_timer);
         STOP(greedy_batch_time, greedy_batch_timer);
         if (minimum_isolated_update == MAX_INT)

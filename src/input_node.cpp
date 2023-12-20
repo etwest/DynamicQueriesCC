@@ -55,11 +55,9 @@ void InputNode::process_updates() {
     }
     // Attempt to do the entire batch parallel with greedy refresh
     int isolated_update = MAX_INT;
-    allgather(&isolated_update, sizeof(int), greedy_batch_buffer, sizeof(int));
+    int minimum_isolated_update;
+    allreduce(&isolated_update, &minimum_isolated_update);
     // Check for any isolation on any update on any tier
-    int minimum_isolated_update = MAX_INT;
-    for (uint32_t i = 0; i < num_tiers+1; i++)
-        minimum_isolated_update = std::min(minimum_isolated_update, greedy_batch_buffer[i]);
     if (minimum_isolated_update == MAX_INT) {
         buffer_size = 1;
         return;
