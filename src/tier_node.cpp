@@ -45,7 +45,6 @@ void TierNode::main() {
         // Do the greedy refresh check for all updates in the batch
         START(greedy_batch_timer);
         START(sketch_update_timer);
-        int first_cutting_update = MAX_INT;
         for (uint32_t i = 0; i < num_updates; i++) {
             // Perform the sketch updating or root finding
             GraphUpdate update = update_buffer[i+1].update;
@@ -53,8 +52,6 @@ void TierNode::main() {
             split_revert_buffer[i] = false;
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
                 ett.cut(update.edge.src, update.edge.dst);
-                if (first_cutting_update == MAX_INT)
-                    first_cutting_update = i+1;
                 split_revert_buffer[i] = true;
             }
             SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
@@ -104,7 +101,6 @@ void TierNode::main() {
                     }
             }
         }
-        isolated_update = std::min(isolated_update, first_cutting_update);
         STOP(sketch_query_time, sketch_query_timer);
         START(greedy_batch_gather_timer);
         int minimum_isolated_update;
