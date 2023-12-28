@@ -11,7 +11,7 @@ vec_t sketch_len;
 vec_t sketch_err;
 
 SkipListNode::SkipListNode(EulerTourNode* node, long seed) :
-	sketch_agg(new Sketch(sketch_len, seed)), node(node) {}
+	sketch_agg(new Sketch(sketch_len, seed, 1, sketch_err)), node(node) {}
 
 SkipListNode::~SkipListNode() {
 	delete sketch_agg;
@@ -219,7 +219,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	// If right list was taller add new boundary nodes to left list
 	if (r_curr) {
 		// Cache the left root to initialize the new boundary nodes
-		Sketch* l_root_agg = new Sketch(sketch_len, seed);
+		Sketch* l_root_agg = new Sketch(sketch_len, seed, 1, sketch_err);
 		l_prev->process_updates();
 		l_root_agg->merge(*l_prev->sketch_agg);
 		l_root_agg->merge(*r_prev->sketch_agg);

@@ -12,7 +12,7 @@
 
 
 const int DEFAULT_BATCH_SIZE = 100;
-const vec_t DEFAULT_SKETCH_ERR = 4;
+const vec_t DEFAULT_SKETCH_ERR = 1;
 
 TEST(GraphTiersSuite, mpi_mini_correctness_test) {
     int world_rank_buf;
@@ -67,7 +67,7 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
         input_node.end();
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
+        int seed = time(NULL)*(tier_num+1);
         srand(seed);
         std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
         TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
@@ -136,7 +136,7 @@ TEST(GraphTiersSuite, mpi_mini_replacement_test) {
         input_node.end();
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
+        int seed = time(NULL)*(tier_num+1);
         srand(seed);
         std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
         TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
@@ -255,7 +255,7 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
         input_node.end();
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
+        int seed = time(NULL)*(tier_num+1);
         srand(seed);
         std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
         TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
@@ -295,7 +295,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             input_node.update(update);
             // Correctness testing by performing a cc query
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%1000 == 0 || i == edgecount-1) {
+            unlikely_if(i%1 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = input_node.cc_query();
                 try {
                     gv.reset_cc_state();
@@ -318,7 +318,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
+        int seed = time(NULL)*(tier_num+1);
         srand(seed);
         std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
         TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
@@ -366,7 +366,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
+        int seed = time(NULL)*(tier_num+1);
         srand(seed);
         std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
         TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
@@ -437,7 +437,7 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
+        int seed = time(NULL)*(tier_num+1);
         srand(seed);
         std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
         TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size, seed);

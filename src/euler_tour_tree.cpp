@@ -9,7 +9,7 @@ EulerTourTree::EulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed) {
         ett_nodes.emplace_back(seed, i, tier_num);
     }
     // Initialize the temp_sketch
-    this->temp_sketch = new Sketch(sketch_len, seed);
+    this->temp_sketch = new Sketch(sketch_len, seed, 1, sketch_err);
 }
 
 void EulerTourTree::link(node_id_t u, node_id_t v) {

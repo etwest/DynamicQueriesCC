@@ -45,7 +45,7 @@ void InputNode::process_updates() {
     // Do all the link cut tree cutting for things in the batch
     for (uint32_t i = 0; i < num_updates; i++) {
         GraphUpdate update = update_buffer[i+1].update;
-        split_revert_buffer[i] = 0;
+        split_revert_buffer[i] = MAX_INT;
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             split_revert_buffer[i] = link_cut_tree.get_edge_weight(update.edge.src, update.edge.dst);
             link_cut_tree.cut(update.edge.src, update.edge.dst);
@@ -63,9 +63,8 @@ void InputNode::process_updates() {
     // First undo all the link cut tree cuts we did after isolated update
     for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
-        edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
         // There could be a cut on a later update that needs to be rolled back
-        unlikely_if (split_revert_buffer[update_idx-1] > 0)
+        unlikely_if (split_revert_buffer[update_idx-1] != MAX_INT)
             link_cut_tree.link(update.edge.src, update.edge.dst, split_revert_buffer[update_idx-1]);
     }
     // Update the isolation history
