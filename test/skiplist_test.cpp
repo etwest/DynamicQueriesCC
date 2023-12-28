@@ -17,7 +17,7 @@ bool SkipListNode::isvalid() {
 int SkipListNode::print_list() {
     SkipListNode* curr = this->get_first();
     while (curr) {
-        if (curr->node) std::cout << curr->node->vertex << ":\t";
+        if (curr->ett_node) std::cout << curr->ett_node->vertex << ":\t";
         else std::cout << "-inf:\t";
         std::cout << curr <<  ": ";
         SkipListNode* currcurr = curr;
@@ -32,7 +32,7 @@ int SkipListNode::print_list() {
 }
 
 bool aggregate_correct(SkipListNode* node) {
-    Sketch* naive_agg = new Sketch(sketch_len, node->node->get_seed(), 1, sketch_err);
+    Sketch* naive_agg = new Sketch(sketch_len, node->ett_node->get_seed(), 1, sketch_err);
     std::set<EulerTourNode*> component = node->get_component();
     for (auto ett_node : component) {
         naive_agg->update(ett_node->vertex);

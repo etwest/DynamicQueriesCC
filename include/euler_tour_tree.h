@@ -50,6 +50,7 @@ public:
 
 class EulerTourTree {
   Sketch* temp_sketch;
+  SkipListAllocator allocator;
 public:
   std::vector<EulerTourNode> ett_nodes;
   

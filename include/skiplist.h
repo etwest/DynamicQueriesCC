@@ -1,15 +1,19 @@
 #pragma once
 
 #include <gtest/gtest.h>
+#include <deque>
 #include "sketch.h"
 
 class EulerTourNode;
+class SkipListAllocator;
 
 constexpr int skiplist_buffer_cap = 25;
 extern long skiplist_seed;
 extern double height_factor;
 extern vec_t sketch_len;
 extern vec_t sketch_err;
+extern SkipListAllocator allocator;
+
 
 class SkipListNode {
 
@@ -29,11 +33,11 @@ public:
 
   uint32_t size = 1;
 
-  EulerTourNode* node;
+  EulerTourNode* ett_node;
 
-  SkipListNode(EulerTourNode* node, long seed);
+  SkipListNode(EulerTourNode* ett_node, long seed);
   ~SkipListNode();
-  static SkipListNode* init_element(EulerTourNode* node);
+  static SkipListNode* init_element(EulerTourNode* ett_node);
   void uninit_element(bool delete_bdry);
   void uninit_list();
 
@@ -81,3 +85,14 @@ template <typename... T>
 SkipListNode* SkipListNode::join(SkipListNode* head, T*... tail) {
   return join(head, join(tail...));
 }
+
+class SkipListAllocator {
+  std::deque<SkipListNode*> free_list;
+  std::vector<void*> block_list;
+public:
+  SkipListAllocator();
+  ~SkipListAllocator();
+  SkipListNode* allocate_node(EulerTourNode* ett_node, long seed);
+  void free_node(SkipListNode* node);
+static constexpr int nodes_per_block = 1024;
+};

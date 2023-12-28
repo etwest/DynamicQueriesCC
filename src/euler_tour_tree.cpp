@@ -123,8 +123,8 @@ bool EulerTourNode::link(EulerTourNode& other, Sketch* temp_sketch) {
   SkipListNode* other_sentinel = other.edges.begin()->second->get_last();
 
   // There should always be a sentinel
-  assert(this_sentinel == this_sentinel->node->edges.at(nullptr));
-  assert(other_sentinel == other_sentinel->node->edges.at(nullptr));
+  assert(this_sentinel == this_sentinel->ett_node->edges.at(nullptr));
+  assert(other_sentinel == other_sentinel->ett_node->edges.at(nullptr));
 
   // If the nodes are already part of the same tree, don't link
   if (this_sentinel == other_sentinel) {
@@ -145,7 +145,7 @@ bool EulerTourNode::link(EulerTourNode& other, Sketch* temp_sketch) {
 
   // Unlink and destory other_sentinel
   SkipListNode* aux_other = SkipListNode::split_left(other_sentinel);
-  other_sentinel->node->delete_edge(nullptr, temp_sketch);
+  other_sentinel->ett_node->delete_edge(nullptr, temp_sketch);
 
   SkipListNode* aux_other_left, *aux_other_right;
   if (aux_other == nullptr) {

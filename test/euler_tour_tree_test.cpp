@@ -16,7 +16,7 @@ bool EulerTourNode::isvalid() const {
   // validate each edge
   for (const auto& [k, v] : this->edges) {
     // validate node's back ptr
-    EXPECT_EQ(v->node, this) << (invalid = true, "");
+    EXPECT_EQ(v->ett_node, this) << (invalid = true, "");
     if (invalid) return false;
     // validate node itself
     EXPECT_TRUE(v->isvalid()) << (invalid = true, "");
@@ -27,7 +27,7 @@ bool EulerTourNode::isvalid() const {
       if (invalid) return false;
     } else {
       // node is not sentinel, expect next to be valid
-      EXPECT_EQ(v->next()->node, k) << (invalid = true, "");
+      EXPECT_EQ(v->next()->ett_node, k) << (invalid = true, "");
       if (invalid) return false;
     }
     // check allowed_caller
