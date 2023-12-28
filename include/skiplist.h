@@ -3,11 +3,13 @@
 #include <gtest/gtest.h>
 #include "sketch.h"
 
-class EulerTourTree;
+class EulerTourNode;
 
-constexpr int buffer_cap = 1;
+constexpr int skiplist_buffer_cap = 25;
 extern long skiplist_seed;
 extern double height_factor;
+extern vec_t sketch_len;
+extern vec_t sketch_err;
 
 class SkipListNode {
 
@@ -18,7 +20,7 @@ class SkipListNode {
   // Store the first node to the left on the next level up
   SkipListNode* parent = nullptr;
 
-  vec_t update_buffer[buffer_cap];
+  vec_t update_buffer[skiplist_buffer_cap];
   int buffer_size = 0;
   int buffer_capacity;
 
@@ -27,12 +29,13 @@ public:
 
   uint32_t size = 1;
 
-  EulerTourTree* node;
+  EulerTourNode* node;
 
-  SkipListNode(EulerTourTree* node, long seed);
+  SkipListNode(EulerTourNode* node, long seed);
   ~SkipListNode();
-  static SkipListNode* init_element(EulerTourTree* node);
-  void uninit_element();
+  static SkipListNode* init_element(EulerTourNode* node);
+  void uninit_element(bool delete_bdry);
+  void uninit_list();
 
   // Returns the closest node on the next level up at or left of the current
   SkipListNode* get_parent();
@@ -58,7 +61,7 @@ public:
   // Apply all the sketch updates currently in the update buffer
   void process_updates();
 
-  std::set<EulerTourTree*> get_component();
+  std::set<EulerTourNode*> get_component();
 
   // Returns the root of a new skiplist formed by joining the lists containing left and right
   static SkipListNode* join(SkipListNode* left, SkipListNode* right);

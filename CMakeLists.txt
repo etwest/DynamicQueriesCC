@@ -5,6 +5,7 @@ include (FetchContent)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
+#set(INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Make the default build type Release. If user or another
 # project sets a different value than use that
@@ -59,8 +60,6 @@ add_executable(dynamicCC_tests
   test/link_cut_tree_test.cpp
   test/graph_tiers_test.cpp
 
-  src/sketch.cpp
-
   src/skiplist.cpp
   src/euler_tour_tree.cpp
   src/link_cut_tree.cpp
@@ -75,12 +74,9 @@ add_executable(mpi_dynamicCC_tests
   test/mpi_test_runner.cpp
   test/mpi_graph_tiers_test.cpp
 
-  src/sketch.cpp
-
   src/skiplist.cpp
   src/euler_tour_tree.cpp
   src/link_cut_tree.cpp
-
   src/input_node.cpp
   src/tier_node.cpp
 )

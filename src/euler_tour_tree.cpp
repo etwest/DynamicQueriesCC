@@ -2,86 +2,122 @@
 
 #include <euler_tour_tree.h>
 
-
-EulerTourTree::EulerTourTree(long seed, node_id_t vertex, uint32_t tier) :
-    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed), vertex(vertex), tier(tier) {
-  // Initialize sketch
-  Sketch::makeSketch((char*)sketch, seed);
-  // Initialize sentinel
-  this->make_edge(nullptr);
+EulerTourTree::EulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed) {
+  // Initialize all the ETT node
+    ett_nodes.reserve(num_nodes);
+    for (node_id_t i = 0; i < num_nodes; ++i) {
+        ett_nodes.emplace_back(seed, i, tier_num);
+    }
+    // Initialize the temp_sketch
+    this->temp_sketch = new Sketch(sketch_len, seed);
 }
 
-EulerTourTree::EulerTourTree(long seed) :
-    sketch((Sketch *) ::operator new(Sketch::sketchSizeof())), seed(seed) {
-  // Initialize sketch
-  Sketch::makeSketch((char*)sketch, seed);
-  // Initialize sentinel
-  this->make_edge(nullptr);
+void EulerTourTree::link(node_id_t u, node_id_t v) {
+  ett_nodes[u].link(ett_nodes[v], temp_sketch);
 }
 
-EulerTourTree::EulerTourTree(Sketch* sketch, long seed) :
-  sketch(sketch), seed(seed) {
-  // Initialize sentinel
-  this->make_edge(nullptr);
+void EulerTourTree::cut(node_id_t u, node_id_t v) {
+  ett_nodes[u].cut(ett_nodes[v], temp_sketch);
 }
 
-SkipListNode* EulerTourTree::make_edge(EulerTourTree* other) {
+bool EulerTourTree::has_edge(node_id_t u, node_id_t v) {
+  return ett_nodes[u].has_edge_to(&ett_nodes[v]);
+}
+
+SkipListNode* EulerTourTree::update_sketch(node_id_t u, vec_t update_idx) {
+  return ett_nodes[u].update_sketch(update_idx);
+}
+SkipListNode* EulerTourTree::get_root(node_id_t u) {
+  return ett_nodes[u].get_root();
+}
+
+Sketch* EulerTourTree::get_aggregate(node_id_t u) {
+  return ett_nodes[u].get_aggregate();
+}
+
+uint32_t EulerTourTree::get_size(node_id_t u) {
+  return ett_nodes[u].get_size();
+}
+
+EulerTourNode::EulerTourNode(long seed, node_id_t vertex, uint32_t tier) : seed(seed), vertex(vertex), tier(tier) {
+  // Initialize sentinel
+  this->make_edge(nullptr, nullptr);
+}
+
+EulerTourNode::EulerTourNode(long seed) : seed(seed) {
+  // Initialize sentinel
+  this->make_edge(nullptr, nullptr);
+}
+
+EulerTourNode::~EulerTourNode() {
+  // Final boundary nodes are a memory leak
+  // Need to somehow delete all the skiplist nodes at the end
+  // for (auto edge : edges)
+  //   edge.second->uninit_element(false);
+}
+
+SkipListNode* EulerTourNode::make_edge(EulerTourNode* other, Sketch* temp_sketch) {
   assert(!other || this->tier == other->tier);
   //Constructing a new SkipListNode with pointer to this ETT object
   SkipListNode* node = SkipListNode::init_element(this);
   if (allowed_caller == nullptr) {
     allowed_caller = node;
-    node->update_path_agg(this->sketch);
+    if (temp_sketch != nullptr) {
+      node->update_path_agg(temp_sketch);
+      temp_sketch->zero_contents();
+    }
   }
   //Add the new SkipListNode to the edge list
   return this->edges.emplace(std::make_pair(other, node)).first->second;
   //Returns the new node pointer or the one that already existed if it did
 }
 
-void EulerTourTree::delete_edge(EulerTourTree* other) {
+void EulerTourNode::delete_edge(EulerTourNode* other, Sketch* temp_sketch) {
   assert(!other || this->tier == other->tier);
-  bool deleting_allowed = this->edges[other] == allowed_caller;
-  this->edges[other]->uninit_element();
+  SkipListNode* node_to_delete = this->edges[other];
   this->edges.erase(other);
-  if (deleting_allowed) {
+  if (node_to_delete == allowed_caller) {
     if (this->edges.empty()) {
+      allowed_caller->process_updates();
+      temp_sketch->merge(*allowed_caller->sketch_agg);
       allowed_caller = nullptr;
     } else {
       allowed_caller = this->edges.begin()->second;
-      allowed_caller->update_path_agg(this->sketch);
+      node_to_delete->process_updates();
+      allowed_caller->update_path_agg(node_to_delete->sketch_agg);
     }
   }
+  node_to_delete->uninit_element(true);
 }
 
-SkipListNode* EulerTourTree::update_sketch(vec_t update_idx) {
+SkipListNode* EulerTourNode::update_sketch(vec_t update_idx) {
   assert(allowed_caller);
-  this->sketch->update(update_idx);
   return this->allowed_caller->update_path_agg(update_idx);
 }
 
-SkipListNode* EulerTourTree::get_root() {
+SkipListNode* EulerTourNode::get_root() {
   return this->allowed_caller->get_root();
 }
 
 //Get the aggregate sketch at the root of the ETT for this node
-Sketch* EulerTourTree::get_aggregate() {
+Sketch* EulerTourNode::get_aggregate() {
   assert(allowed_caller);
   return this->allowed_caller->get_list_aggregate();
 }
 
-uint32_t EulerTourTree::get_size() {
+uint32_t EulerTourNode::get_size() {
   return this->allowed_caller->get_list_size();
 }
 
-bool EulerTourTree::has_edge_to(EulerTourTree* other) {
+bool EulerTourNode::has_edge_to(EulerTourNode* other) {
   return !(this->edges.find(other) == this->edges.end());
 }
 
-std::set<EulerTourTree*> EulerTourTree::get_component() {
+std::set<EulerTourNode*> EulerTourNode::get_component() {
   return this->allowed_caller->get_component();
 }
 
-bool EulerTourTree::link(EulerTourTree& other) {
+bool EulerTourNode::link(EulerTourNode& other, Sketch* temp_sketch) {
   assert(this->tier == other.tier);
   SkipListNode* this_sentinel = this->edges.begin()->second->get_last();
   SkipListNode* other_sentinel = other.edges.begin()->second->get_last();
@@ -109,7 +145,7 @@ bool EulerTourTree::link(EulerTourTree& other) {
 
   // Unlink and destory other_sentinel
   SkipListNode* aux_other = SkipListNode::split_left(other_sentinel);
-  other_sentinel->node->delete_edge(nullptr);
+  other_sentinel->node->delete_edge(nullptr, temp_sketch);
 
   SkipListNode* aux_other_left, *aux_other_right;
   if (aux_other == nullptr) {
@@ -124,8 +160,8 @@ bool EulerTourTree::link(EulerTourTree& other) {
   // R  LR           L    R  LR           L
   // N                    N
 
-  SkipListNode* aux_edge_left = this->make_edge(&other);
-  SkipListNode* aux_edge_right = other.make_edge(this);
+  SkipListNode* aux_edge_left = this->make_edge(&other, temp_sketch);
+  SkipListNode* aux_edge_right = other.make_edge(this, temp_sketch);
 
   SkipListNode::join(aux_this_left, aux_edge_left, aux_other_right,
       aux_other_left, aux_edge_right, aux_this_right);
@@ -133,7 +169,7 @@ bool EulerTourTree::link(EulerTourTree& other) {
   return true;
 }
 
-bool EulerTourTree::cut(EulerTourTree& other) {
+bool EulerTourNode::cut(EulerTourNode& other, Sketch* temp_sketch) {
   assert(this->tier == other.tier);
   if (this->edges.find(&other) == this->edges.end()) {
     assert(other.edges.find(this) == other.edges.end());
@@ -145,21 +181,21 @@ bool EulerTourTree::cut(EulerTourTree& other) {
   SkipListNode* frag1r = SkipListNode::split_right(e1);
   bool order_is_e1e2 = e2->get_last() != e1;
   SkipListNode* frag1l = SkipListNode::split_left(e1);
-  this->delete_edge(&other);
+  this->delete_edge(&other, temp_sketch);
   SkipListNode* frag2r = SkipListNode::split_right(e2);
   SkipListNode* frag2l = SkipListNode::split_left(e2);
-  other.delete_edge(this);
+  other.delete_edge(this, temp_sketch);
 
   if (order_is_e1e2) {
     // e1 is to the left of e2
     // e2 should be made into a sentinel
-    SkipListNode* sentinel = other.make_edge(nullptr);
+    SkipListNode* sentinel = other.make_edge(nullptr, temp_sketch);
     SkipListNode::join(frag2l, sentinel);
     SkipListNode::join(frag1l, frag2r);
   } else {
     // e2 is to the left of e1
     // e1 should be made into a sentinel
-    SkipListNode* sentinel = this->make_edge(nullptr);
+    SkipListNode* sentinel = this->make_edge(nullptr, temp_sketch);
     SkipListNode::join(frag2r, sentinel);
     SkipListNode::join(frag2l, frag1r);
   }

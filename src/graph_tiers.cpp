@@ -17,25 +17,16 @@ edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
    return a<b ? (((edge_id_t)a)<<32) + ((edge_id_t)b) : (((edge_id_t)b)<<32) + ((edge_id_t)a);
 };
 
-GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
-	link_cut_tree(num_nodes), use_parallelism(use_parallelism) {
+GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
 	// Algorithm parameters
-	vec_t sketch_len = ((vec_t)num_nodes) * num_nodes;
-	vec_t sketch_err = 10;
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
-	int seed = time(NULL);
 
-	// Configure the sketches globally
-	Sketch::configure(sketch_len, sketch_err);
-
-	// Initialize all the ETT node
+	// Initialize all the ETTs
 	for (uint32_t i = 0; i < num_tiers; i++) {
+		int seed = time(NULL)*i;
 		srand(seed);
-		ett_nodes.emplace_back();
-		ett_nodes[i].reserve(num_nodes);
-		for (node_id_t j = 0; j < num_nodes; j++) {
-			ett_nodes[i].emplace_back(seed, j, i);
-		}
+		std::cout << "Tier " << i << " seed: " << seed << std::endl;
+		ett.emplace_back(num_nodes, i, seed);
 	}
 
 	root_nodes.reserve(num_tiers*2);
@@ -44,19 +35,19 @@ GraphTiers::GraphTiers(node_id_t num_nodes, bool use_parallelism=false) :
 GraphTiers::~GraphTiers() {}
 
 void GraphTiers::update(GraphUpdate update) {
-	START(su);
 	edge_id_t edge = vertices_to_edge(update.edge.src, update.edge.dst);
 	// Update the sketches of both endpoints of the edge in all tiers
-	if (update.type == DELETE && ett_nodes[ett_nodes.size()-1][update.edge.src].has_edge_to(&ett_nodes[ett_nodes.size()-1][update.edge.dst])) {
+	if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
 		link_cut_tree.cut(update.edge.src, update.edge.dst);
 	}
+	START(su);
 	#pragma omp parallel for
-	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
-		if (update.type == DELETE && ett_nodes[i][update.edge.src].has_edge_to(&ett_nodes[i][update.edge.dst])) {
-			ett_nodes[i][update.edge.src].cut(ett_nodes[i][update.edge.dst]);
+	for (uint32_t i = 0; i < ett.size(); i++) {
+		if (update.type == DELETE && ett[i].has_edge(update.edge.src, update.edge.dst)) {
+			ett[i].cut(update.edge.src, update.edge.dst);
 		}
-		root_nodes[2*i] = ett_nodes[i][update.edge.src].update_sketch((vec_t)edge);
-		root_nodes[2*i+1] = ett_nodes[i][update.edge.dst].update_sketch((vec_t)edge);
+		root_nodes[2*i] = ett[i].update_sketch(update.edge.src, (vec_t)edge);
+		root_nodes[2*i+1] = ett[i].update_sketch(update.edge.dst, (vec_t)edge);
 	}
 	STOP(sketch_time, su);
 	// Refresh the data structure
@@ -70,15 +61,16 @@ void GraphTiers::refresh(GraphUpdate update) {
 	START(iso);
 	std::atomic<bool> isolated(false);
 	//#pragma omp parallel for
-	for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
+	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
 		// Check if the tree containing first endpoint is isolated
 		uint32_t tier_size1 = root_nodes[2*tier]->size;
 		uint32_t next_size1 = root_nodes[2*(tier+1)]->size;
 		if (tier_size1 == next_size1) {
 			root_nodes[2*tier]->process_updates();
 			Sketch* ett_agg1 = root_nodes[2*tier]->sketch_agg;
-			std::pair<vec_t, SampleSketchRet> query_result1 = ett_agg1->query();
-			if (query_result1.second == GOOD) {
+			ett_agg1->reset_sample_state();
+			SketchSample query_result1 = ett_agg1->sample();
+			if (query_result1.result == GOOD) {
 				isolated = true;
 				continue;
 			}
@@ -89,8 +81,9 @@ void GraphTiers::refresh(GraphUpdate update) {
 		if (tier_size2 == next_size2) {
 			root_nodes[2*tier+1]->process_updates();
 			Sketch* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
-			std::pair<vec_t, SampleSketchRet> query_result2 = ett_agg2->query();
-			if (query_result2.second == GOOD) {
+			ett_agg2->reset_sample_state();
+			SketchSample query_result2 = ett_agg2->sample();
+			if (query_result2.result == GOOD) {
 				isolated = true;
 				continue;
 			}
@@ -100,32 +93,33 @@ void GraphTiers::refresh(GraphUpdate update) {
 	if (!isolated)
 		return;
 	// For each tier for each endpoint of the edge
-	for (uint32_t tier = 0; tier < ett_nodes.size()-1; tier++) {
+	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
 			// Check if the tree containing this endpoint is isolated
 			START(size);
-			uint32_t tier_size = ett_nodes[tier][v].get_size();
-			uint32_t next_size = ett_nodes[tier+1][v].get_size();
+			uint32_t tier_size = ett[tier].get_size(v);
+			uint32_t next_size = ett[tier+1].get_size(v);
 			STOP(ett_find_root, size);
 			// Check for same size for isolated
 			if (tier_size != next_size)
 				continue;
 
 			START(agg);
-			SkipListNode* root = ett_nodes[tier][v].get_root();
+			SkipListNode* root = ett[tier].get_root(v);
 			root->process_updates();
 			Sketch* ett_agg = root->sketch_agg;
 			STOP(ett_get_agg, agg);
 			START(sq);
-			std::pair<vec_t, SampleSketchRet> query_result = ett_agg->query();
+			ett_agg->reset_sample_state();
+			SketchSample query_result = ett_agg->sample();
 			STOP(sketch_query, sq);
 
 			// Check for new edge to eliminate isolation
-			if (query_result.second != GOOD)
+			if (query_result.result != GOOD)
 				continue;
 
 			tiers_grown++;
-			edge_id_t edge = query_result.first;
+			edge_id_t edge = query_result.idx;
 			node_id_t a = (node_id_t)edge;
 			node_id_t b = (node_id_t)(edge>>32);
 
@@ -145,8 +139,8 @@ void GraphTiers::refresh(GraphUpdate update) {
 				// Remove the maximum tier edge on all paths where it exists
 				START(ett1);
 				#pragma omp parallel for
-				for (uint32_t i = max.second; i < ett_nodes.size(); i++) {
-					ett_nodes[i][c].cut(ett_nodes[i][d]);
+				for (uint32_t i = max.second; i < ett.size(); i++) {
+					ett[i].cut(c,d);
 				}
 				STOP(ett_time, ett1);
 				START(lct3);
@@ -157,8 +151,8 @@ void GraphTiers::refresh(GraphUpdate update) {
 			// Join the ETTs for the endpoints of the edge on all tiers above the current
 			START(ett2);
 			#pragma omp parallel for
-			for (uint32_t i = tier+1; i < ett_nodes.size(); i++) {
-				ett_nodes[i][a].link(ett_nodes[i][b]);
+			for (uint32_t i = tier+1; i < ett.size(); i++) {
+				ett[i].link(a,b);
 			}
 			STOP(ett_time, ett2);
 			START(lct4);
@@ -170,11 +164,11 @@ void GraphTiers::refresh(GraphUpdate update) {
 
 std::vector<std::set<node_id_t>> GraphTiers::get_cc() {
 	std::vector<std::set<node_id_t>> cc;
-	std::set<EulerTourTree*> visited;
-	int top = ett_nodes.size()-1;
-	for (uint32_t i = 0; i < ett_nodes[top].size(); i++) {
-		if (visited.find(&ett_nodes[top][i]) == visited.end()) {
-			std::set<EulerTourTree*> pointer_component = ett_nodes[top][i].get_component();
+	std::set<EulerTourNode*> visited;
+	int top = ett.size()-1;
+	for (uint32_t i = 0; i < ett[top].ett_nodes.size(); i++) {
+		if (visited.find(&ett[top].ett_nodes[i]) == visited.end()) {
+			std::set<EulerTourNode*> pointer_component = ett[top].ett_nodes[i].get_component();
 			std::set<node_id_t> component;
 			for (auto pointer : pointer_component) {
 				component.insert(pointer->vertex);

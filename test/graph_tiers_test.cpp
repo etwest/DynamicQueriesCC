@@ -9,6 +9,8 @@
 #include "mat_graph_verifier.h"
 #include "util.h"
 
+const vec_t DEFAULT_SKETCH_ERR = 4;
+
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -27,13 +29,11 @@ static void print_metrics() {
     std::cout << "\t\t\tETT Find Tree Root (ms): " << ett_find_root/1000 << std::endl;
     std::cout << "\t\t\tETT Get Aggregate (ms): " << ett_get_agg/1000 << std::endl;
     std::cout << "Total number of tiers grown: " << tiers_grown << std::endl;
-    std::cout << "Total number of sketches updates: " << num_sketch_updates << std::endl;
-    std::cout << "Total number of batches processed: " << num_sketch_batches << std::endl;
 }
 
 TEST(GraphTiersSuite, mini_correctness_test) {
     node_id_t numnodes = 10;
-    GraphTiers gt(numnodes, false);
+    GraphTiers gt(numnodes);
     MatGraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -67,8 +67,8 @@ TEST(GraphTiersSuite, mini_correctness_test) {
 }
 
 TEST(GraphTiersSuite, deletion_replace_correctness_test) {
-    node_id_t numnodes = 100;
-    GraphTiers gt(numnodes, false);
+    node_id_t numnodes = 50;
+    GraphTiers gt(numnodes);
     MatGraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -116,9 +116,13 @@ TEST(GraphTiersSuite, deletion_replace_correctness_test) {
 TEST(GraphTiersSuite, omp_correctness_test) {
     omp_set_dynamic(1);
     try {
-
         BinaryGraphStream stream(stream_file, 100000);
-        GraphTiers gt(stream.nodes(), true);
+
+        height_factor = 1/log2(log2(stream.nodes()));
+        sketch_len = Sketch::calc_vector_length(stream.nodes());
+        sketch_err = DEFAULT_SKETCH_ERR;
+
+        GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
         edgecount = 1000000;
         MatGraphVerifier gv(stream.nodes());
@@ -128,7 +132,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
             GraphUpdate update = stream.get_edge();
             gt.update(update);
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%100000 == 0 || i == edgecount-1) {
+            unlikely_if(i%1000 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = gt.get_cc();
                 try {
                     gv.reset_cc_state();
@@ -154,10 +158,14 @@ TEST(GraphTiersSuite, omp_correctness_test) {
 TEST(GraphTiersSuite, omp_speed_test) {
     omp_set_dynamic(1);
     try {
-
 	    long time = 0;
         BinaryGraphStream stream(stream_file, 100000);
-        GraphTiers gt(stream.nodes(), true);
+
+        height_factor = 1/log2(log2(stream.nodes()));
+        sketch_len = Sketch::calc_vector_length(stream.nodes());
+        sketch_err = DEFAULT_SKETCH_ERR;
+
+        GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
         edgecount = 1000000;
         start = std::chrono::high_resolution_clock::now();
@@ -189,8 +197,13 @@ TEST(GraphTiersSuite, query_speed_test) {
     try {
 
         BinaryGraphStream stream(stream_file, 100000);
+
+        height_factor = 1/log2(log2(stream.nodes()));
+        sketch_len = Sketch::calc_vector_length(stream.nodes());
+        sketch_err = DEFAULT_SKETCH_ERR;
+        
         int nodecount = stream.nodes();
-        GraphTiers gt(nodecount, true);
+        GraphTiers gt(nodecount);
         int edgecount = 150000;
 
         std::cout << "Building up graph..." <<  std::endl;

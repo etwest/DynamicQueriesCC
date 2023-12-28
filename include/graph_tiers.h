@@ -26,15 +26,13 @@ extern std::atomic<long> num_sketch_batches;
 class GraphTiers {
   FRIEND_TEST(GraphTiersSuite, mini_correctness_test);
 private:
-  std::vector<std::vector<EulerTourTree>> ett_nodes;  // for each tier, for each node
+  std::vector<EulerTourTree> ett;  // one ETT for each tier
   std::vector<SkipListNode*> root_nodes;
   LinkCutTree link_cut_tree;
   void refresh(GraphUpdate update);
 
-  bool use_parallelism;
-
 public:
-  GraphTiers(node_id_t num_nodes, bool use_parallelism);
+  GraphTiers(node_id_t num_nodes);
   ~GraphTiers();
 
   // apply an edge update

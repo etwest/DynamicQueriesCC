@@ -6,7 +6,7 @@
 
 #include <euler_tour_tree.h>
 
-bool EulerTourTree::isvalid() const {
+bool EulerTourNode::isvalid() const {
   bool invalid = false;
   // validate allowed_caller is null iff edges is empty
   EXPECT_EQ(allowed_caller == nullptr, this->edges.empty()) << (invalid = true, "");
@@ -45,10 +45,10 @@ bool EulerTourTree::isvalid() const {
   return true;
 }
 
-std::ostream& operator<<(std::ostream& os, const EulerTourTree& ett) {
-  os << "EulerTourTree " << &ett << std::endl;
+std::ostream& operator<<(std::ostream& os, const EulerTourNode& ett) {
+  os << "EulerTourNode " << &ett << std::endl;
   for (const auto& [k, v] : ett.edges) {
-    os << "to EulerTourTree " << k << " is " << &v << std::endl;
+    os << "to EulerTourNode " << k << " is " << &v << std::endl;
     os << v << std::endl;
   }
   os << std::endl;
@@ -56,7 +56,7 @@ std::ostream& operator<<(std::ostream& os, const EulerTourTree& ett) {
 }
 
 std::ostream& operator<<(std::ostream& os,
-    const std::vector<EulerTourTree>& nodes) {
+    const std::vector<EulerTourNode>& nodes) {
   for (const auto& node : nodes) {
     os << node;
   }
@@ -64,123 +64,105 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 TEST(EulerTourTreeSuite, stress_test) {
-
-	// sketch variables
-  vec_t len = 1000;
-  vec_t err = 100;
-  //configure the sketch globally
-  Sketch::configure(len, err);
+  // global sketch variables
+  sketch_len = 1000;
+  sketch_err = 100;
 
   int nodecount = 1000;
-
   int n = 100000;
-
   int seed = time(NULL);
   srand(seed);
   std::cout << "Seeding stress test with " << seed << std::endl;
-  std::vector<EulerTourTree> nodes;
-  nodes.reserve(nodecount);
-
-  for (int i = 0; i < nodecount; i++)
-  {
-    nodes.emplace_back(seed, rand(), 0);
-  }
+  EulerTourTree ett(nodecount, 0, seed);
 
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
     if (rand() % 100 < 15) {
-      nodes[a].link(nodes[b]);
+      ett.link(a,b);
     } else {
-      nodes[a].cut(nodes[b]);
+      ett.cut(a,b);
     }
     if (i % n/100 == 0)
     {
-      ASSERT_TRUE(std::all_of(nodes.begin(), nodes.end(),
+      ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
             [](auto& node){return node.isvalid();}))
           << "Stress test validation failed, final state:"
           << std::endl
-          << nodes;
+          << ett.ett_nodes;
     }
   }
 }
 
 TEST(EulerTourTreeSuite, random_links_and_cuts) {
-
   // sketch variables
-  vec_t len = 1000;
-  vec_t err = 100;
-  //configure the sketch globally
-  Sketch::configure(len, err);
-  size_t space = Sketch::sketchSizeof();
+  sketch_len = 1000;
+  sketch_err = 100;
+
   int nodecount = 1000;
   int n = 500;
   int seed = time(NULL);
   srand(seed);
   std::cout << "Seeding random links and cuts test with " << seed << std::endl;
-  std::vector<EulerTourTree> nodes;
-  nodes.reserve(nodecount);
+  EulerTourTree ett(nodecount, 0, seed);
   for (int i = 0; i < nodecount; i++)
-  {
-    //nodes.emplace_back(sketches[i], seed);
-    nodes.emplace_back(seed);
-    nodes[i].update_sketch((vec_t)i);
-  }
+    ett.update_sketch(i, (vec_t)i);
 
   // Do random links and cuts
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
     if (rand() % 100 < 10) {
-      nodes[a].link(nodes[b]);
+      ett.link(a,b);
     } else {
-      nodes[a].cut(nodes[b]);
+      ett.cut(a,b);
     }
-    ASSERT_TRUE(std::all_of(nodes.begin(), nodes.end(),
+    ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
           [](auto& node){return node.isvalid();}))
         << "Stress test validation failed, final state:"
         << std::endl
-        << nodes;
+        << ett.ett_nodes;
   }
 
   std::unordered_set<SkipListNode*> sentinels;
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode *sentinel = nodes[i].edges.begin()->second->get_last();
+    SkipListNode *sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
     sentinels.insert(sentinel);
   }
-  void *cc_sketch_space = malloc(space * sentinels.size());
 
   // Walk up from an occurrence of each node to the root of its auxiliary tre
   std::unordered_map<SkipListNode*, Sketch*> aggs;
   std::unordered_map<SkipListNode*, uint32_t> sizes;
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode *sentinel = nodes[i].edges.begin()->second->get_last();
+    SkipListNode* sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
     if (aggs.find(sentinel) == aggs.end())
     {
-      char *location = (char*)cc_sketch_space + space*aggs.size();
-      aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
-      *aggs[sentinel] += *sentinel->get_list_aggregate();
+      Sketch* agg = new Sketch(sketch_len, seed);
+      aggs.insert({sentinel, agg});
+      SkipListNode* sentinel_root = sentinel->get_root();
+      sentinel_root->process_updates();
+      aggs[sentinel]->merge(*sentinel->get_list_aggregate());
       sizes[sentinel] = sentinel->get_list_size();
     }
   }
 
-  void *naive_cc_sketch_space = malloc(space * sentinels.size());
   std::unordered_map<SkipListNode*, Sketch*> naive_aggs;
   std::unordered_map<SkipListNode*, uint32_t> naive_sizes;
   // Naively compute aggregates for each connected component
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode* sentinel = nodes[i].edges.begin()->second->get_last();
+    SkipListNode* sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
+    sentinel->process_updates();
     if (naive_aggs.find(sentinel) != naive_aggs.end())
     {
-      *naive_aggs[sentinel] += *nodes[i].sketch;
+      naive_aggs[sentinel]->merge(*ett.ett_nodes[i].allowed_caller->sketch_agg);
       naive_sizes[sentinel] += 1;
     }
     else
     {
-      char *location = (char*)naive_cc_sketch_space + space*naive_aggs.size();
-      naive_aggs.insert({sentinel, Sketch::makeSketch(location, seed)});
-      *naive_aggs[sentinel] += *nodes[i].sketch;
+      Sketch* agg = new Sketch(sketch_len, seed);
+      naive_aggs.insert({sentinel, agg});
+      naive_aggs[sentinel]->merge(*ett.ett_nodes[i].allowed_caller->sketch_agg);
       naive_sizes[sentinel] = 1;
     }
   }
@@ -189,7 +171,6 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     ASSERT_EQ(*(agg.second), *(naive_aggs[agg.first])) 
       << *agg.second << "\n\n\n" << *naive_aggs[agg.first] << std::endl;
   }
-  free(cc_sketch_space);
   for (auto size: sizes) {
     // Euler tour has length 2n-1
     ASSERT_EQ(size.second-1, 2*naive_sizes[size.first]-1);
@@ -198,37 +179,32 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
 
 TEST(EulerTourTreeSuite, get_aggregate) {
   // Sketch variables
-  vec_t len = 10;
-  vec_t err = 10;
-  // Configure the sketch globally
-  Sketch::configure(len, err);
+  sketch_len = 1000;
+  sketch_err = 100;
 
   int seed = time(NULL);
   srand(seed);
   std::cout << "Seeding get aggregate test with " << seed << std::endl;
 
   // Keep a manual aggregate of all the sketches
-  Sketch* true_aggregate = (Sketch *) ::operator new(Sketch::sketchSizeof());
-  Sketch::makeSketch(true_aggregate, seed);
+  Sketch true_aggregate(sketch_len, seed);
 
   int nodecount = 1000;
-  std::vector<EulerTourTree> nodes;
-  nodes.reserve(nodecount);
+  EulerTourTree ett(nodecount, 0, seed);
 
   // Add value to each sketch, update the manual aggregate
   for (int i = 0; i < nodecount; i++)
   {
-    nodes.emplace_back(seed);
-    nodes[i].update_sketch((vec_t)i);
-    true_aggregate->update((vec_t)i);
+    ett.update_sketch(i, (vec_t)i);
+    true_aggregate.update((vec_t)i);
   }
 
   // Link all the ETT nodes
   for (int i = 0; i < nodecount-1; i++) {
-    nodes[i].link(nodes[i+1]);
+    ett.link(i, i+1);
   }
 
   // Check that the ETT aggregate is properly maintained and gotten
-  Sketch* aggregate = nodes[0].get_aggregate();
-  ASSERT_TRUE(*aggregate == *true_aggregate);
+  Sketch* aggregate = ett.get_aggregate(0);
+  ASSERT_TRUE(*aggregate == true_aggregate);
 }
