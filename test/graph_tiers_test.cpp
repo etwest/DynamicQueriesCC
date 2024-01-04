@@ -167,7 +167,6 @@ TEST(GraphTiersSuite, omp_speed_test) {
 
         GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
-        edgecount = 1000000;
         start = std::chrono::high_resolution_clock::now();
 
 	    START(timer);

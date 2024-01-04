@@ -1,6 +1,7 @@
 
 #include "../include/graph_tiers.h"
 #include "util.h"
+#include <random>
 #include <atomic>
 
 long lct_time = 0;
@@ -22,10 +23,15 @@ GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
 	// Initialize all the ETTs
+	std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+	dist(rng); // To give 1:1 correspondence with MPI seeds
 	for (uint32_t i = 0; i < num_tiers; i++) {
-		int seed = time(NULL)*i;
-		srand(seed);
-		std::cout << "Tier " << i << " seed: " << seed << std::endl;
+		int seed = dist(rng);
 		ett.emplace_back(num_nodes, i, seed);
 	}
 

@@ -9,8 +9,6 @@
 #include "mpi_functions.h"
 
 
-#define MAX_INT (std::numeric_limits<int>::max())
-
 enum TreeOperationType {
   NOT_ISOLATED=0, ISOLATED=1, EMPTY, LINK, CUT, LCT_QUERY
 };
