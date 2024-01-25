@@ -376,7 +376,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
     // Parameters
-    int update_batch_size = DEFAULT_BATCH_SIZE;
+    int update_batch_size = 1;//DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
@@ -386,6 +386,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     std::mt19937 rng(dev());
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
     int seed = dist(rng);
+    seed = 137258191;
     bcast(&seed, sizeof(int), 0);
     std::cout << "SEED: " << seed << std::endl;
     rng.seed(seed);

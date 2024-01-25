@@ -27,6 +27,7 @@ GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
     std::mt19937 rng(dev());
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
     int seed = dist(rng);
+	seed = 137258191;
     std::cout << "SEED: " << seed << std::endl;
     rng.seed(seed);
 	dist(rng); // To give 1:1 correspondence with MPI seeds

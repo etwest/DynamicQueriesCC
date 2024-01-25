@@ -94,3 +94,5 @@ public:
   ~TierNode();
   void main();
 };
+
+#define CANARY do {if (update.edge.src == 937 && update.edge.dst == 7781) std::cout << __FILE__ << ":" << __LINE__ << std::endl;} while (false)

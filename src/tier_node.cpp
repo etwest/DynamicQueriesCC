@@ -48,6 +48,7 @@ void TierNode::main() {
         for (uint32_t i = 0; i < num_updates; i++) {
             // Perform the sketch updating or root finding
             GraphUpdate update = update_buffer[i+1].update;
+            CANARY;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             split_revert_buffer[i] = false;
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
