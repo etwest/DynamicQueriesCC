@@ -52,6 +52,7 @@ void TierNode::main() {
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             split_revert_buffer[i] = false;
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
+                CANARY;
                 ett.cut(update.edge.src, update.edge.dst);
                 split_revert_buffer[i] = true;
             }
@@ -114,6 +115,7 @@ void TierNode::main() {
         // First undo all the sketch updates we did after isolated update
         for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
             GraphUpdate update = update_buffer[update_idx].update;
+            CANARY;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             // There could be a cut on a later update that needs to be rolled back
             unlikely_if (split_revert_buffer[update_idx-1])
@@ -127,6 +129,7 @@ void TierNode::main() {
         int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : num_updates+1;
         for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
             GraphUpdate update = update_buffer[update_idx].update;
+            CANARY;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
                 ett.cut(update.edge.src, update.edge.dst);

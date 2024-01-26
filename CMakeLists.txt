@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.15)
 project(DynamicQueriesCC)
 include (FetchContent)
 
+# Force IPO is enabled
+cmake_policy(SET CMP0069 NEW) 
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
