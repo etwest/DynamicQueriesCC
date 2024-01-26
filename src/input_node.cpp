@@ -45,7 +45,7 @@ void InputNode::process_updates() {
     // Do all the link cut tree cutting for things in the batch
     for (uint32_t i = 0; i < num_updates; i++) {
         GraphUpdate update = update_buffer[i+1].update;
-        CANARY;
+        CANARY("INPUT");
         split_revert_buffer[i] = MAX_INT;
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             split_revert_buffer[i] = link_cut_tree.get_edge_weight(update.edge.src, update.edge.dst);
