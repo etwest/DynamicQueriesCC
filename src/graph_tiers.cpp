@@ -106,6 +106,8 @@ void GraphTiers::refresh(GraphUpdate update) {
 	STOP(parallel_isolated_check, iso);
 	if (!isolated)
 		return;
+	if (update.type == DELETE)
+            std::cout << "UPDATE " << update.edge.src << " " << update.edge.dst << (update.type == DELETE ? " ==DELETE==":"") << std::endl;
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {

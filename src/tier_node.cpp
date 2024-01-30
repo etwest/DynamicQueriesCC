@@ -253,6 +253,7 @@ void TierNode::refresh_tier(RefreshMessage message) {
         link_message.endpoint2 = b;
         link_message.start_tier = tier_num;
         bcast(&link_message, sizeof(EttUpdateMessage), tier_num+1);
-        ett.link(a,b);
+        // Why were we including the current tier ???
+        //ett.link(a,b);
     }
 }

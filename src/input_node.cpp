@@ -80,6 +80,8 @@ void InputNode::process_updates() {
     int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : num_updates+1;
     for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
+        if (update.type == DELETE)
+            std::cout << "UPDATE " << update.edge.src << " " << update.edge.dst << (update.type == DELETE ? " ==DELETE==":"") << std::endl;
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
             link_cut_tree.cut(update.edge.src, update.edge.dst);
         uint32_t start_tier = 0;
@@ -118,7 +120,7 @@ void InputNode::process_updates() {
                     EttUpdateMessage update_message;
                     bcast(&update_message, sizeof(EttUpdateMessage), rank);
                     if (update_message.type == LINK) {
-                        link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
+                        link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier+1);
                         break;
                     } else if (update_message.type == CUT) {
                         link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
