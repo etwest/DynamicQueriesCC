@@ -53,6 +53,7 @@ void TierNode::main() {
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
                 ett.cut(update.edge.src, update.edge.dst);
                 split_revert_buffer[i] = true;
+                CANARY("CUT 1");
             }
             SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
             SkipListNode* root2 = ett.update_sketch(update.edge.dst, (vec_t)edge);
@@ -117,8 +118,10 @@ void TierNode::main() {
             GraphUpdate update = update_buffer[update_idx].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             // There could be a cut on a later update that needs to be rolled back
-            unlikely_if (split_revert_buffer[update_idx-1])
+            unlikely_if (split_revert_buffer[update_idx-1]) {
+                CANARY("LINK");
                 ett.link(update.edge.src, update.edge.dst);
+            }
             ett.update_sketch(update.edge.src, (vec_t)edge);
             ett.update_sketch(update.edge.dst, (vec_t)edge);
         }
@@ -130,6 +133,7 @@ void TierNode::main() {
             GraphUpdate update = update_buffer[update_idx].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
+                CANARY("CUT 2");
                 ett.cut(update.edge.src, update.edge.dst);
             }
             SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
@@ -198,7 +202,7 @@ void TierNode::update_tier(GraphUpdate update) {
 void TierNode::ett_update_tier(EttUpdateMessage message) {
     if (message.type == LINK && tier_num > message.start_tier) {
         ett.link(message.endpoint1, message.endpoint2);
-    } else if (message.type == CUT && tier_num > message.start_tier) {
+    } else if (message.type == CUT && tier_num >= message.start_tier) {
         ett.cut(message.endpoint1, message.endpoint2);
     }
 }

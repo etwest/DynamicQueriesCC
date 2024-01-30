@@ -5,6 +5,7 @@
 #include <atomic>
 
 #define CANARY(X) do {if (update.edge.src == 937 && update.edge.dst == 7781) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
+//#define CANARY(X) do {if (update.edge.src == 1784 && update.edge.dst == 4420) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
 
 long lct_time = 0;
 long ett_time = 0;
@@ -81,6 +82,8 @@ void GraphTiers::refresh(GraphUpdate update) {
 			SketchSample query_result1 = ett_agg1->sample();
 			if (query_result1.result == GOOD) {
 				isolated = true;
+        uint32_t tier_size2 = root_nodes[2*tier+1]->size;
+        CANARY("1 Size: (" << tier_size1 << ", " << tier_size2 << ")");
 				continue;
 			}
 		}
@@ -94,10 +97,11 @@ void GraphTiers::refresh(GraphUpdate update) {
 			SketchSample query_result2 = ett_agg2->sample();
 			if (query_result2.result == GOOD) {
 				isolated = true;
+        CANARY("2 Size: (" << tier_size1 << ", " << tier_size2 << ")");
 				continue;
 			}
 		}
-    CANARY("Size: (" << tier_size1 << ", " << tier_size1 << ")");
+    CANARY("Size: (" << tier_size1 << ", " << tier_size2 << ")");
 	}
 	STOP(parallel_isolated_check, iso);
 	if (!isolated)
