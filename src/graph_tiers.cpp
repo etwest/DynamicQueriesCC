@@ -4,8 +4,10 @@
 #include <random>
 #include <atomic>
 
-#define CANARY(X) do {if (update.edge.src == 937 && update.edge.dst == 7781) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
-//#define CANARY(X) do {if (update.edge.src == 1784 && update.edge.dst == 4420) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
+// #define CANARY(X) do {if (update.edge.src == 1784 && update.edge.dst == 4420) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
+// #define CANARY(X) do {if (update.edge.src == 937 && update.edge.dst == 7781) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
+#define CANARY(X) do {if (update.edge.src == 7781 && update.edge.dst == 641) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
+// #define CANARY(X) ;
 
 long lct_time = 0;
 long ett_time = 0;
@@ -17,9 +19,6 @@ long refresh_time = 0;
 long parallel_isolated_check = 0;
 long tiers_grown = 0;
 
-edge_id_t vertices_to_edge(node_id_t a, node_id_t b) {
-   return a<b ? (((edge_id_t)a)<<32) + ((edge_id_t)b) : (((edge_id_t)b)<<32) + ((edge_id_t)a);
-};
 
 GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
 	// Algorithm parameters
@@ -45,7 +44,7 @@ GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
 GraphTiers::~GraphTiers() {}
 
 void GraphTiers::update(GraphUpdate update) {
-	edge_id_t edge = vertices_to_edge(update.edge.src, update.edge.dst);
+	edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
 	// Update the sketches of both endpoints of the edge in all tiers
 	if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
 		link_cut_tree.cut(update.edge.src, update.edge.dst);
@@ -80,10 +79,11 @@ void GraphTiers::refresh(GraphUpdate update) {
 			Sketch* ett_agg1 = root_nodes[2*tier]->sketch_agg;
 			ett_agg1->reset_sample_state();
 			SketchSample query_result1 = ett_agg1->sample();
+			CANARY("Query Result 1: (" << query_result1.result << ")" << " Sketch Seed: " << ett_agg1->get_seed());
 			if (query_result1.result == GOOD) {
 				isolated = true;
-        uint32_t tier_size2 = root_nodes[2*tier+1]->size;
-        CANARY("1 Size: (" << tier_size1 << ", " << tier_size2 << ")");
+				uint32_t tier_size2 = root_nodes[2*tier+1]->size;
+				CANARY("1 Size: (" << tier_size1 << ", " << tier_size2 << ")");
 				continue;
 			}
 		}
@@ -95,9 +95,10 @@ void GraphTiers::refresh(GraphUpdate update) {
 			Sketch* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
 			ett_agg2->reset_sample_state();
 			SketchSample query_result2 = ett_agg2->sample();
+			CANARY("Query Result 2: (" << query_result2.result << ")");
 			if (query_result2.result == GOOD) {
 				isolated = true;
-        CANARY("2 Size: (" << tier_size1 << ", " << tier_size2 << ")");
+      		  	CANARY("2 Size: (" << tier_size1 << ", " << tier_size2 << ")");
 				continue;
 			}
 		}
@@ -106,8 +107,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 	STOP(parallel_isolated_check, iso);
 	if (!isolated)
 		return;
-	if (update.type == DELETE)
-            std::cout << "UPDATE " << update.edge.src << " " << update.edge.dst << (update.type == DELETE ? " ==DELETE==":"") << std::endl;
+	std::cout << "ISOLATED UPDATE " << update.edge.src << " " << update.edge.dst << (update.type == DELETE ? " ==DELETE==":"") << std::endl;
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
@@ -158,6 +158,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 				for (uint32_t i = max.second; i < ett.size(); i++) {
 					ett[i].cut(c,d);
 				}
+				std::cout << "CUT(" << c << "," << d << ") ON TIERS >= " << max.second << std::endl;
 				STOP(ett_time, ett1);
 				START(lct3);
 				link_cut_tree.cut(c,d);
@@ -170,6 +171,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 			for (uint32_t i = tier+1; i < ett.size(); i++) {
 				ett[i].link(a,b);
 			}
+			std::cout << "LINK(" << a << "," << b << ") ON TIERS >= " << tier+1 << std::endl;
 			STOP(ett_time, ett2);
 			START(lct4);
 			link_cut_tree.link(a,b, tier+1);
