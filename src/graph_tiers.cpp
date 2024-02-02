@@ -83,7 +83,6 @@ void GraphTiers::refresh(GraphUpdate update) {
 			Sketch* ett_agg1 = root_nodes[2*tier]->sketch_agg;
 			ett_agg1->reset_sample_state();
 			SketchSample query_result1 = ett_agg1->sample();
-			CANARY("Query Result 1: (" << query_result1.result << ")" << " Sketch Seed: " << ett_agg1->get_seed());
 			if (query_result1.result == GOOD) {
 				isolated = true;
 				uint32_t tier_size2 = root_nodes[2*tier+1]->size;
@@ -99,7 +98,6 @@ void GraphTiers::refresh(GraphUpdate update) {
 			Sketch* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
 			ett_agg2->reset_sample_state();
 			SketchSample query_result2 = ett_agg2->sample();
-			CANARY("Query Result 2: (" << query_result2.result << ")");
 			if (query_result2.result == GOOD) {
 				isolated = true;
       		  	CANARY("2 Size: (" << tier_size1 << ", " << tier_size2 << ")");
@@ -143,6 +141,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 			edge_id_t edge = query_result.idx;
 			node_id_t a = (node_id_t)edge;
 			node_id_t b = (node_id_t)(edge>>32);
+			CANARY("Query Result: (" << a << "," << b << ")");
 
 			// Check if a path exists between the edge's endpoints
 			START(lct1);
@@ -176,7 +175,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 			#pragma omp parallel for
 			for (uint32_t i = tier+1; i < ett.size(); i++) {
 				ett[i].link(a,b);
-				ENDPOINT_CANARY("Linking ETT With", i, update.edge.src, update.edge.dst);
+				ENDPOINT_CANARY("Linking ETT With", i, a, b);
 			}
 			// std::cout << "LINK(" << a << "," << b << ") ON TIERS >= " << tier+1 << std::endl;
 			STOP(ett_time, ett2);
