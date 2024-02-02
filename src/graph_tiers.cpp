@@ -6,8 +6,10 @@
 
 // #define CANARY(X) do {if (update.edge.src == 1784 && update.edge.dst == 4420) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
 // #define CANARY(X) do {if (update.edge.src == 937 && update.edge.dst == 7781) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
-#define CANARY(X) do {if (update.edge.src == 7781 && update.edge.dst == 641) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
-// #define CANARY(X) ;
+// #define CANARY(X) do {if (update.edge.src == 7781 && update.edge.dst == 641) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
+#define CANARY(X) ;
+#define ENDPOINT_CANARY(X, tier_num, src, dst) do {if (tier_num == 1 && (src == 7781 || dst == 7781)) {std::cout << __FILE__ << ":" << __LINE__ << " says " << X << " " << src << " " << dst << std::endl;}} while (false)
+
 
 long lct_time = 0;
 long ett_time = 0;
@@ -54,9 +56,11 @@ void GraphTiers::update(GraphUpdate update) {
 	for (uint32_t i = 0; i < ett.size(); i++) {
 		if (update.type == DELETE && ett[i].has_edge(update.edge.src, update.edge.dst)) {
 			ett[i].cut(update.edge.src, update.edge.dst);
+			ENDPOINT_CANARY("Cutting ETT With", i, update.edge.src, update.edge.dst);
 		}
 		root_nodes[2*i] = ett[i].update_sketch(update.edge.src, (vec_t)edge);
 		root_nodes[2*i+1] = ett[i].update_sketch(update.edge.dst, (vec_t)edge);
+		ENDPOINT_CANARY("Updating Sketch With", i, update.edge.src, update.edge.dst);
 	}
 	STOP(sketch_time, su);
 	// Refresh the data structure
@@ -107,6 +111,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 	STOP(parallel_isolated_check, iso);
 	if (!isolated)
 		return;
+	if (update.type == DELETE)
 	std::cout << "ISOLATED UPDATE " << update.edge.src << " " << update.edge.dst << (update.type == DELETE ? " ==DELETE==":"") << std::endl;
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
@@ -157,8 +162,9 @@ void GraphTiers::refresh(GraphUpdate update) {
 				#pragma omp parallel for
 				for (uint32_t i = max.second; i < ett.size(); i++) {
 					ett[i].cut(c,d);
+					ENDPOINT_CANARY("Cutting ETT With", i, c, d);
 				}
-				std::cout << "CUT(" << c << "," << d << ") ON TIERS >= " << max.second << std::endl;
+				// std::cout << "CUT(" << c << "," << d << ") ON TIERS >= " << max.second << std::endl;
 				STOP(ett_time, ett1);
 				START(lct3);
 				link_cut_tree.cut(c,d);
@@ -170,8 +176,9 @@ void GraphTiers::refresh(GraphUpdate update) {
 			#pragma omp parallel for
 			for (uint32_t i = tier+1; i < ett.size(); i++) {
 				ett[i].link(a,b);
+				ENDPOINT_CANARY("Linking ETT With", i, update.edge.src, update.edge.dst);
 			}
-			std::cout << "LINK(" << a << "," << b << ") ON TIERS >= " << tier+1 << std::endl;
+			// std::cout << "LINK(" << a << "," << b << ") ON TIERS >= " << tier+1 << std::endl;
 			STOP(ett_time, ett2);
 			START(lct4);
 			link_cut_tree.link(a,b, tier+1);

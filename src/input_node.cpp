@@ -80,7 +80,8 @@ void InputNode::process_updates() {
     int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : num_updates+1;
     for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
-        // std::cout << "ISOLATED UPDATE " << update.edge.src << " " << update.edge.dst << (update.type == DELETE ? " ==DELETE==":"") << std::endl;
+        if (update.type == DELETE)
+        std::cout << "ISOLATED UPDATE " << update.edge.src << " " << update.edge.dst << (update.type == DELETE ? " ==DELETE==":"") << std::endl;
         // unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
         //     link_cut_tree.cut(update.edge.src, update.edge.dst);
         uint32_t start_tier = 0;
@@ -95,6 +96,7 @@ void InputNode::process_updates() {
         MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, start_tier+1, 0, MPI_COMM_WORLD);
         for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
             int rank = tier + 1;
+            if (tier != 0)
             for (auto endpoint : {0,1}) {
                 std::ignore = endpoint;
                 // Receive a broadcast to see if the current tier/endpoint is isolated or not
@@ -120,13 +122,13 @@ void InputNode::process_updates() {
                     bcast(&update_message, sizeof(EttUpdateMessage), rank);
                     if (update_message.type == LINK) {
                         link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier+1);
-                        std::cout << "LINK(" << update_message.endpoint1 << "," << update_message.endpoint2
-                        << ") ON TIERS >= " << update_message.start_tier << std::endl;
+                        // std::cout << "LINK(" << update_message.endpoint1 << "," << update_message.endpoint2
+                        // << ") ON TIERS >= " << update_message.start_tier << std::endl;
                         break;
                     } else if (update_message.type == CUT) {
                         link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
-                        std::cout << "CUT(" << update_message.endpoint1 << "," << update_message.endpoint2
-                        << ") ON TIERS >= " << update_message.start_tier << std::endl;
+                        // std::cout << "CUT(" << update_message.endpoint1 << "," << update_message.endpoint2
+                        // << ") ON TIERS >= " << update_message.start_tier << std::endl;
                     }
                 }
             }

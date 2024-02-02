@@ -52,10 +52,12 @@ void TierNode::main() {
             split_revert_buffer[i] = false;
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
                 ett.cut(update.edge.src, update.edge.dst);
+                ENDPOINT_CANARY("Cutting ETT With", update.edge.src, update.edge.dst);
                 split_revert_buffer[i] = true;
             }
             SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
             SkipListNode* root2 = ett.update_sketch(update.edge.dst, (vec_t)edge);
+            ENDPOINT_CANARY("Updating Sketch With", update.edge.src, update.edge.dst);
             root1->process_updates();
             root1->sketch_agg->reset_sample_state();
             query_result_buffer[2*i] = root1->sketch_agg->sample().result;
@@ -69,6 +71,7 @@ void TierNode::main() {
             this_sizes.size2 = root2->size;
             this_sizes_buffer[i] = this_sizes;
             CANARY("Size: (" << this_sizes.size1 << ", " << this_sizes.size2 << ")");
+            CANARY("Query Result: (" << query_result_buffer[2*i] << ", " << query_result_buffer[2*i+1] << ")");
         }
         STOP(sketch_update_time, sketch_update_timer);
         START(size_message_passing_timer);
@@ -145,7 +148,8 @@ void TierNode::main() {
                     RefreshMessage refresh_message;
                     int source = (tier == start_tier) ? 0 : tier_num;
                     MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    refresh_tier(refresh_message);
+                    if (tier != 0)
+                        refresh_tier(refresh_message);
                     // Send a refresh message to the next tier
                     if (tier < num_tiers-1) {
                         RefreshEndpoint e1, e2;
@@ -166,6 +170,7 @@ void TierNode::main() {
                     continue;
                 }
                 // For every other tier just receive and perform update messages
+                if (tier != 0)
                 for (int endpoint : {0,1}) {
                     std::ignore = endpoint;
                     // Receive a broadcast to see if the endpoint at the current tier is isolated or not
@@ -187,20 +192,22 @@ void TierNode::main() {
     }
 }
 
-void TierNode::update_tier(GraphUpdate update) {
-    edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
-    ett.update_sketch(update.edge.src, (vec_t)edge);
-    ett.update_sketch(update.edge.dst, (vec_t)edge);
-    unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
-        ett.cut(update.edge.src, update.edge.dst);
-    }
-}
+// void TierNode::update_tier(GraphUpdate update) {
+//     edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
+//     ett.update_sketch(update.edge.src, (vec_t)edge);
+//     ett.update_sketch(update.edge.dst, (vec_t)edge);
+//     unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
+//         ett.cut(update.edge.src, update.edge.dst);
+//     }
+// }
 
 void TierNode::ett_update_tier(EttUpdateMessage message) {
-    if (message.type == LINK && tier_num > message.start_tier) {
+    if (message.type == LINK && tier_num >= message.start_tier) {
         ett.link(message.endpoint1, message.endpoint2);
+        ENDPOINT_CANARY("Linking ETT With", message.endpoint1, message.endpoint2);
     } else if (message.type == CUT && tier_num >= message.start_tier) {
         ett.cut(message.endpoint1, message.endpoint2);
+        ENDPOINT_CANARY("Cutting ETT With", message.endpoint1, message.endpoint2);
     }
 }
 
@@ -239,8 +246,10 @@ void TierNode::refresh_tier(RefreshMessage message) {
             cut_message.start_tier = lct_response.weight;
             bcast(&cut_message, sizeof(EttUpdateMessage), tier_num+1);
 
-            if (tier_num >= lct_response.weight)
+            if (tier_num >= lct_response.weight) {
                 ett.cut(c,d);
+                ENDPOINT_CANARY("Cutting ETT With", c, d);
+            }
         }
 
         // Tell all nodes above and including the current tier to add the new edge
@@ -250,7 +259,7 @@ void TierNode::refresh_tier(RefreshMessage message) {
         link_message.endpoint2 = b;
         link_message.start_tier = tier_num;
         bcast(&link_message, sizeof(EttUpdateMessage), tier_num+1);
-        // Why were we including the current tier ???
-        //ett.link(a,b);
+        ett.link(a,b);
+        ENDPOINT_CANARY("Linking ETT With", a, b);
     }
 }
