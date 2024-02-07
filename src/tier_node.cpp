@@ -116,16 +116,16 @@ void TierNode::main() {
         if (minimum_isolated_update == MAX_INT)
             continue;
         // First undo all the sketch updates we did after isolated update
-        // for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
-        //     GraphUpdate update = update_buffer[update_idx].update;
-        //     edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
-        //     // There could be a cut on a later update that needs to be rolled back
-        //     unlikely_if (split_revert_buffer[update_idx-1]) {
-        //         ett.link(update.edge.src, update.edge.dst);
-        //     }
-        //     ett.update_sketch(update.edge.src, (vec_t)edge);
-        //     ett.update_sketch(update.edge.dst, (vec_t)edge);
-        // }
+        for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
+            GraphUpdate update = update_buffer[update_idx].update;
+            edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
+            // There could be a cut on a later update that needs to be rolled back
+            unlikely_if (split_revert_buffer[update_idx-1]) {
+                ett.link(update.edge.src, update.edge.dst);
+            }
+            ett.update_sketch(update.edge.src, (vec_t)edge);
+            ett.update_sketch(update.edge.dst, (vec_t)edge);
+        }
         // ======================================================================================
         // =========================== PROCESS THE ISOLATED UPDATES ===============+=============
         // ======================================================================================
@@ -133,11 +133,11 @@ void TierNode::main() {
         for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
             GraphUpdate update = update_buffer[update_idx].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
-            // unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
-            //     ett.cut(update.edge.src, update.edge.dst);
-            // }
-            // SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
-            // SkipListNode* root2 = ett.update_sketch(update.edge.dst, (vec_t)edge);
+            unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
+                ett.cut(update.edge.src, update.edge.dst);
+            }
+            SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
+            SkipListNode* root2 = ett.update_sketch(update.edge.dst, (vec_t)edge);
             uint32_t start_tier = 0;
             // Start the refreshing sequence
             START(normal_refresh_timer);

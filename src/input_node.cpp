@@ -62,12 +62,12 @@ void InputNode::process_updates() {
         return;
     }
     // First undo all the link cut tree cuts we did after isolated update
-    // for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
-    //     GraphUpdate update = update_buffer[update_idx].update;
-    //     // There could be a cut on a later update that needs to be rolled back
-    //     unlikely_if (split_revert_buffer[update_idx-1] != MAX_INT)
-    //         link_cut_tree.link(update.edge.src, update.edge.dst, split_revert_buffer[update_idx-1]);
-    // }
+    for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
+        GraphUpdate update = update_buffer[update_idx].update;
+        // There could be a cut on a later update that needs to be rolled back
+        unlikely_if (split_revert_buffer[update_idx-1] != MAX_INT)
+            link_cut_tree.link(update.edge.src, update.edge.dst, split_revert_buffer[update_idx-1]);
+    }
     // Update the isolation history
     for (uint32_t i = 1; i < minimum_isolated_update; i++) {
         isolation_count -= (int)isolation_history_queue.front();
@@ -80,10 +80,8 @@ void InputNode::process_updates() {
     int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : num_updates+1;
     for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
-        if (update.type == DELETE)
-        std::cout << "ISOLATED UPDATE " << update.edge.src << " " << update.edge.dst << (update.type == DELETE ? " ==DELETE==":"") << std::endl;
-        // unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
-        //     link_cut_tree.cut(update.edge.src, update.edge.dst);
+        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
+            link_cut_tree.cut(update.edge.src, update.edge.dst);
         uint32_t start_tier = 0;
         normal_refreshes++;
         bool this_update_isolated = false;

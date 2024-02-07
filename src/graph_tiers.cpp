@@ -6,10 +6,10 @@
 
 // #define CANARY(X) do {if (update.edge.src == 1784 && update.edge.dst == 4420) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
 // #define CANARY(X) do {if (update.edge.src == 937 && update.edge.dst == 7781) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
-#define CANARY(X) do {if (update.edge.src == 7781 && update.edge.dst == 641) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
-// #define CANARY(X) ;
-#define ENDPOINT_CANARY(X, src, dst) do {if ((src == 7781 || dst == 7781)) {std::cout << __FILE__ << ":" << __LINE__ << " says " << X << " " << src << " " << dst << std::endl;}} while (false)
-
+// #define CANARY(X) do {if (update.edge.src == 7781 && update.edge.dst == 641) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
+#define CANARY(X) ;
+// #define ENDPOINT_CANARY(X, src, dst) do {if ((src == 7781 || dst == 7781)) {std::cout << __FILE__ << ":" << __LINE__ << " says " << X << " " << src << " " << dst << std::endl;}} while (false)
+#define ENDPOINT_CANARY(X, src, dst) ;
 
 long lct_time = 0;
 long ett_time = 0;
@@ -111,8 +111,6 @@ void GraphTiers::refresh(GraphUpdate update) {
 	STOP(parallel_isolated_check, iso);
 	if (!isolated)
 		return;
-	if (update.type == DELETE)
-	std::cout << "ISOLATED UPDATE " << update.edge.src << " " << update.edge.dst << (update.type == DELETE ? " ==DELETE==":"") << std::endl;
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {

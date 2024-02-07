@@ -13,7 +13,7 @@
 
 
 const int DEFAULT_BATCH_SIZE = 100;
-const vec_t DEFAULT_SKETCH_ERR = 1;
+const vec_t DEFAULT_SKETCH_ERR = 2;
 
 TEST(GraphTiersSuite, mpi_mini_correctness_test) {
     int world_rank_buf;
@@ -376,7 +376,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
     // Parameters
-    int update_batch_size = 1;//DEFAULT_BATCH_SIZE;
+    int update_batch_size = DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;

@@ -97,6 +97,7 @@ public:
 
 // #define CANARY(X) do {if (update.edge.src == 1784 && update.edge.dst == 4420) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ " << canary_h << " says " << X << std::endl;}} while (false)
 // #define CANARY(X) do {if (update.edge.src == 937 && update.edge.dst == 7781) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ " << canary_h << " says " << X << std::endl;}} while (false)
-#define CANARY(X) do {if (update.edge.src == 7781 && update.edge.dst == 641) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ Tier " << canary_h-1 << " says " << X << std::endl;}} while (false)
-// #define CANARY(X) ;
-#define ENDPOINT_CANARY(X, src, dst) do {if (tier_num == 0 && (src == 7781 || dst == 7781)) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ Tier " << canary_h-1 << " says " << X << " " << src << " " << dst << std::endl;}} while (false)
+// #define CANARY(X) do {if (update.edge.src == 7781 && update.edge.dst == 641) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ Tier " << canary_h-1 << " says " << X << std::endl;}} while (false)
+#define CANARY(X) ;
+// #define ENDPOINT_CANARY(X, src, dst) do {if (tier_num == 0 && (src == 7781 || dst == 7781)) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ Tier " << canary_h-1 << " says " << X << " " << src << " " << dst << std::endl;}} while (false)
+# define ENDPOINT_CANARY(X, src, dst) ;
