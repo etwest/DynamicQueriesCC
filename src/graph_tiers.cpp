@@ -7,9 +7,11 @@
 // #define CANARY(X) do {if (update.edge.src == 1784 && update.edge.dst == 4420) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
 // #define CANARY(X) do {if (update.edge.src == 937 && update.edge.dst == 7781) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
 // #define CANARY(X) do {if (update.edge.src == 7781 && update.edge.dst == 641) { std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
-#define CANARY(X) ;
+#define CANARY(X) do {{ std::cout << __FILE__ << ":" << __LINE__ << " says " << X << std::endl;}} while (false)
+// #define CANARY(X) ;
 // #define ENDPOINT_CANARY(X, src, dst) do {if ((src == 7781 || dst == 7781)) {std::cout << __FILE__ << ":" << __LINE__ << " says " << X << " " << src << " " << dst << std::endl;}} while (false)
-#define ENDPOINT_CANARY(X, src, dst) ;
+#define ENDPOINT_CANARY(X, src, dst) do {{std::cout << __FILE__ << ":" << __LINE__ << " says " << X << " " << src << " " << dst << std::endl;}} while (false)
+// #define ENDPOINT_CANARY(X, src, dst) ;
 
 long lct_time = 0;
 long ett_time = 0;
