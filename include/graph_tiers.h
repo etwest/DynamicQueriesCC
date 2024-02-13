@@ -18,6 +18,7 @@ extern long sketch_time;
 extern long refresh_time;
 extern long parallel_isolated_check;
 extern long tiers_grown;
+extern long normal_refreshes;
 extern std::atomic<long> num_sketch_updates;
 extern std::atomic<long> num_sketch_batches;
 

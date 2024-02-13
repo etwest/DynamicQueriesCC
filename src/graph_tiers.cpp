@@ -22,6 +22,7 @@ long sketch_time = 0;
 long refresh_time = 0;
 long parallel_isolated_check = 0;
 long tiers_grown = 0;
+long normal_refreshes = 0;
 
 
 GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
@@ -113,6 +114,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 	STOP(parallel_isolated_check, iso);
 	if (!isolated)
 		return;
+	normal_refreshes++;
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
