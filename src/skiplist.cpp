@@ -196,7 +196,8 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	if (!left) return right->get_root();
 	if (!right) return left->get_root();
 
-	long seed = left->get_parent()->sketch_agg->get_seed();
+	long seed = left->sketch_agg ? left->sketch_agg->get_seed()
+	 : left->get_parent()->sketch_agg->get_seed();
 
 	SkipListNode* l_curr = left->get_last();
 	SkipListNode* r_curr = right->get_first(); // this is the bottom boundary node
@@ -205,7 +206,6 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	SkipListNode* r_prev = nullptr;
 	
 	// Go up levels. link pointers, add aggregates
-	std::cout << "================JOIN=================" << std::endl;
 	while (l_curr && r_curr) {
 		// Fix right pointer and add agg
 		l_curr->right = r_curr->right; // skip over boundary node
@@ -215,7 +215,6 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 			l_curr->sketch_agg->merge(*r_curr->sketch_agg);
 		l_curr->size += r_curr->size-1;
 
-		if (r_prev) std::cout << "DELETING R_PREV SKETCH: " << r_prev->sketch_agg << " R_PREV.DOWN: " << r_prev->down << std::endl;
 		if (r_prev) delete r_prev; // Delete old boundary nodes
 		l_prev = l_curr;
 		r_prev = r_curr;

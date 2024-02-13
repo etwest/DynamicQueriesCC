@@ -81,9 +81,10 @@ void EulerTourNode::delete_edge(EulerTourNode* other, Sketch* temp_sketch) {
   this->edges.erase(other);
   if (node_to_delete == allowed_caller) {
     if (this->edges.empty()) {
-      allowed_caller->process_updates();
-      temp_sketch->merge(*allowed_caller->sketch_agg);
       allowed_caller = nullptr;
+      node_to_delete->process_updates();
+      std::cout << node_to_delete << std::endl;
+      temp_sketch->merge(*node_to_delete->sketch_agg);
     } else {
       allowed_caller = this->edges.begin()->second;
       node_to_delete->process_updates();
@@ -147,7 +148,7 @@ bool EulerTourNode::link(EulerTourNode& other, Sketch* temp_sketch) {
   SkipListNode* aux_this_right = this->edges.begin()->second;
   SkipListNode* aux_this_left = SkipListNode::split_left(aux_this_right);
 
-  // Unlink and destory other_sentinel
+  // Unlink and destroy other_sentinel
   SkipListNode* aux_other = SkipListNode::split_left(other_sentinel);
   other_sentinel->node->delete_edge(nullptr, temp_sketch);
 
