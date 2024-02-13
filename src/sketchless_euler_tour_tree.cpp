@@ -168,3 +168,19 @@ bool SketchlessEulerTourNode::cut(SketchlessEulerTourNode& other) {
 
   return true;
 }
+std::vector<std::set<node_id_t>> SketchlessEulerTourTree::cc_query() {
+  std::vector<std::set<node_id_t>> cc;
+	std::set<SketchlessEulerTourNode*> visited;
+	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
+		if (visited.find(&ett_nodes[i]) == visited.end()) {
+			std::set<SketchlessEulerTourNode*> pointer_component = ett_nodes[i].get_component();
+			std::set<node_id_t> component;
+			for (auto pointer : pointer_component) {
+				component.insert(pointer->vertex);
+				visited.insert(pointer);
+			}
+			cc.push_back(component);
+		}
+	}
+	return cc; 
+}

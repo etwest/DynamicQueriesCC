@@ -168,20 +168,7 @@ bool InputNode::connectivity_query(node_id_t a, node_id_t b) {
 
 std::vector<std::set<node_id_t>> InputNode::cc_query() {
     process_all_updates();
-    std::vector<std::set<node_id_t>> cc;
-	std::set<SketchlessEulerTourNode*> visited;
-	for (uint32_t i = 0; i < query_ett.ett_nodes.size(); i++) {
-		if (visited.find(&query_ett.ett_nodes[i]) == visited.end()) {
-			std::set<SketchlessEulerTourNode*> pointer_component = query_ett.ett_nodes[i].get_component();
-			std::set<node_id_t> component;
-			for (auto pointer : pointer_component) {
-				component.insert(pointer->vertex);
-				visited.insert(pointer);
-			}
-			cc.push_back(component);
-		}
-	}
-	return cc; 
+    return query_ett.cc_query();
 }
 
 void InputNode::end() {

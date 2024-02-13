@@ -51,4 +51,5 @@ public:
   bool has_edge(node_id_t u, node_id_t v);
   SketchlessSkipListNode* get_root(node_id_t u);
   bool is_connected(node_id_t u, node_id_t v);
+  std::vector<std::set<node_id_t>> cc_query();
 };
