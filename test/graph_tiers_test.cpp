@@ -177,7 +177,7 @@ TEST(GraphTiersSuite, omp_speed_test) {
             unlikely_if (i % 100000 == 0) {
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                std::cout << "Update " << i << ", Time:  " << duration.count() << std::endl;
+                std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             }
         }
 	    STOP(time, timer);

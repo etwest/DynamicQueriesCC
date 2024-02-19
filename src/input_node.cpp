@@ -84,6 +84,8 @@ void InputNode::process_updates() {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
         uint32_t start_tier = 0;
         normal_refreshes++;
+        std::cout << "ISOLATED UPDATE: (" << update.edge.src << "," << update.edge.dst << ") "
+	    << (update.type == DELETE ? "DELETE" : "INSERT") << std::endl;
         bool this_update_isolated = false;
         // Initiate the refresh sequence and receive all the broadcasts
         RefreshEndpoint e1, e2;
