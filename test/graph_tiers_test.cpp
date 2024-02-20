@@ -9,7 +9,7 @@
 #include "mat_graph_verifier.h"
 #include "util.h"
 
-const vec_t DEFAULT_SKETCH_ERR = 4;
+const vec_t DEFAULT_SKETCH_ERR = 1;
 
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
