@@ -137,7 +137,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     SkipListNode* sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
     if (aggs.find(sentinel) == aggs.end())
     {
-      Sketch* agg = new Sketch(sketch_len, seed);
+      Sketch* agg = new Sketch(sketch_len, seed, 1, sketch_err);
       aggs.insert({sentinel, agg});
       SkipListNode* sentinel_root = sentinel->get_root();
       sentinel_root->process_updates();
@@ -160,7 +160,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     }
     else
     {
-      Sketch* agg = new Sketch(sketch_len, seed);
+      Sketch* agg = new Sketch(sketch_len, seed, 1, sketch_err);
       naive_aggs.insert({sentinel, agg});
       naive_aggs[sentinel]->merge(*ett.ett_nodes[i].allowed_caller->sketch_agg);
       naive_sizes[sentinel] = 1;

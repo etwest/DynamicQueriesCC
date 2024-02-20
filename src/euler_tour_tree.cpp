@@ -83,8 +83,9 @@ void EulerTourNode::delete_edge(EulerTourNode* other, Sketch* temp_sketch) {
     if (this->edges.empty()) {
       allowed_caller = nullptr;
       node_to_delete->process_updates();
-      std::cout << node_to_delete << std::endl;
+      // std::cout << node_to_delete << std::endl;
       temp_sketch->merge(*node_to_delete->sketch_agg);
+      node_to_delete->sketch_agg = nullptr;
     } else {
       allowed_caller = this->edges.begin()->second;
       node_to_delete->process_updates();
