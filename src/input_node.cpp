@@ -121,7 +121,7 @@ void InputNode::process_updates() {
                     EttUpdateMessage update_message;
                     bcast(&update_message, sizeof(EttUpdateMessage), rank);
                     if (update_message.type == LINK) {
-                        link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier+1);
+                        link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
                         // std::cout << "LINK(" << update_message.endpoint1 << "," << update_message.endpoint2
                         // << ") ON TIERS >= " << update_message.start_tier << std::endl;
                         break;
