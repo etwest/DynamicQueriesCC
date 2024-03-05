@@ -9,7 +9,7 @@ EulerTourTree::EulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed) {
         ett_nodes.emplace_back(seed, i, tier_num);
     }
     // Initialize the temp_sketch
-    this->temp_sketch = new Sketch(sketch_len, seed);
+    this->temp_sketch = new Sketch(sketch_len, seed, 1, sketch_err);
 }
 
 void EulerTourTree::link(node_id_t u, node_id_t v) {
@@ -59,13 +59,16 @@ EulerTourNode::~EulerTourNode() {
 SkipListNode* EulerTourNode::make_edge(EulerTourNode* other, Sketch* temp_sketch) {
   assert(!other || this->tier == other->tier);
   //Constructing a new SkipListNode with pointer to this ETT object
-  SkipListNode* node = SkipListNode::init_element(this);
+  SkipListNode* node;
   if (allowed_caller == nullptr) {
+    node = SkipListNode::init_element(this, true);
     allowed_caller = node;
     if (temp_sketch != nullptr) {
       node->update_path_agg(temp_sketch);
       temp_sketch->zero_contents();
     }
+  } else {
+    node = SkipListNode::init_element(this, false);
   }
   //Add the new SkipListNode to the edge list
   return this->edges.emplace(std::make_pair(other, node)).first->second;
@@ -78,13 +81,16 @@ void EulerTourNode::delete_edge(EulerTourNode* other, Sketch* temp_sketch) {
   this->edges.erase(other);
   if (node_to_delete == allowed_caller) {
     if (this->edges.empty()) {
-      allowed_caller->process_updates();
-      temp_sketch->merge(*allowed_caller->sketch_agg);
       allowed_caller = nullptr;
+      node_to_delete->process_updates();
+      // std::cout << node_to_delete << std::endl;
+      temp_sketch->merge(*node_to_delete->sketch_agg);
+      node_to_delete->sketch_agg = nullptr;
     } else {
       allowed_caller = this->edges.begin()->second;
       node_to_delete->process_updates();
       allowed_caller->update_path_agg(node_to_delete->sketch_agg);
+      node_to_delete->sketch_agg = nullptr; // We just gave the sketch to new allowed caller
     }
   }
   node_to_delete->uninit_element(true);
@@ -143,7 +149,7 @@ bool EulerTourNode::link(EulerTourNode& other, Sketch* temp_sketch) {
   SkipListNode* aux_this_right = this->edges.begin()->second;
   SkipListNode* aux_this_left = SkipListNode::split_left(aux_this_right);
 
-  // Unlink and destory other_sentinel
+  // Unlink and destroy other_sentinel
   SkipListNode* aux_other = SkipListNode::split_left(other_sentinel);
   other_sentinel->node->delete_edge(nullptr, temp_sketch);
 

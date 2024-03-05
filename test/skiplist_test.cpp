@@ -32,7 +32,7 @@ int SkipListNode::print_list() {
 }
 
 bool aggregate_correct(SkipListNode* node) {
-    Sketch* naive_agg = new Sketch(sketch_len, node->node->get_seed());
+    Sketch* naive_agg = new Sketch(sketch_len, node->node->get_seed(), 1, sketch_err);
     std::set<EulerTourNode*> component = node->get_component();
     for (auto ett_node : component) {
         naive_agg->update(ett_node->vertex);

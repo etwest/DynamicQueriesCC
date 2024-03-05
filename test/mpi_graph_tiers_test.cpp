@@ -12,7 +12,7 @@
 
 
 const int DEFAULT_BATCH_SIZE = 100;
-const vec_t DEFAULT_SKETCH_ERR = 4;
+const vec_t DEFAULT_SKETCH_ERR = 1;
 
 TEST(GraphTiersSuite, mpi_mini_correctness_test) {
     int world_rank_buf;
