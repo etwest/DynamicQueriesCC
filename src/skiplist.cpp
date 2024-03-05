@@ -10,9 +10,6 @@ long skiplist_seed = time(NULL);
 vec_t sketch_len;
 vec_t sketch_err;
 
-std::atomic<long> num_sketch_updates(0);
-std::atomic<long> num_sketch_batches(0);
-
 SkipListNode::SkipListNode(EulerTourNode* node, long seed) :
 	sketch_agg(new Sketch(sketch_len, seed)), node(node) {}
 
@@ -126,15 +123,14 @@ Sketch* SkipListNode::get_list_aggregate() {
 }
 
 void SkipListNode::update_agg(vec_t update_idx) {
-	num_sketch_updates++;
-	this->update_buffer[this->buffer_size++] = update_idx;
+	this->update_buffer[this->buffer_size] = update_idx;
+	this->buffer_size++;
 	if (this->buffer_size == skiplist_buffer_cap)
 		this->process_updates();
 }
 
 void SkipListNode::process_updates() {
-	num_sketch_batches++;
-	for (int i = 0; i < buffer_size; i++)
+	for (int i = 0; i < buffer_size; ++i)
 		this->sketch_agg->update(update_buffer[i]);
 	this->buffer_size = 0;
 }

@@ -11,7 +11,7 @@
 #include "util.h"
 
 
-const int DEFAULT_BATCH_SIZE = 50;
+const int DEFAULT_BATCH_SIZE = 100;
 const vec_t DEFAULT_SKETCH_ERR = 4;
 
 TEST(GraphTiersSuite, mpi_mini_correctness_test) {
@@ -368,8 +368,6 @@ TEST(GraphTierSuite, mpi_speed_test) {
         long edgecount = stream.edges();
         // long count = 1000000;
         // edgecount = std::min(edgecount, count);
-        long time = 0;
-        START(timer);
         for (long i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
@@ -380,12 +378,6 @@ TEST(GraphTierSuite, mpi_speed_test) {
         }
         // Communicate to all other nodes that the stream has ended
         input_node.end();
-        STOP(time, timer);
-        std::cout << "TOTAL TIME FOR ALL " << edgecount << " UPDATES (ms): " << time/1000 << std::endl;
-        std::ofstream file;
-        file.open ("mpi_kron_results.txt", std::ios_base::app);
-        file << stream_file << " updates/s: " << 1000*edgecount/(time/1000) << std::endl;
-        file.close();
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
