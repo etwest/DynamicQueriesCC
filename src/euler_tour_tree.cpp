@@ -12,6 +12,10 @@ EulerTourTree::EulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed) {
     this->temp_sketch = new Sketch(sketch_len, seed);
 }
 
+EulerTourTree::~EulerTourTree() {
+  delete this->temp_sketch;
+}
+
 void EulerTourTree::link(node_id_t u, node_id_t v) {
   ett_nodes[u].link(ett_nodes[v], temp_sketch);
 }
@@ -52,8 +56,8 @@ EulerTourNode::EulerTourNode(long seed) : seed(seed) {
 EulerTourNode::~EulerTourNode() {
   // Final boundary nodes are a memory leak
   // Need to somehow delete all the skiplist nodes at the end
-  // for (auto edge : edges)
-  //   edge.second->uninit_element(false);
+  for (auto edge : edges)
+    edge.second->uninit_element(false);
 }
 
 SkipListNode* EulerTourNode::make_edge(EulerTourNode* other, Sketch* temp_sketch) {
