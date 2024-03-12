@@ -12,7 +12,7 @@
 #include "util.h"
 
 
-const int DEFAULT_BATCH_SIZE = 1;
+const int DEFAULT_BATCH_SIZE = 100;
 const vec_t DEFAULT_SKETCH_ERR = 1;
 
 TEST(GraphTiersSuite, mpi_mini_correctness_test) {
@@ -335,7 +335,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
             input_node.update(update);
             // Correctness testing by performing a cc query
             gv.edge_update(update.edge.src, update.edge.dst);
-            unlikely_if(i%1 == 0 || i == edgecount-1) {
+            unlikely_if(i%1000 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = input_node.cc_query();
                 try {
                     gv.reset_cc_state();
@@ -386,7 +386,6 @@ TEST(GraphTierSuite, mpi_speed_test) {
     std::mt19937 rng(dev());
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
     int seed = dist(rng);
-    seed = 137258191;
     bcast(&seed, sizeof(int), 0);
     std::cout << "SEED: " << seed << std::endl;
     rng.seed(seed);

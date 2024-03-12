@@ -70,8 +70,6 @@ void TierNode::main() {
             this_sizes.size1 = root1->size;
             this_sizes.size2 = root2->size;
             this_sizes_buffer[i] = this_sizes;
-            CANARY("Size: (" << this_sizes.size1 << ", " << this_sizes.size2 << ")");
-            CANARY("Query Result: (" << query_result_buffer[2*i] << ", " << query_result_buffer[2*i+1] << ")");
         }
         STOP(sketch_update_time, sketch_update_timer);
         START(size_message_passing_timer);
@@ -191,15 +189,6 @@ void TierNode::main() {
         }
     }
 }
-
-// void TierNode::update_tier(GraphUpdate update) {
-//     edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
-//     ett.update_sketch(update.edge.src, (vec_t)edge);
-//     ett.update_sketch(update.edge.dst, (vec_t)edge);
-//     unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
-//         ett.cut(update.edge.src, update.edge.dst);
-//     }
-// }
 
 void TierNode::ett_update_tier(EttUpdateMessage message) {
     if (message.type == LINK && tier_num >= message.start_tier) {
