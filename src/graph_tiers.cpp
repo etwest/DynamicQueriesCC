@@ -155,7 +155,6 @@ void GraphTiers::refresh(GraphUpdate update) {
 					ett[i].cut(c,d);
 					ENDPOINT_CANARY("Cutting Tier " << i << " ETT With", c, d);
 				}
-				// std::cout << "CUT(" << c << "," << d << ") ON TIERS >= " << max.second << std::endl;
 				STOP(ett_time, ett1);
 				START(lct3);
 				link_cut_tree.cut(c,d);
