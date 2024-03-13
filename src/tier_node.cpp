@@ -55,20 +55,19 @@ void TierNode::main() {
                 ENDPOINT_CANARY("Cutting ETT With", update.edge.src, update.edge.dst);
                 split_revert_buffer[i] = true;
             }
-            SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
-            SkipListNode* root2 = ett.update_sketch(update.edge.dst, (vec_t)edge);
+            auto roots = ett.update_sketches(update.edge.src, update.edge.dst, (vec_t)edge);
             ENDPOINT_CANARY("Updating Sketch With", update.edge.src, update.edge.dst);
-            root1->process_updates();
-            root1->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i] = root1->sketch_agg->sample().result;
-            root2->process_updates();
-            root2->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i+1] = root2->sketch_agg->sample().result;
+            roots.first->process_updates();
+            roots.first->sketch_agg->reset_sample_state();
+            query_result_buffer[2*i] = roots.first->sketch_agg->sample().result;
+            roots.second->process_updates();
+            roots.second->sketch_agg->reset_sample_state();
+            query_result_buffer[2*i+1] = roots.second->sketch_agg->sample().result;
     
             // Prepare greedy batch size messages
             GreedyRefreshMessage this_sizes;
-            this_sizes.size1 = root1->size;
-            this_sizes.size2 = root2->size;
+            this_sizes.size1 = roots.first->size;
+            this_sizes.size2 = roots.second->size;
             this_sizes_buffer[i] = this_sizes;
         }
         STOP(sketch_update_time, sketch_update_timer);
@@ -121,8 +120,7 @@ void TierNode::main() {
             unlikely_if (split_revert_buffer[update_idx-1]) {
                 ett.link(update.edge.src, update.edge.dst);
             }
-            ett.update_sketch(update.edge.src, (vec_t)edge);
-            ett.update_sketch(update.edge.dst, (vec_t)edge);
+            ett.update_sketches(update.edge.src, update.edge.dst, (vec_t)edge);
         }
         // ======================================================================================
         // =========================== PROCESS THE ISOLATED UPDATES ===============+=============
@@ -134,8 +132,7 @@ void TierNode::main() {
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
                 ett.cut(update.edge.src, update.edge.dst);
             }
-            SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
-            SkipListNode* root2 = ett.update_sketch(update.edge.dst, (vec_t)edge);
+            ett.update_sketches(update.edge.src, update.edge.dst, (vec_t)edge);
             uint32_t start_tier = 0;
             // Start the refreshing sequence
             START(normal_refresh_timer);

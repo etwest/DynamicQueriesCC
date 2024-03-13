@@ -27,6 +27,31 @@ bool EulerTourTree::has_edge(node_id_t u, node_id_t v) {
 SkipListNode* EulerTourTree::update_sketch(node_id_t u, vec_t update_idx) {
   return ett_nodes[u].update_sketch(update_idx);
 }
+
+std::pair<SkipListNode*, SkipListNode*> EulerTourTree::update_sketches(node_id_t u, node_id_t v, vec_t update_idx) {
+  // Update the paths in lockstep, stopping at the first common node
+  SkipListNode* curr1 = ett_nodes[u].allowed_caller;
+  SkipListNode* curr2 = ett_nodes[v].allowed_caller;
+	SkipListNode *prev1, *prev2;
+	while (curr1 || curr2) {
+    if (curr1 == curr2) {
+      SkipListNode* root  = curr1->get_root();
+      return {root, root};
+    }
+    if (curr1) {
+      curr1->update_agg(update_idx);
+      prev1 = curr1;
+      curr1 = prev1->get_parent();
+    }
+    if (curr2) {
+      curr2->update_agg(update_idx);
+      prev2 = curr2;
+      curr2 = prev2->get_parent();
+    }
+	}
+	return {prev1, prev2};
+}
+
 SkipListNode* EulerTourTree::get_root(node_id_t u) {
   return ett_nodes[u].get_root();
 }
