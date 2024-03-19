@@ -10,8 +10,6 @@
 #include "mpi_functions.h"
 
 
-#define MAX_INT (std::numeric_limits<int>::max())
-
 enum TreeOperationType {
   NOT_ISOLATED=0, ISOLATED=1, EMPTY, LINK, CUT, LCT_QUERY
 };
@@ -63,7 +61,7 @@ class InputNode {
   UpdateMessage* update_buffer;
   int buffer_size;
   int buffer_capacity;
-  int* greedy_batch_buffer;
+  int* split_revert_buffer;
   void process_updates();
   std::queue<bool> isolation_history_queue;
   int history_size;
@@ -89,7 +87,6 @@ class TierNode {
   GreedyRefreshMessage* next_sizes_buffer;
   SampleResult* query_result_buffer;
   bool* split_revert_buffer;
-  int* greedy_batch_buffer;
   bool using_sliding_window = false;
   void update_tier(GraphUpdate update);
   void ett_update_tier(EttUpdateMessage message);
@@ -99,3 +96,8 @@ public:
   ~TierNode();
   void main();
 };
+
+// #define CANARY(X) do {if (update.edge.src == 1784 && update.edge.dst == 4420) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ " << canary_h << " says " << X << std::endl;}} while (false)
+#define CANARY(X) ;
+// #define ENDPOINT_CANARY(X, src, dst) do {if (tier_num == 0 && (src == 7781 || dst == 7781)) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ Tier " << canary_h-1 << " says " << X << " " << src << " " << dst << std::endl;}} while (false)
+# define ENDPOINT_CANARY(X, src, dst) ;
