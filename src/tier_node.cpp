@@ -16,7 +16,6 @@ TierNode::TierNode(node_id_t num_nodes, uint32_t tier_num, uint32_t num_tiers, i
     next_sizes_buffer = (GreedyRefreshMessage*) malloc(sizeof(GreedyRefreshMessage)*batch_size);
     query_result_buffer = (SampleResult*) malloc(sizeof(SampleResult)*batch_size*2);
     split_revert_buffer = (bool*) malloc(sizeof(bool)*batch_size);
-    greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
 }
 
 TierNode::~TierNode() {
@@ -25,7 +24,6 @@ TierNode::~TierNode() {
     free(next_sizes_buffer);
     free(query_result_buffer);
     free(split_revert_buffer);
-    free(greedy_batch_buffer);
 }
 
 void TierNode::main() {
@@ -42,34 +40,34 @@ void TierNode::main() {
             // std::cout << "Normal refresh time (ms): " << normal_refresh_time/1000 << std::endl;
             return;
         }
+        uint32_t num_updates = update_buffer[0].update.edge.src;
         using_sliding_window = (bool)update_buffer[0].update.edge.dst;
         // Do the greedy refresh check for all updates in the batch
         START(greedy_batch_timer);
         START(sketch_update_timer);
-        int first_cutting_update = MAX_INT;
-        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
+        for (uint32_t i = 0; i < num_updates; i++) {
             // Perform the sketch updating or root finding
             GraphUpdate update = update_buffer[i+1].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             split_revert_buffer[i] = false;
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
                 ett.cut(update.edge.src, update.edge.dst);
-                if (first_cutting_update == MAX_INT)
-                    first_cutting_update = i+1;
+                ENDPOINT_CANARY("Cutting ETT With", update.edge.src, update.edge.dst);
                 split_revert_buffer[i] = true;
             }
-            SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
-            SkipListNode* root2 = ett.update_sketch(update.edge.dst, (vec_t)edge);
-            root1->process_updates();
-            root1->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i] = root1->sketch_agg->sample().result;
-            root2->process_updates();
-            root2->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i+1] = root2->sketch_agg->sample().result;
+            auto roots = ett.update_sketches(update.edge.src, update.edge.dst, (vec_t)edge);
+            ENDPOINT_CANARY("Updating Sketch With", update.edge.src, update.edge.dst);
+            roots.first->process_updates();
+            roots.first->sketch_agg->reset_sample_state();
+            query_result_buffer[2*i] = roots.first->sketch_agg->sample().result;
+            roots.second->process_updates();
+            roots.second->sketch_agg->reset_sample_state();
+            query_result_buffer[2*i+1] = roots.second->sketch_agg->sample().result;
+    
             // Prepare greedy batch size messages
             GreedyRefreshMessage this_sizes;
-            this_sizes.size1 = root1->size;
-            this_sizes.size2 = root2->size;
+            this_sizes.size1 = roots.first->size;
+            this_sizes.size2 = roots.second->size;
             this_sizes_buffer[i] = this_sizes;
         }
         STOP(sketch_update_time, sketch_update_timer);
@@ -90,7 +88,7 @@ void TierNode::main() {
         int isolated_update;
         // Check if this tier is isolated for each update
         isolated_update = MAX_INT;
-        for (uint32_t i = 0; i < update_buffer[0].update.edge.src-1; i++) {
+        for (uint32_t i = 0; i < num_updates; i++) {
             // Check if this tier is isolated for this update
             if (tier_num != num_tiers-1) {
                 if (this_sizes_buffer[i].size1 == next_sizes_buffer[i].size1)
@@ -105,40 +103,36 @@ void TierNode::main() {
                     }
             }
         }
-        isolated_update = std::min(isolated_update, first_cutting_update);
         STOP(sketch_query_time, sketch_query_timer);
         START(greedy_batch_gather_timer);
-        allgather(&isolated_update, sizeof(int), greedy_batch_buffer, sizeof(int));
+        int minimum_isolated_update;
+        allreduce(&isolated_update, &minimum_isolated_update);
         // Check for any isolation on any update on any tier
-        int minimum_isolated_update = MAX_INT;
-        for (uint32_t i = 0; i < num_tiers+1; i++)
-            minimum_isolated_update = std::min(minimum_isolated_update, greedy_batch_buffer[i]);
         STOP(greedy_batch_gather_time, greedy_batch_gather_timer);
         STOP(greedy_batch_time, greedy_batch_timer);
         if (minimum_isolated_update == MAX_INT)
             continue;
         // First undo all the sketch updates we did after isolated update
-        for (uint32_t i = minimum_isolated_update; i < update_buffer[0].update.edge.src; i++) {
-            GraphUpdate update = update_buffer[i].update;
+        for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
+            GraphUpdate update = update_buffer[update_idx].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             // There could be a cut on a later update that needs to be rolled back
-            unlikely_if (split_revert_buffer[i-1])
+            unlikely_if (split_revert_buffer[update_idx-1]) {
                 ett.link(update.edge.src, update.edge.dst);
-            ett.update_sketch(update.edge.src, (vec_t)edge);
-            ett.update_sketch(update.edge.dst, (vec_t)edge);
+            }
+            ett.update_sketches(update.edge.src, update.edge.dst, (vec_t)edge);
         }
         // ======================================================================================
         // =========================== PROCESS THE ISOLATED UPDATES ===============+=============
         // ======================================================================================
-        int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : update_buffer[0].update.edge.src;
+        int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : num_updates+1;
         for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
             GraphUpdate update = update_buffer[update_idx].update;
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
                 ett.cut(update.edge.src, update.edge.dst);
             }
-            SkipListNode* root1 = ett.update_sketch(update.edge.src, (vec_t)edge);
-            SkipListNode* root2 = ett.update_sketch(update.edge.dst, (vec_t)edge);
+            ett.update_sketches(update.edge.src, update.edge.dst, (vec_t)edge);
             uint32_t start_tier = 0;
             // Start the refreshing sequence
             START(normal_refresh_timer);
@@ -149,7 +143,8 @@ void TierNode::main() {
                     RefreshMessage refresh_message;
                     int source = (tier == start_tier) ? 0 : tier_num;
                     MPI_Recv(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    refresh_tier(refresh_message);
+                    if (tier != 0)
+                        refresh_tier(refresh_message);
                     // Send a refresh message to the next tier
                     if (tier < num_tiers-1) {
                         RefreshEndpoint e1, e2;
@@ -170,6 +165,7 @@ void TierNode::main() {
                     continue;
                 }
                 // For every other tier just receive and perform update messages
+                if (tier != 0)
                 for (int endpoint : {0,1}) {
                     std::ignore = endpoint;
                     // Receive a broadcast to see if the endpoint at the current tier is isolated or not
@@ -191,20 +187,13 @@ void TierNode::main() {
     }
 }
 
-void TierNode::update_tier(GraphUpdate update) {
-    edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
-    ett.update_sketch(update.edge.src, (vec_t)edge);
-    ett.update_sketch(update.edge.dst, (vec_t)edge);
-    unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
-        ett.cut(update.edge.src, update.edge.dst);
-    }
-}
-
 void TierNode::ett_update_tier(EttUpdateMessage message) {
-    if (message.type == LINK && tier_num > message.start_tier) {
+    if (message.type == LINK && tier_num >= message.start_tier) {
         ett.link(message.endpoint1, message.endpoint2);
-    } else if (message.type == CUT && tier_num > message.start_tier) {
+        ENDPOINT_CANARY("Linking ETT With", message.endpoint1, message.endpoint2);
+    } else if (message.type == CUT && tier_num >= message.start_tier) {
         ett.cut(message.endpoint1, message.endpoint2);
+        ENDPOINT_CANARY("Cutting ETT With", message.endpoint1, message.endpoint2);
     }
 }
 
@@ -243,8 +232,10 @@ void TierNode::refresh_tier(RefreshMessage message) {
             cut_message.start_tier = lct_response.weight;
             bcast(&cut_message, sizeof(EttUpdateMessage), tier_num+1);
 
-            if (tier_num >= lct_response.weight)
+            if (tier_num >= lct_response.weight) {
                 ett.cut(c,d);
+                ENDPOINT_CANARY("Cutting ETT With", c, d);
+            }
         }
 
         // Tell all nodes above and including the current tier to add the new edge
@@ -255,5 +246,6 @@ void TierNode::refresh_tier(RefreshMessage message) {
         link_message.start_tier = tier_num;
         bcast(&link_message, sizeof(EttUpdateMessage), tier_num+1);
         ett.link(a,b);
+        ENDPOINT_CANARY("Linking ETT With", a, b);
     }
 }

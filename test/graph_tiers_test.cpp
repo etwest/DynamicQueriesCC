@@ -29,6 +29,7 @@ static void print_metrics() {
     std::cout << "\t\t\tETT Find Tree Root (ms): " << ett_find_root/1000 << std::endl;
     std::cout << "\t\t\tETT Get Aggregate (ms): " << ett_get_agg/1000 << std::endl;
     std::cout << "Total number of tiers grown: " << tiers_grown << std::endl;
+    std::cout << "Total number of normal refreshes: " << normal_refreshes << std::endl;
 }
 
 TEST(GraphTiersSuite, mini_correctness_test) {
@@ -161,13 +162,12 @@ TEST(GraphTiersSuite, omp_speed_test) {
 	    long time = 0;
         BinaryGraphStream stream(stream_file, 100000);
 
-        height_factor = 1/log2(log2(stream.nodes()));
+        height_factor = 1./log2(log2(stream.nodes()));
         sketch_len = Sketch::calc_vector_length(stream.nodes());
         sketch_err = DEFAULT_SKETCH_ERR;
 
         GraphTiers gt(stream.nodes());
         int edgecount = stream.edges();
-        edgecount = 1000000;
         start = std::chrono::high_resolution_clock::now();
 
 	    START(timer);
@@ -177,7 +177,7 @@ TEST(GraphTiersSuite, omp_speed_test) {
             unlikely_if (i % 100000 == 0) {
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                std::cout << "Update " << i << ", Time:  " << duration.count() << std::endl;
+                std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             }
         }
 	    STOP(time, timer);
