@@ -2,8 +2,10 @@
 
 
 long normal_refreshes = 0;
+long dt_operation_time = 0;
 
-InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes){
+InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size, int seed) :
+    num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed) {
     update_buffer = (UpdateMessage*) malloc(sizeof(UpdateMessage)*(batch_size+1));
     buffer_capacity = batch_size+1;
     UpdateMessage msg;
@@ -33,9 +35,9 @@ void InputNode::process_updates() {
     if (buffer_size == 1)
         return;
     uint32_t num_updates = buffer_size-1;
-    // If less than 1/5 of the last updates are isolated use sliding window
+    // If less than 1/10 of the last updates are isolated use sliding window
     bool prev_strat = using_sliding_window;
-    using_sliding_window = (isolation_count<history_size/5) ? true : false;
+    using_sliding_window = (isolation_count<history_size/10) ? true : false;
     if (using_sliding_window != prev_strat)
         std::cout << "SWITCHED TO " << (using_sliding_window ? "SLIDING WINDOW" : "NORMAL STRAT") << std::endl;
     // Broadcast the batch of updates to all nodes
@@ -79,8 +81,12 @@ void InputNode::process_updates() {
     int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : num_updates+1;
     for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
-        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
+        START(dt_operation_timer1);
+        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
+            query_ett.cut(update.edge.src, update.edge.dst);
+        }
+        STOP(dt_operation_time, dt_operation_timer1);
         uint32_t start_tier = 0;
         normal_refreshes++;
         bool this_update_isolated = false;
@@ -117,12 +123,16 @@ void InputNode::process_updates() {
                     std::ignore = broadcast;
                     EttUpdateMessage update_message;
                     bcast(&update_message, sizeof(EttUpdateMessage), rank);
+                    START(dt_operation_timer2);
                     if (update_message.type == LINK) {
                         link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
+                        query_ett.link(update_message.endpoint1, update_message.endpoint2);
                         break;
                     } else if (update_message.type == CUT) {
                         link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
+                        query_ett.cut(update_message.endpoint1, update_message.endpoint2);
                     }
+                    STOP(dt_operation_time, dt_operation_timer2);
                 }
             }
         }
@@ -151,12 +161,12 @@ void InputNode::process_all_updates() {
 
 bool InputNode::connectivity_query(node_id_t a, node_id_t b) {
     process_all_updates();
-    return link_cut_tree.find_root(a) == link_cut_tree.find_root(b);
+	return query_ett.is_connected(a, b);
 }
 
 std::vector<std::set<node_id_t>> InputNode::cc_query() {
     process_all_updates();
-    return link_cut_tree.get_cc();
+    return query_ett.cc_query();
 }
 
 void InputNode::end() {
@@ -164,6 +174,7 @@ void InputNode::end() {
     // Tell all nodes the stream is over
     update_buffer[0].end = true;
     bcast(update_buffer, sizeof(UpdateMessage)*buffer_capacity, 0);
-     std::cout << "============= INPUT NODE =============" << std::endl;
+     std::cout << "======================= INPUT NODE ======================" << std::endl;
+     std::cout << "Dynamic tree operations time (ms): " << dt_operation_time/1000 << std::endl;
      std::cout << "Normal refreshes: " << normal_refreshes << std::endl;
 }

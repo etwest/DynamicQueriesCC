@@ -79,7 +79,9 @@ add_executable(mpi_dynamicCC_tests
   test/mpi_graph_tiers_test.cpp
 
   src/skiplist.cpp
+  src/sketchless_skiplist.cpp
   src/euler_tour_tree.cpp
+  src/sketchless_euler_tour_tree.cpp
   src/link_cut_tree.cpp
   src/input_node.cpp
   src/tier_node.cpp

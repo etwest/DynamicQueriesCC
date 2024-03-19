@@ -25,15 +25,15 @@ class SkipListNode {
   int buffer_capacity;
 
 public:
-  Sketch* sketch_agg;
+  Sketch* sketch_agg = nullptr;
 
   uint32_t size = 1;
 
   EulerTourNode* node;
 
-  SkipListNode(EulerTourNode* node, long seed);
+  SkipListNode(EulerTourNode* node, long seed, bool has_sketch);
   ~SkipListNode();
-  static SkipListNode* init_element(EulerTourNode* node);
+  static SkipListNode* init_element(EulerTourNode* node, bool is_allowed_caller);
   void uninit_element(bool delete_bdry);
   void uninit_list();
 
