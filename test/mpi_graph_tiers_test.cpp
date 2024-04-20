@@ -375,7 +375,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     }
 }
 
-TEST(GraphTierSuite, mpi_speed_test) {
+TEST(GraphTierSuite, mpi_update_speed_test) {
     int world_rank_buf;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
     uint32_t world_rank = world_rank_buf;
@@ -415,8 +415,9 @@ TEST(GraphTierSuite, mpi_speed_test) {
         std::cout << "InputNode seed: " << seed << std::endl;
         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         long edgecount = stream.edges();
-        // long count = 1000000;
+        // long count = 100000000;
         // edgecount = std::min(edgecount, count);
+        auto X = std::chrono::high_resolution_clock::now();
         for (long i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
@@ -427,6 +428,8 @@ TEST(GraphTierSuite, mpi_speed_test) {
         }
         // Communicate to all other nodes that the stream has ended
         input_node.end();
+        auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - X).count();
+        std::cout << "Total time(ms): " << (time/1000) << std::endl;
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
@@ -435,7 +438,7 @@ TEST(GraphTierSuite, mpi_speed_test) {
     }
 }
 
-TEST(GraphTiersSuite, mpi_queries_speed_test) {
+TEST(GraphTiersSuite, mpi_query_speed_test) {
     int world_rank_buf;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
     uint32_t world_rank = world_rank_buf;
@@ -448,8 +451,6 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
     int nodecount = stream.nodes();
     int edgecount = stream.edges();
-	int count = /**15000000;*/ edgecount/2;
-    edgecount = std::min(edgecount, count);
 
     // Parameters
     int update_batch_size = DEFAULT_BATCH_SIZE;
@@ -479,38 +480,44 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
         std::cout << "InputNode seed: " << seed << std::endl;
         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
 
-        std::cout << "Building up graph..." <<  std::endl;
-        for (int i = 0; i < edgecount; i++) {
-            GraphUpdate update = stream.get_edge();
-            input_node.update(update);
-        }
+        long total_time = 0;
+        for (int batch = 0; batch < 10; batch++) {
+            std::cout << "Update batch " << batch <<  std::endl;
+            for (int i = 0; i < edgecount/10; i++) {
+                GraphUpdate update = stream.get_edge();
+                input_node.update(update);
+            }
 
-        long querycount = 100000000;
-        long cc_querycount = 1000;
+            long querycount = 100000000;
+            long cc_querycount = 1000;
 
-        long con_query_time = 0;
-        long cc_query_time = 0;
-        std::cout << "Performing queries..." << std::endl;
-        START(con_query_timer);
-        for (int i = 0; i < querycount; i++) {
-            input_node.connectivity_query(rand()%nodecount, rand()%nodecount);
+            long con_query_time = 0;
+            long cc_query_time = 0;
+            std::cout << "Performing queries..." << std::endl;
+            START(con_query_timer);
+            for (int i = 0; i < querycount; i++) {
+                input_node.connectivity_query(rand()%nodecount, rand()%nodecount);
+            }
+            STOP(con_query_time, con_query_timer);
+            std::cout << querycount << " Connectivity Queries, Time (ms):  " << con_query_time/1000 << std::endl;
+            total_time += con_query_time;
+            // START(cc_query_timer);
+            // for (int i = 0; i < cc_querycount; i++) {
+            //     input_node.cc_query();
+            // }
+            // STOP(cc_query_time, cc_query_timer);
+            // std::cout << cc_querycount << " Connected Components Queries, Time (ms):  " << cc_query_time/1000 << std::endl;
         }
-        STOP(con_query_time, con_query_timer);
-        std::cout << querycount << " Connectivity Queries, Time (ms):  " << con_query_time/1000 << std::endl;
-        START(cc_query_timer);
-        for (int i = 0; i < cc_querycount; i++) {
-            input_node.cc_query();
-        }
-        STOP(cc_query_time, cc_query_timer);
-        std::cout << cc_querycount << " Connected Components Queries, Time (ms):  " << cc_query_time/1000 << std::endl;
+        std::cout << "TOTAL TIME(ms): " << total_time/1000 << std::endl;
+        std::cout << "QUERIES/SECOND: " << 1000000000/(total_time/1000)*1000 << std::endl;
 
         input_node.end();
 
-        std::ofstream file;
-        file.open ("mpi_kron_query_results.txt", std::ios_base::app);
-        file << stream_file << " connectivity queries/s: " << querycount/(con_query_time/1000)*1000 << std::endl;
-        file << stream_file << " cc queries/s: " << 1000*cc_querycount/(cc_query_time/1000) << std::endl;
-        file.close();
+        // std::ofstream file;
+        // file.open ("mpi_kron_query_results.txt", std::ios_base::app);
+        // file << stream_file << " connectivity queries/s: " << querycount/(con_query_time/1000)*1000 << std::endl;
+        // file << stream_file << " cc queries/s: " << 1000*cc_querycount/(cc_query_time/1000) << std::endl;
+        // file.close();
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;

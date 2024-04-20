@@ -1,20 +1,34 @@
 # How to Run
-Compilation:
+Setup:
 * ```$ mkdir build```
 * ```$ cd build```
+* ```$ mkdir binary_streams```
+* ```$ ln -s /mnt/ssd2/fast_query_project/binary_streams/* binary_streams```
 * ```$ cmake .. -DCMAKE_BUILD_TYPE=Release``` or release type of choice (Release, RelWithDebInfo, Debug)
 * ```$ make$```
 
-Run OMP Version:
+Run With Scripts:
+* To run performance tests for update speed, query speed, or correctness tests, uncomment the script file to run on the input stream of your choice, and then run one of the following scripts:
+* You may have to make the scripts executable with ```$ chmod +x [script_file]```
+* ```$ scripts/mpi_update_test```
+* ```$ scripts/mpi_query_test```
+* ```$ scripts/mpi_correct_test```
+
+Tweaking Hyperparameters:
+* Update batch size: in ```test/mpi_graph_tiers_test.cpp``` edit the ```DEFAULT_BATCH_SIZE``` variable.
+* Sketch buffer size: in ```include/skiplist.h``` edit the ```skiplist_buffer_cap``` variable.
+* Skiplist height: in ```test/mpi_graph_tiers_test.cpp``` in the specific test you want to run edit the ```height_factor``` and\or ```sketchless_height_factor``` variables. Note that the first variable is for the skiplists in the Euler tour trees for each tier, and the second variable is only for the single query Euler tour tree on the input node (not containing sketches).
+
+Run OMP Version Manually:
 * ```$ ./dynamicCC_tests [binary_stream_file] --gtest_filter=*[filter]*```
 * Possible filters: omp_speed, omp_correct, query_speed, etc.
-* Possible streams: kron_13_stream_binary, scut_13_stream_binary, etc.
+* Possible streams: kron_13_stream_binary, kron_15_stream_binary, etc.
 
-Run MPI Version:
+Run MPI Version Manually:
 * ```$ mpirun -np [num_processes] ./mpi_dynamicCC_tests [binary_stream_file] --gtest_filter=*[filter]*```
 * num_processes: you can try to guess the number of processes and run it, the program will tell you the correct number for your input
 * Possible filters: mpi_speed, mpi_correct, mpi_queries, etc.
-* Possible streams: kron_13_stream_binary, scut_13_stream_binary, etc.
+* Possible streams: kron_13_stream_binary, kron_15_stream_binary, etc.
 
 # Streaming Connected Components with Dynamic Queries
 Using our previous [implementation](https://github.com/GraphStreamingProject/GraphStreamingCC) we can efficiently process a stream of edge insertions and deletions and then return the connected components of the graph. In this repo we will attempt to build an implementation that can efficiently answer queries interspersed with the stream.
@@ -34,31 +48,3 @@ Additionally, we increase the usefulness of the euler tour trees by having them 
 In the context of graph streaming, Linear Sketching data-structures represent a collection a edges incident to a node (or cluster of nodes) in sub-linear space. This sub-linear representation can be queried and will return an edge incident to the node (or cluster) at random.
 
 We use our linear sketch `CubeSketch` that we describe and implement in `paper reference here` and in our previous implementation. The paper by Kapron, King, Mountjoy utilizes a different version of linear sketching. The performance of our sketching technique is a log faster in the average case.
-
-# Implementation TODOs
-1. ~Need a Splay Tree, Balanced Binary Tree, or Skip-List Implementation~
-    1. needs to support sketch aggregates (Check that this is done correctly)
-2. ~Euler Tour Tree implementation that supports~
-    1. ~Uses the Splay tree~
-    2. ~tracking new relevent edges~
-3. Organizing the Euler Tour Trees into different tiers
-4. Logic for updating the ETT aggregate sketches on insert and delete
-5. Implementations of the key functions
-    1. Insert
-    2. Delete
-    3. Refresh
-    4. Query
-
-## ETT Resources
-* https://codeforces.com/blog/entry/18369
-* https://codeforces.com/blog/entry/53265
-* http://web.stanford.edu/class/archive/cs/cs166/cs166.1166/lectures/17/Small17.pdf
-* Original Paper: https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.192.8615&rep=rep1&type=pdf
-* Batch Parallel Euler Tour Tree: https://github.com/tomtseng/parallel-euler-tour-tree (specifically, src/dynamic_trees/euler_tour_tree/)
-
-## Current Work Distribution
-- Daniel: Splay Tree Implementation
-- Kenny: ETT Skeleton
-- Evan: Cmake improvements and some basic tests
-
-
