@@ -1,6 +1,8 @@
 declare base_dir="$(dirname $(dirname $(realpath $0)))"
 
 cd ${base_dir}/build
+mkdir -p results
+
 set -e
 make -j
 set +e

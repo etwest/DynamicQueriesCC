@@ -37,7 +37,7 @@ void InputNode::process_updates() {
     uint32_t num_updates = buffer_size-1;
     // If less than 1/10 of the last updates are isolated use sliding window
     bool prev_strat = using_sliding_window;
-    using_sliding_window = (isolation_count<history_size/10) ? true : false;
+    using_sliding_window = false;//(isolation_count<history_size/10) ? true : false;
     if (using_sliding_window != prev_strat)
         std::cout << "SWITCHED TO " << (using_sliding_window ? "SLIDING WINDOW" : "NORMAL STRAT") << std::endl;
     // Broadcast the batch of updates to all nodes
