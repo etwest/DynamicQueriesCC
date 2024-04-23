@@ -1,8 +1,10 @@
+#!/bin/bash
+
 declare base_dir="$(dirname $(dirname $(realpath $0)))"
 
-cd ${base_dir}/build
 mkdir -p results
 
+cd ${base_dir}/build
 set -e
 make -j
 set +e
