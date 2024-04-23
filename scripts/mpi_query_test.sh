@@ -2,12 +2,12 @@
 
 declare base_dir="$(dirname $(dirname $(realpath $0)))"
 
-mkdir -p results
-
 cd ${base_dir}/build
 set -e
 make -j
 set +e
+
+mkdir -p ./../results
 
 mpirun -np 23 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/kron_13_stream_binary --gtest_filter=*mpi_query_speed_test*
 mpirun -np 26 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/kron_15_stream_binary --gtest_filter=*mpi_query_speed_test*

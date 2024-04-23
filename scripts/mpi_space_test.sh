@@ -2,7 +2,6 @@
 
 declare base_dir="$(dirname $(dirname $(realpath $0)))"
 
-
 cd ${base_dir}/build
 set -e
 make -j
