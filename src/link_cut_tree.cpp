@@ -150,6 +150,10 @@ bool LinkCutNode::has_edge(edge_id_t e) {
     return (this->edges.find(e) != this->edges.end());
 }
 
+uint32_t LinkCutNode::get_edge_weight(edge_id_t e) {
+    return this->edges[e];
+}
+
 void LinkCutNode::rebuild_max() {
     uint32_t max = 0;
     edge_id_t max_edge = 0;
@@ -335,6 +339,11 @@ std::pair<edge_id_t, uint32_t> LinkCutTree::path_aggregate(node_id_t v, node_id_
 bool LinkCutTree::has_edge(node_id_t v1, node_id_t v2) {
     edge_id_t e = VERTICES_TO_EDGE(v1, v2);
     return nodes[v1].has_edge(e);
+}
+
+uint32_t LinkCutTree::get_edge_weight(node_id_t v1, node_id_t v2) {
+    edge_id_t e = VERTICES_TO_EDGE(v1, v2);
+    return nodes[v1].get_edge_weight(e);
 }
 
 std::vector<std::set<node_id_t>> LinkCutTree::get_cc() {

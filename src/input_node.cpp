@@ -2,14 +2,16 @@
 
 
 long normal_refreshes = 0;
+long dt_operation_time = 0;
 
-InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes){
+InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size, int seed) :
+    num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed) {
     update_buffer = (UpdateMessage*) malloc(sizeof(UpdateMessage)*(batch_size+1));
     buffer_capacity = batch_size+1;
     UpdateMessage msg;
     update_buffer[0] = msg;
     buffer_size = 1;
-    greedy_batch_buffer = (int*) malloc(sizeof(int)*(num_tiers+1));
+    split_revert_buffer = (int*) malloc(sizeof(int)*batch_size);
     history_size = 2*batch_size;
     for (int i=0; i<history_size; i++)
         isolation_history_queue.push(true);
@@ -18,7 +20,7 @@ InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size) : 
 
 InputNode::~InputNode() {
     free(update_buffer);
-    free(greedy_batch_buffer);
+    free(split_revert_buffer);
 }
 
 void InputNode::update(GraphUpdate update) {
@@ -32,55 +34,59 @@ void InputNode::update(GraphUpdate update) {
 void InputNode::process_updates() {
     if (buffer_size == 1)
         return;
-    // If less than 1/5 of the last updates are isolated use sliding window
+    uint32_t num_updates = buffer_size-1;
+    // If less than 1/10 of the last updates are isolated use sliding window
     bool prev_strat = using_sliding_window;
-    using_sliding_window = (isolation_count<history_size/5) ? true : false;
+    using_sliding_window = (isolation_count<history_size/10) ? true : false;
     if (using_sliding_window != prev_strat)
         std::cout << "SWITCHED TO " << (using_sliding_window ? "SLIDING WINDOW" : "NORMAL STRAT") << std::endl;
     // Broadcast the batch of updates to all nodes
-    update_buffer[0].update.edge.src = buffer_size;
+    update_buffer[0].update.edge.src = num_updates;
     update_buffer[0].update.edge.dst = (int)using_sliding_window;
     bcast(&update_buffer[0], sizeof(UpdateMessage)*buffer_capacity, 0);
+    // Do all the link cut tree cutting for things in the batch
+    for (uint32_t i = 0; i < num_updates; i++) {
+        GraphUpdate update = update_buffer[i+1].update;
+        split_revert_buffer[i] = MAX_INT;
+        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
+            split_revert_buffer[i] = link_cut_tree.get_edge_weight(update.edge.src, update.edge.dst);
+            link_cut_tree.cut(update.edge.src, update.edge.dst);
+        }
+    }
     // Attempt to do the entire batch parallel with greedy refresh
     int isolated_update = MAX_INT;
-    allgather(&isolated_update, sizeof(int), greedy_batch_buffer, sizeof(int));
-    // Check for any isolated update
-    int minimum_isolated_update = MAX_INT;
-    for (uint32_t i = 0; i < num_tiers+1; i++)
-        minimum_isolated_update = std::min(minimum_isolated_update, greedy_batch_buffer[i]);
-    // If there was no isolated update just do the necessary cuts
+    int minimum_isolated_update;
+    allreduce(&isolated_update, &minimum_isolated_update);
+    // Check for any isolation on any update on any tier
     if (minimum_isolated_update == MAX_INT) {
-        for (uint32_t i = 1; i < update_buffer[0].update.edge.src; i++) {
-            GraphUpdate update = update_buffer[i].update;
-            if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
-                link_cut_tree.cut(update.edge.src, update.edge.dst);
-            // Update isolation history
-            isolation_count -= (int)isolation_history_queue.front();
-            isolation_history_queue.pop();
-            isolation_history_queue.push(false);
-        }
         buffer_size = 1;
         return;
     }
-    // If there was an isolated update process all the updates up to that one
+    // First undo all the link cut tree cuts we did after isolated update
+    for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
+        GraphUpdate update = update_buffer[update_idx].update;
+        // There could be a cut on a later update that needs to be rolled back
+        unlikely_if (split_revert_buffer[update_idx-1] != MAX_INT)
+            link_cut_tree.link(update.edge.src, update.edge.dst, split_revert_buffer[update_idx-1]);
+    }
+    // Update the isolation history
     for (uint32_t i = 1; i < minimum_isolated_update; i++) {
-        GraphUpdate update = update_buffer[i].update;
-        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
-            link_cut_tree.cut(update.edge.src, update.edge.dst);
-        // Update isolation history
         isolation_count -= (int)isolation_history_queue.front();
         isolation_history_queue.pop();
-        isolation_history_queue.push(false);
+        isolation_history_queue.push(true);
     }
     // ======================================================================================
     // =========================== PROCESS THE ISOLATED UPDATES =============================
     // ======================================================================================
-
-    int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : update_buffer[0].update.edge.src;
+    int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : num_updates+1;
     for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
-        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst))
+        START(dt_operation_timer1);
+        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
+            query_ett.cut(update.edge.src, update.edge.dst);
+        }
+        STOP(dt_operation_time, dt_operation_timer1);
         uint32_t start_tier = 0;
         normal_refreshes++;
         bool this_update_isolated = false;
@@ -95,6 +101,7 @@ void InputNode::process_updates() {
         
         for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
             int rank = tier + 1;
+            if (tier != 0)
             for (auto endpoint : {0,1}) {
                 std::ignore = endpoint;
                 // Receive a broadcast to see if the current tier/endpoint is isolated or not
@@ -150,12 +157,12 @@ void InputNode::process_all_updates() {
 
 bool InputNode::connectivity_query(node_id_t a, node_id_t b) {
     process_all_updates();
-    return link_cut_tree.find_root(a) == link_cut_tree.find_root(b);
+	return query_ett.is_connected(a, b);
 }
 
 std::vector<std::set<node_id_t>> InputNode::cc_query() {
     process_all_updates();
-    return link_cut_tree.get_cc();
+    return query_ett.cc_query();
 }
 
 void InputNode::end() {
@@ -163,6 +170,7 @@ void InputNode::end() {
     // Tell all nodes the stream is over
     update_buffer[0].end = true;
     bcast(update_buffer, sizeof(UpdateMessage)*buffer_capacity, 0);
-     std::cout << "============= INPUT NODE =============" << std::endl;
+     std::cout << "======================= INPUT NODE ======================" << std::endl;
+     std::cout << "Dynamic tree operations time (ms): " << dt_operation_time/1000 << std::endl;
      std::cout << "Normal refreshes: " << normal_refreshes << std::endl;
 }

@@ -1,3 +1,21 @@
+# How to Run
+Compilation:
+* ```$ mkdir build```
+* ```$ cd build```
+* ```$ cmake .. -DCMAKE_BUILD_TYPE=Release``` or release type of choice (Release, RelWithDebInfo, Debug)
+* ```$ make$```
+
+Run OMP Version:
+* ```$ ./dynamicCC_tests [binary_stream_file] --gtest_filter=*[filter]*```
+* Possible filters: omp_speed, omp_correct, query_speed, etc.
+* Possible streams: kron_13_stream_binary, scut_13_stream_binary, etc.
+
+Run MPI Version:
+* ```$ mpirun -np [num_processes] ./mpi_dynamicCC_tests [binary_stream_file] --gtest_filter=*[filter]*```
+* num_processes: you can try to guess the number of processes and run it, the program will tell you the correct number for your input
+* Possible filters: mpi_speed, mpi_correct, mpi_queries, etc.
+* Possible streams: kron_13_stream_binary, scut_13_stream_binary, etc.
+
 # Streaming Connected Components with Dynamic Queries
 Using our previous [implementation](https://github.com/GraphStreamingProject/GraphStreamingCC) we can efficiently process a stream of edge insertions and deletions and then return the connected components of the graph. In this repo we will attempt to build an implementation that can efficiently answer queries interspersed with the stream.
 

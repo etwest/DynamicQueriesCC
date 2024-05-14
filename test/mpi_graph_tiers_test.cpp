@@ -2,6 +2,7 @@
 #include <chrono>
 #include <signal.h>
 #include <unordered_map>
+#include <random>
 #include <iostream>
 #include <fstream>
 #include <omp.h>
@@ -12,7 +13,7 @@
 
 
 const int DEFAULT_BATCH_SIZE = 100;
-const vec_t DEFAULT_SKETCH_ERR = 4;
+const vec_t DEFAULT_SKETCH_ERR = 1;
 
 TEST(GraphTiersSuite, mpi_mini_correctness_test) {
     int world_rank_buf;
@@ -32,8 +33,23 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
 
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
+
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         MatGraphVerifier gv(num_nodes);
         // Link all of the nodes into 1 connected component
         for (node_id_t i = 0; i < num_nodes-1; i++) {
@@ -67,10 +83,7 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
         input_node.end();
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
-        srand(seed);
-        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
-        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
         tier_node.main();
     }
 }
@@ -93,8 +106,23 @@ TEST(GraphTiersSuite, mpi_mini_replacement_test) {
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
 
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
+
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         MatGraphVerifier gv(num_nodes);
         // Link all of the nodes into 1 connected component
         for (node_id_t i = 0; i < num_nodes-1; i++) {
@@ -136,10 +164,7 @@ TEST(GraphTiersSuite, mpi_mini_replacement_test) {
         input_node.end();
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
-        srand(seed);
-        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
-        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
         tier_node.main();
     }
 }
@@ -162,8 +187,23 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
 
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
+
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         MatGraphVerifier gv(num_nodes);
         // Link all of the nodes into 1 connected component
         for (node_id_t i = 0; i < num_nodes-1; i++) {
@@ -255,10 +295,7 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
         input_node.end();
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
-        srand(seed);
-        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
-        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
         tier_node.main();
     }
 }
@@ -280,11 +317,26 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
 
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
+
     if (world_size != num_tiers+1)
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
 
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         MatGraphVerifier gv(num_nodes);
         int edgecount = stream.edges();
 	    int count = 20000000;
@@ -318,10 +370,7 @@ TEST(GraphTiersSuite, mpi_correctness_test) {
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
-        srand(seed);
-        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
-        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
         tier_node.main();
     }
 }
@@ -341,42 +390,47 @@ TEST(GraphTierSuite, mpi_speed_test) {
     // Parameters
     int update_batch_size = DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
+    sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
+
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
 
     if (world_size != num_tiers+1)
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
 
     if (world_rank == 0) {
-        long time = 0;
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
         long edgecount = stream.edges();
         // long count = 1000000;
         // edgecount = std::min(edgecount, count);
-        START(timer);
         for (long i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
             input_node.update(update);
-            unlikely_if(i%100000 == 0 || i == edgecount-1) {
+            unlikely_if(i%1000000 == 0 || i == edgecount-1) {
                 std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             }
         }
         // Communicate to all other nodes that the stream has ended
         input_node.end();
-        STOP(time, timer);
-        std::cout << "TOTAL TIME FOR ALL " << edgecount << " UPDATES (ms): " << time/1000 << std::endl;
-        std::ofstream file;
-        file.open ("mpi_kron_results.txt", std::ios_base::app);
-        file << stream_file << " updates/s: " << 1000*edgecount/(time/1000) << std::endl;
-        file.close();
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
-        srand(seed);
-        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
-        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, seed);
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
         tier_node.main();
     }
 }
@@ -394,20 +448,36 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
     int nodecount = stream.nodes();
     int edgecount = stream.edges();
-	int count = 20000000;
+	int count = /**15000000;*/ edgecount/2;
     edgecount = std::min(edgecount, count);
 
     // Parameters
     int update_batch_size = DEFAULT_BATCH_SIZE;
     height_factor = 1./log2(log2(num_nodes));
+	sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
+
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
 
     if (world_size != num_tiers+1)
         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
 
     if (world_rank == 0) {
-        InputNode input_node(num_nodes, num_tiers, update_batch_size);
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
 
         std::cout << "Building up graph..." <<  std::endl;
         for (int i = 0; i < edgecount; i++) {
@@ -415,8 +485,8 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
             input_node.update(update);
         }
 
-        int querycount = 1000000;
-        int cc_querycount = querycount/100;
+        long querycount = 100000000;
+        long cc_querycount = 1000;
 
         long con_query_time = 0;
         long cc_query_time = 0;
@@ -426,28 +496,25 @@ TEST(GraphTiersSuite, mpi_queries_speed_test) {
             input_node.connectivity_query(rand()%nodecount, rand()%nodecount);
         }
         STOP(con_query_time, con_query_timer);
-        std::cout << querycount << " Connectivity Queries, Time:  " << con_query_time/1000 << std::endl;
+        std::cout << querycount << " Connectivity Queries, Time (ms):  " << con_query_time/1000 << std::endl;
         START(cc_query_timer);
         for (int i = 0; i < cc_querycount; i++) {
             input_node.cc_query();
         }
         STOP(cc_query_time, cc_query_timer);
-        std::cout << cc_querycount << " Connected Components Queries, Time:  " << cc_query_time/1000 << std::endl;
+        std::cout << cc_querycount << " Connected Components Queries, Time (ms):  " << cc_query_time/1000 << std::endl;
 
         input_node.end();
 
         std::ofstream file;
         file.open ("mpi_kron_query_results.txt", std::ios_base::app);
-        file << stream_file << " connectivity queries/s: " << 1000*querycount/(con_query_time/1000) << std::endl;
+        file << stream_file << " connectivity queries/s: " << querycount/(con_query_time/1000)*1000 << std::endl;
         file << stream_file << " cc queries/s: " << 1000*cc_querycount/(cc_query_time/1000) << std::endl;
         file.close();
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
-        int seed = time(NULL)*tier_num;
-        srand(seed);
-        std::cout << "Tier " << tier_num << " seed: " << seed << std::endl;
-        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size, seed);
+        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size, tier_seed);
         tier_node.main();
     }
 }

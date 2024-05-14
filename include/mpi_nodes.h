@@ -5,11 +5,10 @@
 
 #include "types.h"
 #include "euler_tour_tree.h"
+#include "sketchless_euler_tour_tree.h"
 #include "link_cut_tree.h"
 #include "mpi_functions.h"
 
-
-#define MAX_INT (std::numeric_limits<int>::max())
 
 enum TreeOperationType {
   NOT_ISOLATED=0, LINK=1, CUT, EMPTY, LCT_QUERY
@@ -51,17 +50,18 @@ class InputNode {
   node_id_t num_nodes;
   uint32_t num_tiers;
   LinkCutTree link_cut_tree;
+  SketchlessEulerTourTree query_ett;
   UpdateMessage* update_buffer;
   int buffer_size;
   int buffer_capacity;
-  int* greedy_batch_buffer;
+  int* split_revert_buffer;
   void process_updates();
   std::queue<bool> isolation_history_queue;
   int history_size;
   int isolation_count;
   bool using_sliding_window = false;
 public:
-  InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size);
+  InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size, int seed);
   ~InputNode();
   void update(GraphUpdate update);
   void process_all_updates();
@@ -80,7 +80,6 @@ class TierNode {
   GreedyRefreshMessage* next_sizes_buffer;
   SampleResult* query_result_buffer;
   bool* split_revert_buffer;
-  int* greedy_batch_buffer;
   bool using_sliding_window = false;
   void update_tier(TierUpdateMessage message);
   void refresh_tier(RefreshMessage messsage);
@@ -89,3 +88,8 @@ public:
   ~TierNode();
   void main();
 };
+
+// #define CANARY(X) do {if (update.edge.src == 1784 && update.edge.dst == 4420) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ " << canary_h << " says " << X << std::endl;}} while (false)
+#define CANARY(X) ;
+// #define ENDPOINT_CANARY(X, src, dst) do {if (tier_num == 0 && (src == 7781 || dst == 7781)) {int canary_h; MPI_Comm_rank(MPI_COMM_WORLD, &canary_h); std::cout << __FILE__ << ":" << __LINE__ << " @ Tier " << canary_h-1 << " says " << X << " " << src << " " << dst << std::endl;}} while (false)
+# define ENDPOINT_CANARY(X, src, dst) ;

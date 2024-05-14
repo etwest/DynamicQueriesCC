@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.15)
 project(DynamicQueriesCC)
 include (FetchContent)
 
+# Force IPO is enabled
+cmake_policy(SET CMP0069 NEW) 
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -43,7 +47,7 @@ FetchContent_Declare(
   GraphZeppelinVerifyCC
 
   GIT_REPOSITORY      https://github.com/GraphStreamingProject/GraphZeppelin
-  GIT_TAG             refactor
+  GIT_TAG             main
 )
 
 FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
@@ -75,7 +79,9 @@ add_executable(mpi_dynamicCC_tests
   test/mpi_graph_tiers_test.cpp
 
   src/skiplist.cpp
+  src/sketchless_skiplist.cpp
   src/euler_tour_tree.cpp
+  src/sketchless_euler_tour_tree.cpp
   src/link_cut_tree.cpp
   src/input_node.cpp
   src/tier_node.cpp
