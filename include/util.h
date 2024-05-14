@@ -4,6 +4,8 @@
 
 
 extern std::string stream_file;
+extern int batch_size_arg;
+extern double height_factor_arg;
 
 //#define START(X) auto X = std::chrono::high_resolution_clock::now()
 //#define STOP(C, X) C += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - X).count()

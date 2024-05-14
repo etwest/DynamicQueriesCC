@@ -37,7 +37,7 @@ void InputNode::process_updates() {
     uint32_t num_updates = buffer_size-1;
     // If less than 1/10 of the last updates are isolated use sliding window
     bool prev_strat = using_sliding_window;
-    using_sliding_window = (isolation_count<history_size/10) ? true : false;
+    using_sliding_window = false;//(isolation_count<history_size/10) ? true : false;
     if (using_sliding_window != prev_strat)
         std::cout << "SWITCHED TO " << (using_sliding_window ? "SLIDING WINDOW" : "NORMAL STRAT") << std::endl;
     // Broadcast the batch of updates to all nodes
@@ -51,6 +51,7 @@ void InputNode::process_updates() {
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             split_revert_buffer[i] = link_cut_tree.get_edge_weight(update.edge.src, update.edge.dst);
             link_cut_tree.cut(update.edge.src, update.edge.dst);
+            query_ett.cut(update.edge.src, update.edge.dst);
         }
     }
     // Attempt to do the entire batch parallel with greedy refresh
@@ -66,8 +67,10 @@ void InputNode::process_updates() {
     for (uint32_t update_idx = minimum_isolated_update; update_idx < num_updates+1; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
         // There could be a cut on a later update that needs to be rolled back
-        unlikely_if (split_revert_buffer[update_idx-1] != MAX_INT)
+        unlikely_if (split_revert_buffer[update_idx-1] != MAX_INT) {
             link_cut_tree.link(update.edge.src, update.edge.dst, split_revert_buffer[update_idx-1]);
+            query_ett.link(update.edge.src, update.edge.dst);
+        }
     }
     // Update the isolation history
     for (uint32_t i = 1; i < minimum_isolated_update; i++) {
