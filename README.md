@@ -13,6 +13,8 @@ Run With Scripts:
 * ```$ scripts/mpi_update_test```
 * ```$ scripts/mpi_query_test```
 * ```$ scripts/mpi_correct_test```
+* ```$ scripts/mpi_space_test```
+* * In the space test script you can change the numerical value TIME in ```./../scripts/mem_record.sh mpi_dynamicCC_tests [TIME] ./../results/mpi_space_results/$2_mem.txt``` to determine how many seconds are inbetween each memory measurement
 
 Tweaking Hyperparameters:
 * Update batch size: in ```test/mpi_graph_tiers_test.cpp``` edit the ```DEFAULT_BATCH_SIZE``` variable.

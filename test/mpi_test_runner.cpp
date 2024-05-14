@@ -10,6 +10,8 @@ double height_factor_arg;
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   
+  if (argc < 4) return 1;
+
   stream_file = argv[1];
   batch_size_arg = atoi(argv[2]);
   height_factor_arg = atof(argv[3]);
