@@ -10,7 +10,10 @@ double height_factor_arg;
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
   
-  if (argc < 4) return 1;
+  if (argc < 4) {
+    std::cerr << "INCORRECT NUMBER OF ARGUMENTS." << std::endl;
+    return EXIT_FAILURE;
+  }
 
   stream_file = argv[1];
   batch_size_arg = atoi(argv[2]);
