@@ -75,6 +75,7 @@ void InputNode::process_updates() {
     // ======================================================================================
     // =========================== PROCESS THE ISOLATED UPDATES =============================
     // ======================================================================================
+
     int end_update_idx = using_sliding_window ? minimum_isolated_update+1 : update_buffer[0].update.edge.src;
     for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
@@ -83,6 +84,7 @@ void InputNode::process_updates() {
         uint32_t start_tier = 0;
         normal_refreshes++;
         bool this_update_isolated = false;
+
         // Initiate the refresh sequence and receive all the broadcasts
         RefreshEndpoint e1, e2;
         e1.v = update.edge.src;
@@ -90,6 +92,7 @@ void InputNode::process_updates() {
         RefreshMessage refresh_message;
         refresh_message.endpoints = {e1, e2};
         MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, start_tier+1, 0, MPI_COMM_WORLD);
+        
         for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
             int rank = tier + 1;
             for (auto endpoint : {0,1}) {
