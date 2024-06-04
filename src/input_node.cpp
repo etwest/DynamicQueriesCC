@@ -130,9 +130,12 @@ void InputNode::process_updates() {
                 bcast(&update_message, sizeof(TierUpdateMessage), 0);
 
                 // Then perform the cut and the link
-                if (update_message.cut_message.type == CUT)
+                if (update_message.cut_message.type == CUT) {
                     link_cut_tree.cut(update_message.cut_message.endpoint1, update_message.cut_message.endpoint2);
+                    query_ett.cut(update_message.cut_message.endpoint1, update_message.cut_message.endpoint2);
+                }
                 link_cut_tree.link(update_message.link_message.endpoint1, update_message.link_message.endpoint2, update_message.link_message.start_tier);
+                query_ett.link(update_message.link_message.endpoint1, update_message.link_message.endpoint2);
             }
         }
         isolation_count -= (int)isolation_history_queue.front();

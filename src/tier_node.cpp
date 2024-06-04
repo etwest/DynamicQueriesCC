@@ -198,7 +198,7 @@ void TierNode::refresh_tier(RefreshMessage message) {
         isolation_message.type = (TreeOperationType)(!(prev_tier_size != this_tier_size || endpoint.sketch_query_result.result != GOOD));
         isolation_message.endpoint1 = (node_id_t)endpoint.sketch_query_result.idx;
         isolation_message.endpoint2 = (node_id_t)(endpoint.sketch_query_result.idx>>32);
-        isolation_message.start_tier = tier_num+1;
+        isolation_message.start_tier = tier_num;
         MPI_Send(&isolation_message, sizeof(EttUpdateMessage), MPI_BYTE, 0, 0, MPI_COMM_WORLD);
 
         // Receive the tier update message from the input node and update if necessary
