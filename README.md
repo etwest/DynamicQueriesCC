@@ -3,7 +3,7 @@ Setup:
 * ```$ mkdir build```
 * ```$ cd build```
 * ```$ mkdir binary_streams```
-* ```$ ln -s /mnt/ssd2/fast_query_project/binary_streams/* binary_streams```
+* ```$ ln -s /mnt/ssd2/fast_query_project/binary_streams/* binary_streams (edit: now in /mnt/nvme/...)```
 * ```$ cmake .. -DCMAKE_BUILD_TYPE=Release``` or release type of choice (Release, RelWithDebInfo, Debug)
 * ```$ make$```
 
