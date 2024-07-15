@@ -133,7 +133,7 @@ void SkipListNode::update_agg(vec_t update_idx) {
 		return;
 	this->update_buffer[this->buffer_size] = update_idx;
 	this->buffer_size++;
-	if (this->buffer_size == skiplist_buffer_cap)
+	if (this->buffer_size == SKETCH_BUFFER_SIZE)
 		this->process_updates();
 }
 

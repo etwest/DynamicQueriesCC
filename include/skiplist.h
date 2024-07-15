@@ -3,9 +3,12 @@
 #include <gtest/gtest.h>
 #include "sketch.h"
 
+#ifndef SKETCH_BUFFER_SIZE
+  #define SKETCH_BUFFER_SIZE 10
+#endif
+
 class EulerTourNode;
 
-constexpr int skiplist_buffer_cap = 25;
 extern long skiplist_seed;
 extern double height_factor;
 extern vec_t sketch_len;
@@ -20,7 +23,7 @@ class SkipListNode {
   // Store the first node to the left on the next level up
   SkipListNode* parent = nullptr;
 
-  vec_t update_buffer[skiplist_buffer_cap];
+  vec_t update_buffer[SKETCH_BUFFER_SIZE];
   int buffer_size = 0;
   int buffer_capacity;
 

@@ -34,7 +34,7 @@ TEST(GraphTierSuite, mpi_mixed_speed_test) {
     sketch_len = Sketch::calc_vector_length(num_nodes);
 	sketch_err = DEFAULT_SKETCH_ERR;
 
-    std::cout << "BATCH SIZE: " << update_batch_size << " HEIGHT FACTOR " << height_factor << std::endl;
+    std::cout << "BATCH SIZE: " << update_batch_size << " HEIGHT FACTOR " << height_factor << " SKETCH BUFFER: " << SKETCH_BUFFER_SIZE << std::endl;
 
     // Seeds
     std::random_device dev;
