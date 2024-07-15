@@ -4,7 +4,7 @@
 #include "sketch.h"
 
 #ifndef SKETCH_BUFFER_SIZE
-  #define SKETCH_BUFFER_SIZE 10
+  #define SKETCH_BUFFER_SIZE 25
 #endif
 
 class EulerTourNode;
