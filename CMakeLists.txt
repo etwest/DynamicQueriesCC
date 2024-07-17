@@ -85,6 +85,7 @@ add_executable(mpi_dynamicCC_tests
   src/input_node.cpp
   src/tier_node.cpp
 )
+target_compile_definitions(mpi_dynamicCC_tests PUBLIC SKETCH_BUFFER_SIZE=${SKETCH_BUFFER_SIZE})
 target_include_directories(mpi_dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
 add_dependencies(mpi_dynamicCC_tests GraphZeppelinVerifyCC)
 target_link_libraries(mpi_dynamicCC_tests PRIVATE GraphZeppelinVerifyCC ${MPI_LIBRARIES})
