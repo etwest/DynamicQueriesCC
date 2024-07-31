@@ -10,6 +10,7 @@ make -j
 set +e
 
 mkdir -p ./../results
+mkdir -p ./../results/mpi_speed_results
 
 # Test run
 # mpirun -np 23 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/kron_13_query10_binary 0 0 --gtest_filter=*mpi_mixed_speed_test*

@@ -4,10 +4,12 @@ declare base_dir="$(dirname $(dirname $(realpath $0)))"
 
 cd ${base_dir}/build
 set -e
+cmake -DSKETCH_BUFFER_SIZE=25 ..
 make -j
 set +e
 
 mkdir -p ./../results
+mkdir -p ./../results/mpi_speed_results
 
 # Test run
 # mpirun -np 23 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/kron_13_query10_binary 100 0 --gtest_filter=*mpi_mixed_speed_test*

@@ -11,7 +11,6 @@ set +e
 
 mkdir -p ./../results
 mkdir -p ./../results/mpi_space_results
-mkdir -p ./../results/mpi_space_results/batch_size_sweep
 
 run_mem_test() {
 	mpirun -np $1 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/$2 0 0 --gtest_filter=*mpi_mixed_speed_test* &

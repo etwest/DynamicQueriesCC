@@ -97,9 +97,11 @@ TEST(GraphTierSuite, mpi_mixed_speed_test) {
         std::cout << "Total query time(ms):    " << (total_query_time/1000) << std::endl;
 
         std::ofstream file;
-        file.open ("./../results/mpi_mixed_results.txt", std::ios_base::app);
-        file << stream_file << " UPDATES/SECOND: " << ((long)(0.9*edgecount))/(total_update_time/1000)*1000 << std::endl;
-        file << stream_file << " QUERIES/SECOND: " << ((long)(0.1*edgecount))/(total_query_time/1000)*1000 << std::endl;
+        std::string out_file = "./../results/mpi_speed_results/" + stream_file.substr(stream_file.find("/") + 1) + ".txt";
+        std::cout << "WRITING RESULTS TO " << out_file << std::endl;
+        file.open (out_file, std::ios_base::app);
+        file << " UPDATES/SECOND: " << ((long)(0.9*edgecount))/(total_update_time/1000)*1000 << std::endl;
+        file << " QUERIES/SECOND: " << ((long)(0.1*edgecount))/(total_query_time/1000)*1000 << std::endl;
         file.close();
 
     } else if (world_rank < num_tiers+1) {
