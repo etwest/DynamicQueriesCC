@@ -4,10 +4,10 @@ declare base_dir="$(dirname $(dirname $(realpath $0)))"
 echo "Testing with buffer size $1"
 
 cd ${base_dir}/build
-set -e
-cmake -DSKETCH_BUFFER_SIZE=$1 ..
-make -j
-set +e
+#set -e
+#cmake -DSKETCH_BUFFER_SIZE=$1 ..
+#make -j
+#set +e
 
 mkdir -p ./../results
 mkdir -p ./../results/mpi_speed_results
