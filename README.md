@@ -1,5 +1,5 @@
 # Streaming Connected Components with Dynamic Queries
-This repository solves fully dynamic graph connectivity in the semi-streaming setting. It achieves fast update throughputs (millions of updates per second) and compact data-structures (orders of magnitude smaller than other dynamic connectivity systems), while also answering connectivity queries (of the form is `u` connected to `v`) in less than a 0.00001 seconds.
+This repository solves fully dynamic graph connectivity in the semi-streaming setting. It achieves fast update throughputs (millions of updates per second) and compact data-structures (orders of magnitude smaller than other dynamic connectivity systems), while also answering connectivity queries (of the form is `u` connected to `v`) in less than 0.00001 seconds.
 
 Cite our paper here, once published.
 
