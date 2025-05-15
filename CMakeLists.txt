@@ -48,7 +48,7 @@ FetchContent_Declare(
 
   GIT_REPOSITORY      https://github.com/GraphStreamingProject/GraphZeppelin
   # GIT_TAG             2c633f5814f7edc79632cceb629280f6221b0281 #ksparse_recovery
-  GIT_TAG             78cf14d8a8166a920c53ea0b444b2519b370a190
+  GIT_TAG             6f6cc8950ccedacedaa86408c3c1117efd599f09
 )
 
 FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
