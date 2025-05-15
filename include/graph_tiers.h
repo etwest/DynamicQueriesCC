@@ -31,7 +31,7 @@ private:
   std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
   std::vector<SkipListNode<SketchClass>*> root_nodes;
   LinkCutTree link_cut_tree;
-  void refresh(GraphUpdate update);
+  void refresh(GraphUpdate update, bool did_cut);
 
 public:
   GraphTiers(node_id_t num_nodes);

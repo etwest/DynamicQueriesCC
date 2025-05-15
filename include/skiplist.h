@@ -5,10 +5,15 @@
 #include "sketch/sketch_columns.h"
 #include "sketch_interfacing.h"
 
+
+
+#ifndef SKETCH_BUFFER_SIZE
+  #define SKETCH_BUFFER_SIZE 25
+#endif
+
 template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConcept<SketchClass, vec_t>)
 class EulerTourNode;
 
-constexpr int skiplist_buffer_cap = 25;
 extern long skiplist_seed;
 extern double height_factor;
 extern vec_t sketch_len;
@@ -24,7 +29,7 @@ class SkipListNode {
   // Store the first node to the left on the next level up
   SkipListNode<SketchClass>* parent = nullptr;
 
-  vec_t update_buffer[skiplist_buffer_cap];
+  vec_t update_buffer[SKETCH_BUFFER_SIZE];
   int buffer_size = 0;
   int buffer_capacity;
 
