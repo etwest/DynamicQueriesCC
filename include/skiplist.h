@@ -29,9 +29,9 @@ class SkipListNode {
   // Store the first node to the left on the next level up
   SkipListNode<SketchClass>* parent = nullptr;
 
-  vec_t update_buffer[SKETCH_BUFFER_SIZE];
   int buffer_size = 0;
   int buffer_capacity;
+  vec_t update_buffer[SKETCH_BUFFER_SIZE];
 
 public:
   SketchClass* sketch_agg = nullptr;
