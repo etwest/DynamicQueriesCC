@@ -16,7 +16,7 @@ SkipListNode<SketchClass>::SkipListNode(EulerTourNode<SketchClass>* node, long s
 	// TODO - FIGURE OUT HOW TO DO SEEDING PROPERLY
         if (has_sketch)
           sketch_agg = new SketchClass(
-              SketchClass::suggest_capacity(sketch_len), seed % (1 << 16));
+              SketchClass::suggest_capacity(sketch_len), seed);
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
@@ -256,7 +256,7 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::join(SkipListNode<SketchCl
 		// Cache the left root to initialize the new boundary nodes
 		// Sketch* l_root_agg = new Sketch(sketch_len, seed, 1, sketch_err);
 		SketchClass* l_root_agg = new SketchClass(
-			SketchClass::suggest_capacity(sketch_len), seed % (1 << 16));
+			SketchClass::suggest_capacity(sketch_len), seed);
 		l_prev->process_updates();
 		l_root_agg->merge(*l_prev->sketch_agg);
 		l_root_agg->merge(*r_prev->sketch_agg);

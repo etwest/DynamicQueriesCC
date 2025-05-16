@@ -13,7 +13,7 @@ EulerTourTree<SketchClass>::EulerTourTree(node_id_t num_nodes, uint32_t tier_num
     // this->temp_sketch = new Sketch(sketch_len, seed, 1, sketch_err);
     // this-> temp_sketch = new SketchClass(4, 0);
     this -> temp_sketch = new SketchClass(
-        SketchClass::suggest_capacity(sketch_len), seed % (1 << 16));
+        SketchClass::suggest_capacity(sketch_len), seed);
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)

@@ -201,7 +201,7 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   // DefaultSketchColumn true_aggregate(sketch_len, seed, 1, sketch_err);
   // DefaultSketchColumn true_aggregate(4, 0);
   DefaultSketchColumn true_aggregate(
-      DefaultSketchColumn::suggest_capacity(sketch_len), seed % (1 << 16));
+      DefaultSketchColumn::suggest_capacity(sketch_len), seed);
 
   int nodecount = 1000;
   EulerTourTree<DefaultSketchColumn> ett(nodecount, 0, seed);
