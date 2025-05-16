@@ -37,7 +37,7 @@ int SkipListNode<SketchClass>::print_list() {
 bool aggregate_correct(SkipListNode<DefaultSketchColumn>* node) {
     // Sketch* naive_agg = new Sketch(sketch_len, node->node->get_seed(), 1, sketch_err);
     DefaultSketchColumn *naive_agg = new DefaultSketchColumn(
-        DefaultSketchColumn::suggest_capacity(sketch_len), node->node->get_seed() % (1 << 16));
+        DefaultSketchColumn::suggest_capacity(sketch_len), node->node->get_seed());
     std::set<EulerTourNode<DefaultSketchColumn>*> component = node->get_component();
     for (auto ett_node : component) {
         naive_agg->update(ett_node->vertex);

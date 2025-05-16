@@ -144,7 +144,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     {
       // DefaultSketchColumn* agg = new Sketch(sketch_len, seed, 1, sketch_err);
       DefaultSketchColumn *agg = new DefaultSketchColumn(
-          DefaultSketchColumn::suggest_capacity(sketch_len), seed % (1 << 16));
+          DefaultSketchColumn::suggest_capacity(sketch_len), seed);
       aggs.insert({sentinel, agg});
       SkipListNode<DefaultSketchColumn>* sentinel_root = sentinel->get_root();
       
@@ -171,7 +171,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
       // Sketch* agg = new Sketch(sketch_len, seed, 1, sketch_err);
       // DefaultSketchColumn *agg = new DefaultSketchColumn(4, 0);
       DefaultSketchColumn *agg = new DefaultSketchColumn(
-          DefaultSketchColumn::suggest_capacity(sketch_len), seed % (1 << 16));
+          DefaultSketchColumn::suggest_capacity(sketch_len), seed);
       naive_aggs.insert({sentinel, agg});
       naive_aggs[sentinel]->merge(*ett.ett_nodes[i].allowed_caller->sketch_agg);
       naive_sizes[sentinel] = 1;
