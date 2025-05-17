@@ -258,7 +258,7 @@ void bin_query_stream(string path, bool use_union_find = true) {
 	clock_t end = clock();
 
 	std::cout << "Processing: " << path << " took:" << std::endl;
-	std::cout << "Total latency: " << (end - start) * 1.0 / CLOCKS_PER_SEC << " seconds" << std::endl;
+	std::cout << "Insert latency: " << (end - start - query_time) * 1.0 / CLOCKS_PER_SEC << " seconds" << std::endl;
 	std::cout << "Query latency: " << query_time * 1.0 / CLOCKS_PER_SEC << " seconds" << std::endl;
 }
 
