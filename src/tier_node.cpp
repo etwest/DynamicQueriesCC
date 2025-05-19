@@ -58,11 +58,11 @@ void TierNode::main() {
             auto roots = ett.update_sketches(update.edge.src, update.edge.dst, (vec_t)edge);
             ENDPOINT_CANARY("Updating Sketch With", update.edge.src, update.edge.dst);
             roots.first->process_updates();
-            roots.first->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i] = roots.first->sketch_agg->sample().result;
+            roots.first->sketch_agg.reset_sample_state();
+            query_result_buffer[2*i] = roots.first->sketch_agg.sample().result;
             roots.second->process_updates();
-            roots.second->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i+1] = roots.second->sketch_agg->sample().result;
+            roots.second->sketch_agg.reset_sample_state();
+            query_result_buffer[2*i+1] = roots.second->sketch_agg.sample().result;
     
             // Prepare greedy batch size messages
             GreedyRefreshMessage this_sizes;
@@ -154,9 +154,9 @@ void TierNode::main() {
                             e->prev_tier_size = ett.get_size(e->v);
                             SkipListNode<DefaultSketchColumn>* root = ett.get_root(e->v);
                             root->process_updates();
-                            DefaultSketchColumn* ett_agg = root->sketch_agg;
-                            ett_agg->reset_sample_state();
-                            e->sketch_query_result = ett_agg->sample();
+                            DefaultSketchColumn &ett_agg = root->sketch_agg;
+                            ett_agg.reset_sample_state();
+                            e->sketch_query_result = ett_agg.sample();
                         }
                         RefreshMessage next_refresh_message;
                         next_refresh_message.endpoints = {e1, e2};

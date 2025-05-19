@@ -149,7 +149,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
       SkipListNode<DefaultSketchColumn>* sentinel_root = sentinel->get_root();
       
       sentinel_root->process_updates();
-      aggs[sentinel]->merge(*sentinel->get_list_aggregate());
+      aggs[sentinel]->merge(sentinel->get_list_aggregate());
       sizes[sentinel] = sentinel->get_list_size();
     }
   }
@@ -163,7 +163,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     sentinel->process_updates();
     if (naive_aggs.find(sentinel) != naive_aggs.end())
     {
-      naive_aggs[sentinel]->merge(*ett.ett_nodes[i].allowed_caller->sketch_agg);
+      naive_aggs[sentinel]->merge(ett.ett_nodes[i].allowed_caller->sketch_agg);
       naive_sizes[sentinel] += 1;
     }
     else
@@ -173,7 +173,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
       DefaultSketchColumn *agg = new DefaultSketchColumn(
           DefaultSketchColumn::suggest_capacity(sketch_len), seed);
       naive_aggs.insert({sentinel, agg});
-      naive_aggs[sentinel]->merge(*ett.ett_nodes[i].allowed_caller->sketch_agg);
+      naive_aggs[sentinel]->merge(ett.ett_nodes[i].allowed_caller->sketch_agg);
       naive_sizes[sentinel] = 1;
     }
   }
@@ -219,6 +219,6 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   }
 
   // Check that the ETT aggregate is properly maintained and gotten
-  DefaultSketchColumn* aggregate = ett.get_aggregate(0);
-  ASSERT_TRUE(*aggregate == true_aggregate);
+  DefaultSketchColumn aggregate = ett.get_aggregate(0);
+  ASSERT_TRUE(aggregate == true_aggregate);
 }

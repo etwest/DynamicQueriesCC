@@ -70,7 +70,7 @@ SkipListNode<SketchClass>* EulerTourTree<SketchClass>::get_root(node_id_t u) {
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SketchClass* EulerTourTree<SketchClass>::get_aggregate(node_id_t u) {
+SketchClass& EulerTourTree<SketchClass>::get_aggregate(node_id_t u) {
   return ett_nodes[u].get_aggregate();
 }
 
@@ -108,7 +108,8 @@ SkipListNode<SketchClass>* EulerTourNode<SketchClass>::make_edge(EulerTourNode<S
     node = SkipListNode<SketchClass>::init_element(this, true);
     allowed_caller = node;
     if (temp_sketch != nullptr) {
-      node->update_path_agg(temp_sketch);
+      // TODO - incredibly suspect.
+      node->update_path_agg(*temp_sketch);
       temp_sketch->zero_contents();
     }
   } else {
@@ -129,13 +130,14 @@ void EulerTourNode<SketchClass>::delete_edge(EulerTourNode<SketchClass>* other, 
       allowed_caller = nullptr;
       node_to_delete->process_updates();
       // std::cout << node_to_delete << std::endl;
-      temp_sketch->merge(*node_to_delete->sketch_agg);
-      node_to_delete->sketch_agg = nullptr;
+      temp_sketch->merge(node_to_delete->sketch_agg);
+      // TODO - was this previously a memory leak?
+      // node_to_delete->sketch_agg = nullptr;
     } else {
       allowed_caller = this->edges.begin()->second;
       node_to_delete->process_updates();
-      allowed_caller->update_path_agg(node_to_delete->sketch_agg);
-      node_to_delete->sketch_agg = nullptr; // We just gave the sketch to new allowed caller
+      allowed_caller->update_path_agg(std::move(node_to_delete->sketch_agg));
+      // node_to_delete->sketch_agg = nullptr; // We just gave the sketch to new allowed caller
     }
   }
   node_to_delete->uninit_element(true);
@@ -154,7 +156,7 @@ SkipListNode<SketchClass>* EulerTourNode<SketchClass>::get_root() {
 
 //Get the aggregate sketch at the root of the ETT for this node
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SketchClass* EulerTourNode<SketchClass>::get_aggregate() {
+SketchClass& EulerTourNode<SketchClass>::get_aggregate() {
   assert(allowed_caller);
   return this->allowed_caller->get_list_aggregate();
 }

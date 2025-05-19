@@ -34,11 +34,10 @@ class SkipListNode {
   vec_t update_buffer[SKETCH_BUFFER_SIZE];
 
 public:
-  SketchClass* sketch_agg = nullptr;
+  EulerTourNode<SketchClass>* node;
+  SketchClass sketch_agg;
 
   uint32_t size = 1;
-
-  EulerTourNode<SketchClass>* node;
 
   SkipListNode(EulerTourNode<SketchClass>* node, long seed, bool has_sketch);
   ~SkipListNode();
@@ -58,11 +57,11 @@ public:
   // Return the aggregate size at the root of the list
   uint32_t get_list_size();
   // Return the aggregate sketch at the root of the list
-  SketchClass* get_list_aggregate();
+  SketchClass& get_list_aggregate();
   // Update all the aggregate sketches with the input vector from the current node to its root
   SkipListNode<SketchClass>* update_path_agg(vec_t update_idx);
   // Add the given sketch to all aggregate sketches from the current node to its root
-  SkipListNode<SketchClass>* update_path_agg(SketchClass* sketch);
+  SkipListNode<SketchClass>* update_path_agg(SketchClass sketch);
 
   // Update just this node's aggregate sketch
   void update_agg(vec_t update_idx);

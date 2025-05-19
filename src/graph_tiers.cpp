@@ -84,9 +84,9 @@ void GraphTiers<SketchClass>::refresh(GraphUpdate update, bool did_cut) {
 		uint32_t next_size1 = root_nodes[2*(tier+1)]->size;
 		if (tier_size1 == next_size1) {
 			root_nodes[2*tier]->process_updates();
-			SketchClass* ett_agg1 = root_nodes[2*tier]->sketch_agg;
-			ett_agg1->reset_sample_state();
-			SketchSample<> query_result1 = ett_agg1->sample();
+			SketchClass &ett_agg1 = root_nodes[2*tier]->sketch_agg;
+			ett_agg1.reset_sample_state();
+			SketchSample<> query_result1 = ett_agg1.sample();
 			if (query_result1.result == GOOD) {
 				isolated = true;
 				continue;
@@ -97,9 +97,9 @@ void GraphTiers<SketchClass>::refresh(GraphUpdate update, bool did_cut) {
 		uint32_t next_size2 = root_nodes[2*(tier+1)+1]->size;
 		if (tier_size2 == next_size2) {
 			root_nodes[2*tier+1]->process_updates();
-			SketchClass* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
-			ett_agg2->reset_sample_state();
-			SketchSample query_result2 = ett_agg2->sample();
+			SketchClass &ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
+			ett_agg2.reset_sample_state();
+			SketchSample query_result2 = ett_agg2.sample();
 			if (query_result2.result == GOOD) {
 				isolated = true;
 				continue;
@@ -125,11 +125,11 @@ void GraphTiers<SketchClass>::refresh(GraphUpdate update, bool did_cut) {
 			START(agg);
 			SkipListNode<SketchClass>* root = ett[tier].get_root(v);
 			root->process_updates();
-			SketchClass* ett_agg = root->sketch_agg;
+			SketchClass &ett_agg = root->sketch_agg;
 			STOP(ett_get_agg, agg);
 			START(sq);
-			ett_agg->reset_sample_state();
-			SketchSample query_result = ett_agg->sample();
+			ett_agg.reset_sample_state();
+			SketchSample query_result = ett_agg.sample();
 			STOP(sketch_query, sq);
 
 			// Check for new edge to eliminate isolation
