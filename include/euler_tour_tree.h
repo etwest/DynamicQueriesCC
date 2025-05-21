@@ -20,8 +20,8 @@ class EulerTourNode {
   Sketch* temp_sketch = nullptr;
   long seed = 0;
 
-  SkipListNode<SketchClass>* make_edge(EulerTourNode<SketchClass>* other, SketchClass* temp_sketch);
-  void delete_edge(EulerTourNode<SketchClass>* other, SketchClass* temp_sketch);
+  SkipListNode<SketchClass>* make_edge(EulerTourNode<SketchClass>* other, SketchClass &temp_sketch);
+  void delete_edge(EulerTourNode<SketchClass>* other, SketchClass &temp_sketch);
 
 public:
   const node_id_t vertex = 0;
@@ -31,8 +31,8 @@ public:
   EulerTourNode(long seed, node_id_t vertex, uint32_t tier);
   EulerTourNode(long seed);
   ~EulerTourNode();
-  bool link(EulerTourNode<SketchClass>& other, SketchClass* temp_sketch);
-  bool cut(EulerTourNode<SketchClass>& other, SketchClass* temp_sketch);
+  bool link(EulerTourNode<SketchClass>& other, SketchClass const& temp_sketch);
+  bool cut(EulerTourNode<SketchClass>& other, SketchClass const& temp_sketch);
 
   bool isvalid() const;
 

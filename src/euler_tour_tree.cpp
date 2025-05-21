@@ -18,12 +18,12 @@ EulerTourTree<SketchClass>::EulerTourTree(node_id_t num_nodes, uint32_t tier_num
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 void EulerTourTree<SketchClass>::link(node_id_t u, node_id_t v) {
-  ett_nodes[u].link(ett_nodes[v], temp_sketch);
+  ett_nodes[u].link(ett_nodes[v], *temp_sketch);
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 void EulerTourTree<SketchClass>::cut(node_id_t u, node_id_t v) {
-  ett_nodes[u].cut(ett_nodes[v], temp_sketch);
+  ett_nodes[u].cut(ett_nodes[v], *temp_sketch);
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
@@ -82,13 +82,13 @@ uint32_t EulerTourTree<SketchClass>::get_size(node_id_t u) {
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 EulerTourNode<SketchClass>::EulerTourNode(long seed, node_id_t vertex, uint32_t tier) : seed(seed), vertex(vertex), tier(tier) {
   // Initialize sentinel
-  this->make_edge(nullptr, nullptr);
+  this->make_edge(nullptr, SketchClass(0, seed));
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 EulerTourNode<SketchClass>::EulerTourNode(long seed) : seed(seed) {
   // Initialize sentinel
-  this->make_edge(nullptr, nullptr);
+  this->make_edge(nullptr, SketchClass(0, seed));
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
@@ -100,17 +100,17 @@ EulerTourNode<SketchClass>::~EulerTourNode() {
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourNode<SketchClass>::make_edge(EulerTourNode<SketchClass>* other, SketchClass* temp_sketch) {
+SkipListNode<SketchClass>* EulerTourNode<SketchClass>::make_edge(EulerTourNode<SketchClass>* other, SketchClass &temp_sketch) {
   assert(!other || this->tier == other->tier);
   //Constructing a new SkipListNode with pointer to this ETT object
   SkipListNode<SketchClass>* node;
   if (allowed_caller == nullptr) {
     node = SkipListNode<SketchClass>::init_element(this, true);
     allowed_caller = node;
-    if (temp_sketch != nullptr) {
+    if (temp_sketch.is_initialized()) {
       // TODO - incredibly suspect.
-      node->update_path_agg(*temp_sketch);
-      temp_sketch->zero_contents();
+      node->update_path_agg(temp_sketch);
+      temp_sketch.zero_contents();
     }
   } else {
     node = SkipListNode<SketchClass>::init_element(this, false);
@@ -121,7 +121,7 @@ SkipListNode<SketchClass>* EulerTourNode<SketchClass>::make_edge(EulerTourNode<S
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-void EulerTourNode<SketchClass>::delete_edge(EulerTourNode<SketchClass>* other, SketchClass* temp_sketch) {
+void EulerTourNode<SketchClass>::delete_edge(EulerTourNode<SketchClass>* other, SketchClass &temp_sketch) {
   assert(!other || this->tier == other->tier);
   SkipListNode<SketchClass>* node_to_delete = this->edges[other];
   this->edges.erase(other);
@@ -130,7 +130,7 @@ void EulerTourNode<SketchClass>::delete_edge(EulerTourNode<SketchClass>* other, 
       allowed_caller = nullptr;
       node_to_delete->process_updates();
       // std::cout << node_to_delete << std::endl;
-      temp_sketch->merge(node_to_delete->sketch_agg);
+      temp_sketch.merge(node_to_delete->sketch_agg);
       // TODO - was this previously a memory leak?
       // node_to_delete->sketch_agg = nullptr;
     } else {
@@ -177,7 +177,7 @@ std::set<EulerTourNode<SketchClass>*> EulerTourNode<SketchClass>::get_component(
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-bool EulerTourNode<SketchClass>::link(EulerTourNode<SketchClass>& other, SketchClass* temp_sketch) {
+bool EulerTourNode<SketchClass>::link(EulerTourNode<SketchClass>& other, SketchClass const& temp_sketch) {
   assert(this->tier == other.tier);
   SkipListNode<SketchClass>* this_sentinel = this->edges.begin()->second->get_last();
   SkipListNode<SketchClass>* other_sentinel = other.edges.begin()->second->get_last();
@@ -230,7 +230,7 @@ bool EulerTourNode<SketchClass>::link(EulerTourNode<SketchClass>& other, SketchC
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-bool EulerTourNode<SketchClass>::cut(EulerTourNode<SketchClass>& other, SketchClass* temp_sketch) {
+bool EulerTourNode<SketchClass>::cut(EulerTourNode<SketchClass>& other, SketchClass const& temp_sketch) {
   assert(this->tier == other.tier);
   if (this->edges.find(&other) == this->edges.end()) {
     assert(other.edges.find(this) == other.edges.end());

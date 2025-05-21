@@ -61,7 +61,7 @@ public:
   // Update all the aggregate sketches with the input vector from the current node to its root
   SkipListNode<SketchClass>* update_path_agg(vec_t update_idx);
   // Add the given sketch to all aggregate sketches from the current node to its root
-  SkipListNode<SketchClass>* update_path_agg(SketchClass sketch);
+  SkipListNode<SketchClass>* update_path_agg(SketchClass &sketch);
 
   // Update just this node's aggregate sketch
   void update_agg(vec_t update_idx);
