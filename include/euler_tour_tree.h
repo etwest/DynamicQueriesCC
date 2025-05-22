@@ -17,10 +17,10 @@ class EulerTourNode {
   
   std::unordered_map<EulerTourNode<SketchClass>*, SkipListNode<SketchClass>*> edges;
 
-  Sketch* temp_sketch = nullptr;
   long seed = 0;
 
   SkipListNode<SketchClass>* make_edge(EulerTourNode<SketchClass>* other, SketchClass &temp_sketch);
+  SkipListNode<SketchClass>* make_edge(EulerTourNode<SketchClass>* other);
   void delete_edge(EulerTourNode<SketchClass>* other, SketchClass &temp_sketch);
 
 public:
@@ -55,7 +55,7 @@ public:
 
 template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConcept<SketchClass, vec_t>)
 class EulerTourTree {
-  SketchClass* temp_sketch;
+  SketchClass temp_sketch;
 public:
   std::vector<EulerTourNode<SketchClass>> ett_nodes;
   

@@ -176,13 +176,11 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(vec_t upda
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(SketchClass const &sketch) {
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(SketchClass &sketch) {
 	SkipListNode* curr = this;
 	SkipListNode* prev;
 	if (!this->sketch_agg.is_initialized()) {
-	//   this->sketch_agg = std::move(sketch);
-	//   will use the copy constructor
-	  this->sketch_agg = sketch;
+		  this->sketch_agg = std::move(sketch);
 	  while (curr) {
 		curr->sketch_agg.merge(this->sketch_agg);
 		prev = curr;
