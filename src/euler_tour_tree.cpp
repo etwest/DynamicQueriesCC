@@ -191,7 +191,7 @@ std::set<EulerTourNode<SketchClass>*> EulerTourNode<SketchClass>::get_component(
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-bool EulerTourNode<SketchClass>::link(EulerTourNode<SketchClass>& other, SketchClass* temp_sketch) {
+bool EulerTourNode<SketchClass>::link(EulerTourNode<SketchClass>& other, SketchClass& temp_sketch) {
   assert(this->tier == other.tier);
   SkipListNode<SketchClass>* this_sentinel = this->edges.begin()->second->get_last();
   SkipListNode<SketchClass>* other_sentinel = other.edges.begin()->second->get_last();
@@ -244,7 +244,7 @@ bool EulerTourNode<SketchClass>::link(EulerTourNode<SketchClass>& other, SketchC
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-bool EulerTourNode<SketchClass>::cut(EulerTourNode<SketchClass>& other, SketchClass* temp_sketch) {
+bool EulerTourNode<SketchClass>::cut(EulerTourNode<SketchClass>& other, SketchClass& temp_sketch) {
   assert(this->tier == other.tier);
   if (this->edges.find(&other) == this->edges.end()) {
     assert(other.edges.find(this) == other.edges.end());
