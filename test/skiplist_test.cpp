@@ -43,7 +43,7 @@ bool aggregate_correct(SkipListNode<DefaultSketchColumn>* node) {
         naive_agg->update(ett_node->vertex);
     }
     node->get_root()->process_updates();
-    DefaultSketchColumn list_agg = node->get_list_aggregate();
+    DefaultSketchColumn &list_agg = node->get_list_aggregate();
     return *naive_agg == list_agg;
 }
 

@@ -41,7 +41,7 @@ public:
 
   SkipListNode<SketchClass>* get_root();
 
-  SketchClass& get_aggregate();
+  const SketchClass& get_aggregate();
   uint32_t get_size();
   bool has_edge_to(EulerTourNode<SketchClass>* other);
 
@@ -67,6 +67,6 @@ public:
   SkipListNode<SketchClass>* update_sketch(node_id_t u, vec_t update_idx);
   std::pair<SkipListNode<SketchClass>*, SkipListNode<SketchClass>*> update_sketches(node_id_t u, node_id_t v, vec_t update_idx);
   SkipListNode<SketchClass>* get_root(node_id_t u);
-  SketchClass& get_aggregate(node_id_t u);
+  const SketchClass& get_aggregate(node_id_t u);
   uint32_t get_size(node_id_t u);
 };

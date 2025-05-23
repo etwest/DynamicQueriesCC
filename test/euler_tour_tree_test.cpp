@@ -219,6 +219,6 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   }
 
   // Check that the ETT aggregate is properly maintained and gotten
-  DefaultSketchColumn aggregate = ett.get_aggregate(0);
+  const DefaultSketchColumn &aggregate = ett.get_aggregate(0);
   ASSERT_TRUE(aggregate == true_aggregate);
 }
