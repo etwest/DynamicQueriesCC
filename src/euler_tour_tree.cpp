@@ -111,6 +111,7 @@ SkipListNode<SketchClass>* EulerTourNode<SketchClass>::make_edge(EulerTourNode<S
       node->update_path_agg(temp_sketch);
       // note: this is really poorly written,
       // but we KNOW that a move was not performed here.
+      // because in this branch, node is instantiated with a sketch
       temp_sketch.zero_contents();
     }
   } else {
@@ -150,11 +151,12 @@ void EulerTourNode<SketchClass>::delete_edge(EulerTourNode<SketchClass>* other, 
       // temp_sketch = std::move(node_to_delete->sketch_agg);
       temp_sketch.merge(std::move(node_to_delete->sketch_agg));
       // node_to_delete->sketch_agg = nullptr;
+      node_to_delete->sketch_agg = SketchClass(0, seed); // We just gave the sketch to new allowed caller
     } else {
       allowed_caller = this->edges.begin()->second;
       node_to_delete->process_updates();
       allowed_caller->update_path_agg(node_to_delete->sketch_agg);
-      // node_to_delete->sketch_agg = SketchClass(0, seed); // We just gave the sketch to new allowed caller
+      node_to_delete->sketch_agg = SketchClass(0, seed); // We just gave the sketch to new allowed caller
     }
   }
   node_to_delete->uninit_element(true);

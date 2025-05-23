@@ -140,7 +140,7 @@ uint32_t SkipListNode<SketchClass>::get_list_size() {
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SketchClass& SkipListNode<SketchClass>::get_list_aggregate() {
+const SketchClass& SkipListNode<SketchClass>::get_list_aggregate() {
 	return this->get_root()->sketch_agg;
 }
 
@@ -181,6 +181,8 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(SketchClas
 	SkipListNode* prev;
 	if (!this->sketch_agg.is_initialized()) {
 		this->sketch_agg = std::move(sketch);
+		prev = curr;
+		curr = prev->get_parent();
 		while (curr)
 		{
 			curr->sketch_agg.merge(this->sketch_agg);
