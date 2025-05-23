@@ -180,12 +180,14 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(SketchClas
 	SkipListNode* curr = this;
 	SkipListNode* prev;
 	if (!this->sketch_agg.is_initialized()) {
-		  this->sketch_agg = std::move(sketch);
-	  while (curr) {
-		curr->sketch_agg.merge(this->sketch_agg);
-		prev = curr;
-		curr = prev->get_parent();
-	  }
+		this->sketch_agg = std::move(sketch);
+		while (curr)
+		{
+			curr->sketch_agg.merge(this->sketch_agg);
+			prev = curr;
+			curr = prev->get_parent();
+		}
+		// this->sketch_agg.zero_contents();
 	} else {
 	  while (curr) {
 		curr->sketch_agg.merge(sketch);

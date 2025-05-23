@@ -109,6 +109,8 @@ SkipListNode<SketchClass>* EulerTourNode<SketchClass>::make_edge(EulerTourNode<S
     allowed_caller = node;
     if (temp_sketch.is_initialized()) {
       node->update_path_agg(temp_sketch);
+      // note: this is really poorly written,
+      // but we KNOW that a move was not performed here.
       temp_sketch.zero_contents();
     }
   } else {
@@ -145,7 +147,8 @@ void EulerTourNode<SketchClass>::delete_edge(EulerTourNode<SketchClass>* other, 
       allowed_caller = nullptr;
       node_to_delete->process_updates();
       // std::cout << node_to_delete << std::endl;
-      temp_sketch = std::move(node_to_delete->sketch_agg);
+      // temp_sketch = std::move(node_to_delete->sketch_agg);
+      temp_sketch.merge(std::move(node_to_delete->sketch_agg));
       // node_to_delete->sketch_agg = nullptr;
     } else {
       allowed_caller = this->edges.begin()->second;
