@@ -62,6 +62,10 @@ class InputNode {
   LinkCutTree link_cut_tree;
   SketchlessEulerTourTree query_ett;
   UpdateMessage* update_buffer;
+  
+  std::vector<GraphUpdate> transaction_log;
+
+
   int buffer_size;
   int buffer_capacity;
   int* split_revert_buffer;
@@ -78,6 +82,15 @@ public:
   bool connectivity_query(node_id_t a, node_id_t b);
   std::vector<std::set<node_id_t>> cc_query();
   void end();
+
+  void flush_transaction_log() {
+    transaction_log.clear();
+  };
+  
+  const std::vector<GraphUpdate>& get_transaction_log() const {
+    return transaction_log;
+  }
+  
 };
 
 class TierNode {

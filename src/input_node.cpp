@@ -50,8 +50,12 @@ void InputNode::process_updates() {
         split_revert_buffer[i] = MAX_INT;
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             split_revert_buffer[i] = link_cut_tree.get_edge_weight(update.edge.src, update.edge.dst);
+            // probably where most structural (spanning forest) deletes happen?
+            // potentially - revisit
             link_cut_tree.cut(update.edge.src, update.edge.dst);
             query_ett.cut(update.edge.src, update.edge.dst);
+            // transaction_log.add(update.edge, DELETE);
+            transaction_log.push_back(update);
         }
     }
     // Attempt to do the entire batch parallel with greedy refresh
@@ -70,6 +74,9 @@ void InputNode::process_updates() {
         unlikely_if (split_revert_buffer[update_idx-1] != MAX_INT) {
             link_cut_tree.link(update.edge.src, update.edge.dst, split_revert_buffer[update_idx-1]);
             query_ett.link(update.edge.src, update.edge.dst);
+            // transaction_log.add(update.edge, INSERT);
+            // // TODO - not actually sure if update is an insert type
+            transaction_log.push_back(GraphUpdate{update.edge, INSERT});
         }
     }
     // Update the isolation history
@@ -88,6 +95,8 @@ void InputNode::process_updates() {
         unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
             query_ett.cut(update.edge.src, update.edge.dst);
+            // transaction_log.add(update.edge, DELETE);
+            transaction_log.push_back(update);
         }
         STOP(dt_operation_time, dt_operation_timer1);
         uint32_t start_tier = 0;
@@ -130,10 +139,16 @@ void InputNode::process_updates() {
                     if (update_message.type == LINK) {
                         link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
                         query_ett.link(update_message.endpoint1, update_message.endpoint2);
+                        // transaction_log.add(update_message, INSERT);
+                        transaction_log.push_back(
+                            GraphUpdate{Edge{update_message.endpoint1, update_message.endpoint2}, INSERT});
                         break;
                     } else if (update_message.type == CUT) {
                         link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
                         query_ett.cut(update_message.endpoint1, update_message.endpoint2);
+                        // transaction_log.add(update_message, DELETE);
+                        transaction_log.push_back(
+                            GraphUpdate{Edge{update_message.endpoint1, update_message.endpoint2}, DELETE});
                     }
                     STOP(dt_operation_time, dt_operation_timer2);
                 }

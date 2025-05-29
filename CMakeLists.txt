@@ -52,6 +52,23 @@ FetchContent_Declare(
   GIT_TAG             45ae89d87b72da7184e84c1fbcc1980c4d3e01fa
 )
 
+
+# NOTE - not sure if this is gonna work
+# Install DynamicConnectivity Package
+# it doesn't. the
+
+FetchContent_Declare(
+  dycon
+  GIT_REPOSITORY  https://github.com/GraphStreamingProject/DynamicConnectivity
+  # GIT_TAG         9b7586c20578741e65772d51842bdc7dd3db12f4
+  GIT_TAG         main
+)
+
+
+# TODO - THERE should be a better way to do this that doesn't rely on populate and add_subdirectory
+FetchContent_Populate(dycon)
+add_subdirectory(${dycon_SOURCE_DIR} ${dycon_BINARY_DIR} EXCLUDE_FROM_ALL)
+
 FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
 
 #add_compile_options(-fsanitize=address)
@@ -72,8 +89,8 @@ add_executable(dynamicCC_tests
   src/graph_tiers.cpp
 )
 target_include_directories(dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
-add_dependencies(dynamicCC_tests GraphZeppelinVerifyCC)
-target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelinVerifyCC ${MPI_LIBRARIES})
+add_dependencies(dynamicCC_tests GraphZeppelinVerifyCC dycon)
+target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelinVerifyCC dycon ${MPI_LIBRARIES})
 
 target_compile_options(dynamicCC_tests PUBLIC -fopenmp)
 target_link_options(dynamicCC_tests PUBLIC -fopenmp)
@@ -92,8 +109,8 @@ add_executable(mpi_dynamicCC_tests
 )
 target_compile_definitions(mpi_dynamicCC_tests PUBLIC SKETCH_BUFFER_SIZE=${SKETCH_BUFFER_SIZE})
 target_include_directories(mpi_dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
-add_dependencies(mpi_dynamicCC_tests GraphZeppelinVerifyCC)
-target_link_libraries(mpi_dynamicCC_tests PRIVATE GraphZeppelinVerifyCC ${MPI_LIBRARIES})
+add_dependencies(mpi_dynamicCC_tests GraphZeppelinVerifyCC dycon)
+target_link_libraries(mpi_dynamicCC_tests PRIVATE GraphZeppelinVerifyCC dycon ${MPI_LIBRARIES})
 
 target_compile_options(mpi_dynamicCC_tests PUBLIC -fopenmp)
 target_link_options(mpi_dynamicCC_tests PUBLIC -fopenmp)
