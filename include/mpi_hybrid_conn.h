@@ -1,4 +1,5 @@
 #include "mpi_nodes.h"
+#include "graph_tiers.h"
 #include <dycon/localTree/SCCWN.hpp>
 #include "recovery.h"
 
@@ -9,6 +10,7 @@ class HybridConnectivityManager {
         size_t seed;
         node_id_t num_nodes;
         InputNode sketching_algo;
+        // GraphTiers<DefaultSketchColumn> sketching_algo;
         SCCWN<> cf_algo;
         absl::flat_hash_map<node_id_t, SparseRecovery> recovery_sketches;
         
@@ -17,11 +19,16 @@ class HybridConnectivityManager {
         absl::flat_hash_set<edge_id_t> edges_from_sketch;
         
         // tracks how many dense edges are still in the CF
+        // generate plot with varying batch size
+        // keeping a global buffer is likely sufficient
+        // doing vertex-level might make checkpointing harder - think about this
         std::vector<uint16_t> num_pending_dense_edges;
         
+        // buffer for when we need to collect all neighbors
         std::vector<node_id_t> _neighbors_buffer;
 
         // TODO - this might be replaced by something internal to modified-cupcake
+        // can also just be a vector probably
         absl::flat_hash_set<node_id_t> _is_vertex_sketched;
 
         static constexpr size_t MOVE_TO_SKETCH = 500;
@@ -159,6 +166,7 @@ class HybridConnectivityManager {
                 Checks if the recovery sketch is sufficiently sparse
                 If so, performs a recovery attempt
             */
+            // or use the explicit degree because of well-formed stream assumption 
             likely_if (!recovery_sketches[vertex].worth_recovery_attempt()) {
                 return false;
             }
@@ -167,8 +175,6 @@ class HybridConnectivityManager {
                 // TODO - handle failure case
                 return false;
             }
-            // now we can clear the recovery data structure
-            uninitialize_vertex_sketch(vertex);
             // then remove the edge from neighbors' recovery structures
             for (vec_t &vec: recovery_attempt.recovered_indices) {
                 Edge edge = inv_concat_pairing_fn(vec);
@@ -193,16 +199,20 @@ class HybridConnectivityManager {
                 Edge edge = inv_concat_pairing_fn(vec);
                 cf_algo.insert(edge.src, edge.dst);
             }
+            // now we can clear the recovery data structure
+            uninitialize_vertex_sketch(vertex);
             
         }
 
         void update(GraphUpdate update) {
             // external garauntee: well-formed stream. a remove is only called if the edge exists
+            // would be nice to get rid of assumption
             if (update.type == INSERT) {
                 cf_algo.insert(update.edge.src, update.edge.dst);
                 
                 // check to see if we densified the vertices enough to initialize their sketches
                 unlikely_if (count_explicit_neighbors(update.edge.src) >= MOVE_TO_SKETCH) {
+                    // these functions should be no-ops on dense edges
                     initialize_vertex_sketch(update.edge.src);
                 }
                 unlikely_if (count_explicit_neighbors(update.edge.dst) >= MOVE_TO_SKETCH) {
@@ -230,13 +240,12 @@ class HybridConnectivityManager {
             }
             else if (update.type == DELETE) {
 
-                // if either side is not dense
                 // TODO - eventually do more precise casework
-                // 1) edge exists in the CF:
+                // if edge exists in the CF (1):
                 //      * a) edge originally comes from the sketch forest: update the sketch algo; apply transaction log
                 //      * b) edge originally comes from the CF: remove it from the CF and you're done.
                 
-                // if in cluster forest:
+                // if not in cluster forest (2):
                 // TODO - this logic should check the cf for which edges exist in it
                 // if (cf_edges[update.edge.src].find(update.edge.dst) != cf_edges[update.edge.src].end()) {
                 // if (cf_algo.has_edge(update.edge.src, update.edge.dst)) {
@@ -251,6 +260,8 @@ class HybridConnectivityManager {
                         flush_transaction_log();
                         check_and_perform_recovery(update.edge.src);
                         check_and_perform_recovery(update.edge.dst);
+                        // can we do defered work: yes
+                        // do we have to: ??? figure out
                     }
                     else {
                         //case b)
@@ -273,10 +284,12 @@ class HybridConnectivityManager {
                 // 2) edge does not exist in the CF:
                 //  * it must be in the sketch algo, so update the sketch algo and apply transaction log.
                 else {
+                    // THIS IS THE OBVIOUS BUFFERING CASE FOR DELETIONS
                     sketching_algo.update(update);
                     recovery_sketches[update.edge.src].update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
                     recovery_sketches[update.edge.dst].update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
-                    flush_transaction_log();
+                    // TODO - verify that we don't need to flush transaction log
+                    // flush_transaction_log();
                     check_and_perform_recovery(update.edge.src);
                     check_and_perform_recovery(update.edge.dst);
                 }
