@@ -5,14 +5,16 @@
 
 class HybridConnectivityManager {
     // TODO 
+    public:
+        // TODO - make this not public
+        InputNode sketching_algo;
     private:
         
         size_t seed;
         node_id_t num_nodes;
-        InputNode sketching_algo;
         // GraphTiers<DefaultSketchColumn> sketching_algo;
         SCCWN<> cf_algo;
-        absl::flat_hash_map<node_id_t, SparseRecovery> recovery_sketches;
+        absl::flat_hash_map<node_id_t, SparseRecovery*> recovery_sketches;
         
         
         // tracks which of our CF edges are from the sketching algo
@@ -56,7 +58,7 @@ class HybridConnectivityManager {
         void initialize_vertex_sketch(node_id_t vertex) {
             // TODO - is basically a no-op from the perspective of the sketching algo
             _is_vertex_sketched.insert(vertex);
-            recovery_sketches[vertex] = SparseRecovery(num_nodes, MOVE_TO_SKETCH, 0.1, seed );
+            recovery_sketches.emplace(vertex, new SparseRecovery(num_nodes, MOVE_TO_SKETCH, 2.0, seed ));
             
             // update your neighbors' dense edge counts
             for (size_t level=0; level < MAX_LEVEL; level++) {
@@ -74,6 +76,7 @@ class HybridConnectivityManager {
         void uninitialize_vertex_sketch(node_id_t vertex) {
             // TODO - is basically a no-op from the perspective of the sketching algo
             _is_vertex_sketched.erase(vertex);
+            delete[] recovery_sketches[vertex];
             recovery_sketches.erase(vertex);
             
             //update your neighbors' dense edge counts
@@ -150,7 +153,7 @@ class HybridConnectivityManager {
                 if (neighbor != vertex_to_flush) {
                     sketching_algo.update(GraphUpdate{Edge{vertex_to_flush, neighbor}, INSERT});
                     // TODO - ensure this is initialized
-                    recovery_sketches[vertex_to_flush].update(VERTICES_TO_EDGE(vertex_to_flush, neighbor));
+                    recovery_sketches[vertex_to_flush]->update(VERTICES_TO_EDGE(vertex_to_flush, neighbor));
                 }
             }
             // apply the transaction log
@@ -167,10 +170,10 @@ class HybridConnectivityManager {
                 If so, performs a recovery attempt
             */
             // or use the explicit degree because of well-formed stream assumption 
-            likely_if (!recovery_sketches[vertex].worth_recovery_attempt()) {
+            likely_if (!recovery_sketches[vertex]->worth_recovery_attempt()) {
                 return false;
             }
-            auto recovery_attempt = recovery_sketches[vertex].recover();
+            auto recovery_attempt = recovery_sketches[vertex]->recover();
             unlikely_if (recovery_attempt.result = FAILURE) {
                 // TODO - handle failure case
                 return false;
@@ -179,7 +182,7 @@ class HybridConnectivityManager {
             for (vec_t &vec: recovery_attempt.recovered_indices) {
                 Edge edge = inv_concat_pairing_fn(vec);
                 node_id_t other_vertex = edge.src == vertex ? edge.dst : edge.src;
-                recovery_sketches[other_vertex].update(vec);
+                recovery_sketches[other_vertex]->update(vec);
             }
             // and flush the edges out of the sketching algo
             for (vec_t &vec: recovery_attempt.recovered_indices) {
@@ -255,8 +258,8 @@ class HybridConnectivityManager {
                     if (edges_from_sketch.find(edge_id) != edges_from_sketch.end()) {
                         // case a)
                         sketching_algo.update(update);
-                        recovery_sketches[update.edge.src].update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
-                        recovery_sketches[update.edge.dst].update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
+                        recovery_sketches[update.edge.src]->update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
+                        recovery_sketches[update.edge.dst]->update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
                         flush_transaction_log();
                         check_and_perform_recovery(update.edge.src);
                         check_and_perform_recovery(update.edge.dst);
@@ -286,8 +289,8 @@ class HybridConnectivityManager {
                 else {
                     // THIS IS THE OBVIOUS BUFFERING CASE FOR DELETIONS
                     sketching_algo.update(update);
-                    recovery_sketches[update.edge.src].update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
-                    recovery_sketches[update.edge.dst].update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
+                    recovery_sketches[update.edge.src]->update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
+                    recovery_sketches[update.edge.dst]->update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
                     // TODO - verify that we don't need to flush transaction log
                     // flush_transaction_log();
                     check_and_perform_recovery(update.edge.src);
@@ -300,6 +303,24 @@ class HybridConnectivityManager {
 
         bool connectivity_query(node_id_t a, node_id_t b) {
             return cf_algo.is_connected(a, b);
+        }
+        
+        std::vector<std::set<node_id_t>> cc_query() {
+            // TODO - this aint great.
+            std::vector<std::set<node_id_t>> ret;
+            std::unordered_map<node_id_t, std::set<node_id_t>> component_map;
+            for (node_id_t i=0; i < num_nodes; i++) {
+                auto root = localTree::getRoot(cf_algo.leaves[i]);
+                node_id_t root_id = root->get_id();
+                if (component_map.find(root_id) == component_map.end()) {
+                    component_map[root_id] = std::set<node_id_t>();
+                    component_map[root_id].insert(root_id);
+                }
+                component_map[root_id].insert(i);
+            }
+            for (auto &pair: component_map) {
+                ret.push_back(pair.second);
+            }
         }
 
 };

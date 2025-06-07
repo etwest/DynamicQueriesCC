@@ -10,6 +10,7 @@
 #include "binary_graph_stream.h"
 // #include "mat_graph_verifier.h"
 #include "graph_verifier.h"
+#include "mpi_hybrid_conn.h"
 #include "util.h"
 
 
@@ -582,7 +583,13 @@ TEST(GraphTiersSuite, hybrid_correctness_test) {
         int seed = time(NULL);
         srand(seed);
         std::cout << "InputNode seed: " << seed << std::endl;
-        InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        // initialize data structures
+        // InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        // SCCWN cluster_forest(num_nodes);
+        HybridConnectivityManager hybrid_driver(
+            num_nodes, num_tiers, update_batch_size, seed
+        );
+        
         GraphVerifier gv(num_nodes);
         int edgecount = stream.edges();
 	    int count = 20000000;
@@ -590,11 +597,11 @@ TEST(GraphTiersSuite, hybrid_correctness_test) {
         for (int i = 0; i < edgecount; i++) {
             // Read an update from the stream and have the input node process it
             GraphUpdate update = stream.get_edge();
-            input_node.update(update);
+            hybrid_driver.update(update);
             // Correctness testing by performing a cc query
             gv.edge_update(update.edge);
             unlikely_if(i%1000 == 0 || i == edgecount-1) {
-                std::vector<std::set<node_id_t>> cc = input_node.cc_query();
+                std::vector<std::set<node_id_t>> cc = hybrid_driver.cc_query();
                 try {
                     // gv.reset_cc_state();
                     gv.verify_cc_from_component_set(cc);
@@ -602,7 +609,7 @@ TEST(GraphTiersSuite, hybrid_correctness_test) {
                 } catch (IncorrectCCException& e) {
                     std::cout << "Incorrect connected components found at update "  << i << std::endl;
                     std::cout << "GOT: " << cc.size() << std::endl;
-                    input_node.end();
+                    hybrid_driver.sketching_algo.end();
                     FAIL();
                 }
             }
@@ -612,7 +619,7 @@ TEST(GraphTiersSuite, hybrid_correctness_test) {
         file << stream_file << " passed correctness test." << std::endl;
         file.close();
         // Communicate to all other nodes that the stream has ended
-        input_node.end();
+        hybrid_driver.sketching_algo.end();
 
     } else if (world_rank < num_tiers+1) {
         int tier_num = world_rank-1;
