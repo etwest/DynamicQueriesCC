@@ -14,6 +14,7 @@ class HybridConnectivityManager {
         node_id_t num_nodes;
         // GraphTiers<DefaultSketchColumn> sketching_algo;
         SCCWN<> cf_algo;
+        // TODO - move semantics for sparserecovery?
         absl::flat_hash_map<node_id_t, SparseRecovery*> recovery_sketches;
         
         
@@ -312,7 +313,7 @@ class HybridConnectivityManager {
             for (node_id_t i=0; i < num_nodes; i++) {
                 auto root = localTree::getRoot(cf_algo.leaves[i]);
                 node_id_t root_id = root->get_id();
-                if (component_map.find(root_id) == component_map.end()) {
+                if (root_id != ((node_id_t)-1) && component_map.find(root_id) == component_map.end()) {
                     component_map[root_id] = std::set<node_id_t>();
                     component_map[root_id].insert(root_id);
                 }
