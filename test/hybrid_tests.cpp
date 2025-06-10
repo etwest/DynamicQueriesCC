@@ -114,226 +114,237 @@ const vec_t DEFAULT_SKETCH_ERR = 1;
 //     }
 // }
 
-// TEST(GraphTierSuite, hybrid_update_speed_test) {
-//     int world_rank_buf;
-//     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
-//     uint32_t world_rank = world_rank_buf;
-//     int world_size_buf;
-//     MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
-//     uint32_t world_size = world_size_buf;
+TEST(GraphTierSuite, hybrid_update_speed_test) {
+    int world_rank_buf;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
+    uint32_t world_rank = world_rank_buf;
+    int world_size_buf;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
+    uint32_t world_size = world_size_buf;
 
-//     BinaryGraphStream stream(stream_file, 100000);
-//     uint32_t num_nodes = stream.nodes();
-//     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    BinaryGraphStream stream(stream_file, 100000);
+    uint32_t num_nodes = stream.nodes();
+    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
-//     // Parameters
-//     int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
-//     height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
-//     sketchless_height_factor = height_factor;
-//     sketch_len = Sketch::calc_vector_length(num_nodes);
-// 	sketch_err = DEFAULT_SKETCH_ERR;
+    // Parameters
+    int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
+    height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
+    sketchless_height_factor = height_factor;
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
 
-//     std::cout << "BATCH SIZE: " << update_batch_size << " HEIGHT FACTOR " << height_factor << std::endl;
+    std::cout << "BATCH SIZE: " << update_batch_size << " HEIGHT FACTOR " << height_factor << std::endl;
 
-//     // Seeds
-//     std::random_device dev;
-//     std::mt19937 rng(dev());
-//     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
-//     int seed = dist(rng);
-//     bcast(&seed, sizeof(int), 0);
-//     std::cout << "SEED: " << seed << std::endl;
-//     rng.seed(seed);
-//     for (int i = 0; i < world_rank; i++)
-//         dist(rng);
-//     int tier_seed = dist(rng);
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
 
-//     if (world_size != num_tiers+1)
-//         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
+    if (world_size != num_tiers+1)
+        FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
 
-//     if (world_rank == 0) {
-//         int seed = time(NULL);
-//         srand(seed);
-//         std::cout << "InputNode seed: " << seed << std::endl;
-//         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
-//         long edgecount = stream.edges();
-//         // long count = 100000000;
-//         // edgecount = std::min(edgecount, count);
-//         auto X = std::chrono::high_resolution_clock::now();
-//         for (long i = 0; i < edgecount; i++) {
-//             // Read an update from the stream and have the input node process it
-//             GraphUpdate update = stream.get_edge();
-//             input_node.update(update);
-//             unlikely_if(i%1000000 == 0 || i == edgecount-1) {
-//                 std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
-//             }
-//         }
-//         // Communicate to all other nodes that the stream has ended
-//         input_node.end();
-//         auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - X).count();
-//         std::cout << "Total time(ms): " << (time/1000) << std::endl;
+    if (world_rank == 0) {
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        // InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        HybridConnectivityManager hybrid_manager(
+            num_nodes, num_tiers, update_batch_size, seed
+        );
+        long edgecount = stream.edges();
+        // long count = 100000000;
+        // edgecount = std::min(edgecount, count);
+        auto X = std::chrono::high_resolution_clock::now();
+        for (long i = 0; i < edgecount; i++) {
+            // Read an update from the stream and have the input node process it
+            GraphUpdate update = stream.get_edge();
+            hybrid_manager.update(update);
+            unlikely_if(i%1000000 == 0 || i == edgecount-1) {
+                std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
+            }
+        }
+        // Communicate to all other nodes that the stream has ended
+        hybrid_manager.sketching_algo.end();
+        auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - X).count();
+        std::cout << "Total time(ms): " << (time/1000) << std::endl;
 
-//         std::ofstream file;
-//         file.open ("./../results/mpi_update_results.txt", std::ios_base::app);
-//         file << stream_file << " UPDATES/SECOND: " << edgecount/(time/1000)*1000 << std::endl;
-//         file.close();
+        std::ofstream file;
+        file.open ("./../results/mpi_update_results.txt", std::ios_base::app);
+        file << stream_file << " UPDATES/SECOND: " << edgecount/(time/1000)*1000 << std::endl;
+        file.close();
 
-//     } else if (world_rank < num_tiers+1) {
-//         int tier_num = world_rank-1;
-//         TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
-//         tier_node.main();
-//     }
-// }
+    } else if (world_rank < num_tiers+1) {
+        int tier_num = world_rank-1;
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
+        tier_node.main();
+    }
+}
 
-// TEST(GraphTiersSuite, hybrid_query_speed_test) {
-//     int world_rank_buf;
-//     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
-//     uint32_t world_rank = world_rank_buf;
-//     int world_size_buf;
-//     MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
-//     uint32_t world_size = world_size_buf;
+TEST(GraphTiersSuite, hybrid_query_speed_test) {
+    int world_rank_buf;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
+    uint32_t world_rank = world_rank_buf;
+    int world_size_buf;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
+    uint32_t world_size = world_size_buf;
 
-//     BinaryGraphStream stream(stream_file, 1000000);
-//     uint32_t num_nodes = stream.nodes();
-//     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
-//     int nodecount = stream.nodes();
-//     int edgecount = stream.edges();
-//     if (edgecount > 100000000) edgecount = 100000000;
+    BinaryGraphStream stream(stream_file, 1000000);
+    uint32_t num_nodes = stream.nodes();
+    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    int nodecount = stream.nodes();
+    int edgecount = stream.edges();
+    if (edgecount > 100000000) edgecount = 100000000;
 
-//     // Parameters
-//     int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
-//     height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
-// 	sketchless_height_factor = height_factor;
-//     sketch_len = Sketch::calc_vector_length(num_nodes);
-// 	sketch_err = DEFAULT_SKETCH_ERR;
+    // Parameters
+    int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
+    height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
+	sketchless_height_factor = height_factor;
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
 
-//     // Seeds
-//     std::random_device dev;
-//     std::mt19937 rng(dev());
-//     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
-//     int seed = dist(rng);
-//     bcast(&seed, sizeof(int), 0);
-//     std::cout << "SEED: " << seed << std::endl;
-//     rng.seed(seed);
-//     for (int i = 0; i < world_rank; i++)
-//         dist(rng);
-//     int tier_seed = dist(rng);
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
 
-//     if (world_size != num_tiers+1)
-//         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
+    if (world_size != num_tiers+1)
+        FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
 
-//     if (world_rank == 0) {
-//         int seed = time(NULL);
-//         srand(seed);
-//         std::cout << "InputNode seed: " << seed << std::endl;
-//         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+    if (world_rank == 0) {
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        // InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        HybridConnectivityManager hybrid_driver(
+            num_nodes, num_tiers, update_batch_size, seed
+        );
 
-//         long total_time = 0;
-//         for (int batch = 0; batch < 10; batch++) {
-//             std::cout << stream_file << " update batch " << batch <<  std::endl;
-//             for (int i = 0; i < edgecount/10; i++) {
-//                 GraphUpdate update = stream.get_edge();
-//                 input_node.update(update);
-//             }
+        long total_time = 0;
+        for (int batch = 0; batch < 10; batch++) {
+            std::cout << stream_file << " update batch " << batch <<  std::endl;
+            for (int i = 0; i < edgecount/10; i++) {
+                GraphUpdate update = stream.get_edge();
+                hybrid_driver.update(update);
+            }
 
-//             long querycount = 100000000;
+            long querycount = 100000000;
 
-//             std::cout << "Performing queries..." << std::endl;
-//             auto X = std::chrono::high_resolution_clock::now();
-//             for (int i = 0; i < querycount; i++) {
-//                 input_node.connectivity_query(rand()%nodecount, rand()%nodecount);
-//             }
-//             auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - X).count();
-//             std::cout << querycount << " Connectivity Queries, Time (ms):  " << time/1000 << std::endl;
-//             total_time += time;
-//         }
-//         input_node.end();
+            std::cout << "Performing queries..." << std::endl;
+            auto X = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < querycount; i++) {
+                hybrid_driver.connectivity_query(rand()%nodecount, rand()%nodecount);
+            }
+            auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - X).count();
+            std::cout << querycount << " Connectivity Queries, Time (ms):  " << time/1000 << std::endl;
+            total_time += time;
+        }
+        hybrid_driver.sketching_algo.end();
 
-//         std::cout << "TOTAL TIME(ms): " << total_time/1000 << std::endl;
-//         std::cout << "QUERIES/SECOND: " << 1000000000/(total_time/1000)*1000 << std::endl;
-//         std::ofstream file;
-//         file.open ("./../results/mpi_query_results.txt", std::ios_base::app);
-//         file << stream_file << " QUERIES/SECOND: " << 1000000000/(total_time/1000)*1000 << std::endl;
-//         file.close();
+        std::cout << "TOTAL TIME(ms): " << total_time/1000 << std::endl;
+        std::cout << "QUERIES/SECOND: " << 1000000000/(total_time/1000)*1000 << std::endl;
+        std::ofstream file;
+        file.open ("./../results/mpi_query_results.txt", std::ios_base::app);
+        file << stream_file << " QUERIES/SECOND: " << 1000000000/(total_time/1000)*1000 << std::endl;
+        file.close();
 
-//     } else if (world_rank < num_tiers+1) {
-//         int tier_num = world_rank-1;
-//         TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size, tier_seed);
-//         tier_node.main();
-//     }
-// }
+    } else if (world_rank < num_tiers+1) {
+        int tier_num = world_rank-1;
+        TierNode tier_node(num_nodes, world_rank-1, num_tiers, update_batch_size, tier_seed);
+        tier_node.main();
+    }
+}
 
-// TEST(GraphTiersSuite, hybrid_mini_correctness_test) {
-//     int world_rank_buf;
-//     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
-//     uint32_t world_rank = world_rank_buf;
-//     int world_size_buf;
-//     MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
-//     uint32_t world_size = world_size_buf;
+TEST(GraphTiersSuite, hybrid_mini_correctness_test) {
+    int world_rank_buf;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
+    uint32_t world_rank = world_rank_buf;
+    int world_size_buf;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
+    uint32_t world_size = world_size_buf;
 
-//     uint32_t num_nodes = 100;
-//     uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
-//     if (world_size != num_tiers+1)
-//         FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
-//     // Parameters
-//     int update_batch_size = 1;
-//     height_factor = 1;
-//     sketch_len = Sketch::calc_vector_length(num_nodes);
-// 	sketch_err = DEFAULT_SKETCH_ERR;
+    uint32_t num_nodes = 100;
+    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    if (world_size != num_tiers+1)
+        FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
+    // Parameters
+    int update_batch_size = 1;
+    height_factor = 1;
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
 
-//     // Seeds
-//     std::random_device dev;
-//     std::mt19937 rng(dev());
-//     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
-//     int seed = dist(rng);
-//     bcast(&seed, sizeof(int), 0);
-//     std::cout << "SEED: " << seed << std::endl;
-//     rng.seed(seed);
-//     for (int i = 0; i < world_rank; i++)
-//         dist(rng);
-//     int tier_seed = dist(rng);
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
 
-//     if (world_rank == 0) {
-//         int seed = time(NULL);
-//         srand(seed);
-//         std::cout << "InputNode seed: " << seed << std::endl;
-//         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
-//         GraphVerifier gv(num_nodes);
-//         // Link all of the nodes into 1 connected component
-//         for (node_id_t i = 0; i < num_nodes-1; i++) {
-//             input_node.update({{i, i+1}, INSERT});
-//             gv.edge_update({i,i+1});
-//             std::vector<std::set<node_id_t>> cc = input_node.cc_query();
-//             try {
-//                 // gv.reset_cc_state();
-//                 gv.verify_cc_from_component_set(cc);
-//             } catch (IncorrectCCException& e) {
-//                 std::cout << "Incorrect cc found after linking nodes " << i << " and " << i+1 << std::endl;
-//                 std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << num_nodes-i-1 << " components" << std::endl;
-//                 FAIL();
-//             }
-//         }
-//         // One by one cut all of the nodes into singletons
-//         for (node_id_t i = 0; i < num_nodes-1; i++) {
-//             input_node.update({{i, i+1}, DELETE});
-//             gv.edge_update({i,i+1});
-//             std::vector<std::set<node_id_t>> cc = input_node.cc_query();
-//             try {
-//                 // gv.reset_cc_state();
-//                 gv.verify_cc_from_component_set(cc);
-//             } catch (IncorrectCCException& e) {
-//                 std::cout << "Incorrect cc found after cutting nodes " << i << " and " << i+1 << std::endl;
-//                 std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << i+2 << " components" << std::endl;
-//                 FAIL();
-//             }
-//         }
-//         // Communicate to all other nodes that the stream has ended
-//         input_node.end();
-//     } else if (world_rank < num_tiers+1) {
-//         int tier_num = world_rank-1;
-//         TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
-//         tier_node.main();
-//     }
-// }
+    if (world_rank == 0) {
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        // InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        // 
+        HybridConnectivityManager hybrid_driver(
+            num_nodes, num_tiers, update_batch_size, seed
+        );
+        GraphVerifier gv(num_nodes);
+        // Link all of the nodes into 1 connected component
+        for (node_id_t i = 0; i < num_nodes-1; i++) {
+            hybrid_driver.update({{i, i+1}, INSERT});
+            gv.edge_update({i,i+1});
+            std::cout << "Attempting query" << std::endl;
+            std::vector<std::set<node_id_t>> cc = hybrid_driver.cc_query();
+            try {
+                // gv.reset_cc_state();
+                gv.verify_cc_from_component_set(cc);
+            } catch (IncorrectCCException& e) {
+                std::cout << "Incorrect cc found after linking nodes " << i << " and " << i+1 << std::endl;
+                std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << num_nodes-i-1 << " components" << std::endl;
+                FAIL();
+            }
+        }
+        // One by one cut all of the nodes into singletons
+        for (node_id_t i = 0; i < num_nodes-1; i++) {
+            hybrid_driver.update({{i, i+1}, DELETE});
+            gv.edge_update({i,i+1});
+            std::vector<std::set<node_id_t>> cc = hybrid_driver.cc_query();
+            try {
+                // gv.reset_cc_state();
+                gv.verify_cc_from_component_set(cc);
+            } catch (IncorrectCCException& e) {
+                std::cout << "Incorrect cc found after cutting nodes " << i << " and " << i+1 << std::endl;
+                std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << i+2 << " components" << std::endl;
+                FAIL();
+            }
+        }
+        // Communicate to all other nodes that the stream has ended
+        hybrid_driver.sketching_algo.end();
+    } else if (world_rank < num_tiers+1) {
+        int tier_num = world_rank-1;
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
+        tier_node.main();
+    }
+}
 
 // TEST(GraphTiersSuite, hybrid_mini_replacement_test) {
 //     int world_rank_buf;

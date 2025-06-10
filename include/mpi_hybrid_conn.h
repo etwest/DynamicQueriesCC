@@ -27,6 +27,11 @@ class HybridConnectivityManager {
         // doing vertex-level might make checkpointing harder - think about this
         std::vector<uint16_t> num_pending_dense_edges;
         
+        // tracks total amount of edges incident.
+        // we WONT rely on the CF to track edges.
+        std::vector<uint32_t> num_edges;
+        std::vector<uint32_t> num_cf_edges;
+        
         // buffer for when we need to collect all neighbors
         std::vector<node_id_t> _neighbors_buffer;
 
@@ -34,10 +39,27 @@ class HybridConnectivityManager {
         // can also just be a vector probably
         absl::flat_hash_set<node_id_t> _is_vertex_sketched;
 
-        static constexpr size_t MOVE_TO_SKETCH = 500;
+        static constexpr size_t MOVE_TO_SKETCH = 128;
         
         size_t count_explicit_neighbors(node_id_t vertex) {
-            return cf_algo.leaves[vertex]->getSize();
+            // std::cout << "count_explicit_neighbors for vertex: " << vertex << std::endl;
+            localTree *cf_leaf = cf_algo.leaves[vertex];
+            size_t count = 0;
+            for (auto &level_edges: cf_leaf->vertex->E) {
+                count += level_edges.second->size();
+            }
+            // if (num_cf_edges[vertex] > 1000) {
+            // if (count > 1000) {
+            //     std::cout << "THIS IS WAY TOO HIGH: " << num_cf_edges[vertex] << std::endl;
+            //     std::cout << "  counted as" << count << std::endl;
+            //     std::cout << " total degree: " << num_edges[vertex] << std::endl;
+            //     std::cout << " num pending dense edges: " << num_pending_dense_edges[vertex] << std::endl;
+            //     // std::cout << "count_explicit_neighbors for vertex: " << vertex << " returning cached value: " << num_cf_edges[vertex] << std::endl;
+            //     // return cf_algo.leaves[vertex]->getEdgeLevelCount();
+            //     // return cf_algo.leaves[vertex]->getEdgeLevelCount();
+            // }
+            return num_cf_edges[vertex];
+            // return count;
         }
         
         bool is_forest_edge_from_sketch(Edge edge) {
@@ -49,7 +71,9 @@ class HybridConnectivityManager {
         bool is_edge_in_cf(Edge edge) {
             // TODO - watch out for performance penalty of this.
             // might be a reason to use an alternate scheme
-            return cf_algo.leaves[edge.src]->getEdgeLevel(edge.dst) != MAX_LEVEL + 2; 
+            // return cf_algo.leaves[edge.src]->getEdgeLevel(edge.dst) != MAX_LEVEL + 2; 
+            // auto ret = cf_algo.leaves[edge.src]->getEdgeLevel(edge.dst) <= MAX_LEVEL;
+            return cf_algo.leaves[edge.src]->getEdgeLevel(edge.dst) <= MAX_LEVEL; 
         }
 
         bool is_vertex_sketched(node_id_t vertex) {
@@ -57,21 +81,30 @@ class HybridConnectivityManager {
         }
         
         void initialize_vertex_sketch(node_id_t vertex) {
+            // std::cout << "Initializing sketch for vertex " << vertex << std::endl << " with neighbors count "
+                    //   << count_explicit_neighbors(vertex) << std::endl;
             // TODO - is basically a no-op from the perspective of the sketching algo
             _is_vertex_sketched.insert(vertex);
-            recovery_sketches.emplace(vertex, new SparseRecovery(num_nodes, MOVE_TO_SKETCH, 2.0, seed ));
+            recovery_sketches.emplace(vertex, new SparseRecovery(num_nodes, MOVE_TO_SKETCH / 4, 2.0, seed ));
             
             // update your neighbors' dense edge counts
-            for (size_t level=0; level < MAX_LEVEL; level++) {
-                auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex], level);
-                if (edge_set) {
-                    for (node_id_t neighbor: *edge_set) {
-                        if (is_vertex_sketched(neighbor)) {
-                            num_pending_dense_edges[neighbor]++;
-                        }
+            for (auto &level_edges: cf_algo.leaves[vertex]->vertex->E) {
+                for (node_id_t neighbor: *level_edges.second) {
+                    if (is_vertex_sketched(neighbor)) {
+                        num_pending_dense_edges[neighbor]++;
                     }
                 }
             }
+            // for (size_t level=0; level < MAX_LEVEL; level++) {
+            //     auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex], level);
+            //     if (edge_set) {
+            //         for (node_id_t neighbor: *edge_set) {
+            //             if (is_vertex_sketched(neighbor)) {
+            //                 num_pending_dense_edges[neighbor]++;
+            //             }
+            //         }
+            //     }
+            // }
         }
 
         void uninitialize_vertex_sketch(node_id_t vertex) {
@@ -81,31 +114,35 @@ class HybridConnectivityManager {
             recovery_sketches.erase(vertex);
             
             //update your neighbors' dense edge counts
-            for (size_t level=0; level < MAX_LEVEL; level++) {
-                auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex], level);
-                if (edge_set) {
-                    for (node_id_t neighbor: *edge_set) {
-                        if (is_vertex_sketched(neighbor)) {
-                            num_pending_dense_edges[neighbor]--;
-                        }
+            // for (size_t level=0; level < MAX_LEVEL; level++) {
+            //     auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex], level);
+            //     if (edge_set) {
+            //         for (node_id_t neighbor: *edge_set) {
+            //             if (is_vertex_sketched(neighbor)) {
+            //                 num_pending_dense_edges[neighbor]--;
+            //             }
+            //         }
+            //     }
+            // }
+            for (auto &level_edges: cf_algo.leaves[vertex]->vertex->E) {
+                for (node_id_t neighbor: *level_edges.second) {
+                    if (is_vertex_sketched(neighbor)) {
+                        num_pending_dense_edges[neighbor]--;
                     }
                 }
             }
         }
         
         void flush_transaction_log() {
+            // std::cout << "Flushing transaction log of size: " << sketching_algo.get_transaction_log().size() << std::endl;
             for (auto &update: sketching_algo.get_transaction_log()) {
-                // TODO - defer the calls to cf_algo in order to do a bulk 
-                // insertion!
                 if (update.type == DELETE) {
-                    // cf_edges[update.edge.src].erase(update.edge.dst);
-                    // cf_edges[update.edge.dst].erase(update.edge.src);
-                    cf_algo.remove(update.edge.src, update.edge.dst);
+                    remove_from_cf(update.edge.src, update.edge.dst);
+                    edges_from_sketch.erase(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
                 }
                 else {
-                    // cf_edges[update.edge.src].insert(update.edge.dst);
-                    // cf_edges[update.edge.dst].insert(update.edge.src);
-                    cf_algo.insert(update.edge.src, update.edge.dst);
+                    insert_to_cf(update.edge.src, update.edge.dst);
+                    edges_from_sketch.insert(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
                 }
             }
             sketching_algo.flush_transaction_log();
@@ -115,24 +152,37 @@ class HybridConnectivityManager {
         HybridConnectivityManager(node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed)
             : num_nodes(num_nodes), sketching_algo(num_nodes, num_tiers, batch_size, seed), cf_algo(num_nodes), seed(seed) {
                 num_pending_dense_edges.resize(num_nodes, 0);
+                num_cf_edges.resize(num_nodes, 0);
+                num_edges.resize(num_nodes, 0);
             }
 
         ~HybridConnectivityManager() {}
         void flush_edges_to_sketch(node_id_t vertex_to_flush) {
             // 1) find all edges incident to vertex_to_flush AND to a dense edge
             _neighbors_buffer.clear();
-            for (size_t level=0; level < MAX_LEVEL; level++) {
-                auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex_to_flush], level);
-                if (edge_set) {
-                    for (node_id_t neighbor: *edge_set) {
-                        // TODO - double check if this is the right way to do this
-                        if (is_vertex_sketched(neighbor) && !is_forest_edge_from_sketch(Edge{vertex_to_flush, neighbor}))
-                        {
-                            // if the edge is not from the sketching algo, and it's connected to a dense vertex
-                            // add it to the buffer and 
-                            // and increment the pending dense edge count
-                            _neighbors_buffer.push_back(neighbor);
-                        }
+            // for (size_t level=0; level < MAX_LEVEL; level++) {
+            //     auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex_to_flush], level);
+            //     if (edge_set) {
+            //         for (node_id_t neighbor: *edge_set) {
+            //             // TODO - double check if this is the right way to do this
+            //             if (is_vertex_sketched(neighbor) && !is_forest_edge_from_sketch(Edge{vertex_to_flush, neighbor}))
+            //             {
+            //                 // if the edge is not from the sketching algo, and it's connected to a dense vertex
+            //                 // add it to the buffer and 
+            //                 // and increment the pending dense edge count
+            //                 _neighbors_buffer.push_back(neighbor);
+            //             }
+            //         }
+            //     }
+            // }
+            for (auto &level_edges: cf_algo.leaves[vertex_to_flush]->vertex->E) {
+                for (node_id_t neighbor: *level_edges.second) {
+                    // TODO - double check if this is the right way to do this
+                    if (is_vertex_sketched(neighbor) && !is_forest_edge_from_sketch(Edge{vertex_to_flush, neighbor})) {
+                        // if the edge is not from the sketching algo, and it's connected to a dense vertex
+                        // add it to the buffer and 
+                        // and increment the pending dense edge count
+                        _neighbors_buffer.push_back(neighbor);
                     }
                 }
             }
@@ -146,7 +196,7 @@ class HybridConnectivityManager {
             }
             // remove edges from the cluster forest
             for (node_id_t neighbor: _neighbors_buffer) {
-                cf_algo.remove(vertex_to_flush, neighbor);
+                remove_from_cf(vertex_to_flush, neighbor);
             }
             
             // 3) insert them into the sketching algo
@@ -165,6 +215,7 @@ class HybridConnectivityManager {
         }
         
         bool check_and_perform_recovery(node_id_t vertex) {
+            return false;
             /*
                 Assumes the vertex is sketched
                 Checks if the recovery sketch is sufficiently sparse
@@ -201,22 +252,37 @@ class HybridConnectivityManager {
             //     and then put it right back here later.
             for (vec_t &vec: recovery_attempt.recovered_indices) {
                 Edge edge = inv_concat_pairing_fn(vec);
-                cf_algo.insert(edge.src, edge.dst);
+                insert_to_cf(edge.src, edge.dst);
             }
             // now we can clear the recovery data structure
             uninitialize_vertex_sketch(vertex);
             
         }
 
+        inline void insert_to_cf(node_id_t src, node_id_t dst) {
+            cf_algo.insert(src, dst);
+            num_cf_edges[src]++;
+            num_cf_edges[dst]++;
+        }
+        inline void remove_from_cf(node_id_t src, node_id_t dst) {
+            cf_algo.remove(src, dst);
+            num_cf_edges[src]--;
+            num_cf_edges[dst]--;
+        }
+
         void update(GraphUpdate update) {
             // external garauntee: well-formed stream. a remove is only called if the edge exists
             // would be nice to get rid of assumption
             if (update.type == INSERT) {
-                cf_algo.insert(update.edge.src, update.edge.dst);
+                num_edges[update.edge.src]++;
+                num_edges[update.edge.dst]++;
+
+                insert_to_cf(update.edge.src, update.edge.dst);
                 
                 // check to see if we densified the vertices enough to initialize their sketches
                 unlikely_if (count_explicit_neighbors(update.edge.src) >= MOVE_TO_SKETCH) {
                     // these functions should be no-ops on dense edges
+                    // std::cout << "neighbor count for " << update.edge.dst << " is " << count_explicit_neighbors(update.edge.dst) << std::endl;
                     initialize_vertex_sketch(update.edge.src);
                 }
                 unlikely_if (count_explicit_neighbors(update.edge.dst) >= MOVE_TO_SKETCH) {
@@ -243,6 +309,8 @@ class HybridConnectivityManager {
                 }
             }
             else if (update.type == DELETE) {
+                num_edges[update.edge.src]--;
+                num_edges[update.edge.dst]--;
 
                 // TODO - eventually do more precise casework
                 // if edge exists in the CF (1):
@@ -269,7 +337,7 @@ class HybridConnectivityManager {
                     }
                     else {
                         //case b)
-                        cf_algo.remove(update.edge.src, update.edge.dst);
+                        remove_from_cf(update.edge.src, update.edge.dst);
 
                         // TODO - same logic is needed as above to DECREMENT pending dense edges
                         // in the sparse part, if this were the case.
@@ -309,19 +377,21 @@ class HybridConnectivityManager {
         std::vector<std::set<node_id_t>> cc_query() {
             // TODO - this aint great.
             std::vector<std::set<node_id_t>> ret;
-            std::unordered_map<node_id_t, std::set<node_id_t>> component_map;
+            std::unordered_map<uint64_t, std::set<node_id_t>> component_map;
             for (node_id_t i=0; i < num_nodes; i++) {
-                auto root = localTree::getRoot(cf_algo.leaves[i]);
-                node_id_t root_id = root->get_id();
-                if (root_id != ((node_id_t)-1) && component_map.find(root_id) == component_map.end()) {
+                localTree *root = localTree::getRoot(cf_algo.leaves[i]);
+                uint64_t root_id = (uint64_t) root;
+                // std::cout << "root_id " << root_id << " for node " << i << std::endl;
+                auto it = component_map.find(root_id);
+                if (it == component_map.end()) {
                     component_map[root_id] = std::set<node_id_t>();
-                    component_map[root_id].insert(root_id);
                 }
                 component_map[root_id].insert(i);
             }
             for (auto &pair: component_map) {
                 ret.push_back(pair.second);
             }
+            return ret;
         }
 
 };

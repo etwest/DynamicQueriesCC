@@ -71,8 +71,8 @@ add_subdirectory(${dycon_SOURCE_DIR} ${dycon_BINARY_DIR} EXCLUDE_FROM_ALL)
 
 FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
 
-#add_compile_options(-fsanitize=address)
-#add_link_options(-fsanitize=address)
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
 #add_compile_options(-fsanitize=undefined)
 #add_link_options(-fsanitize=undefined)
 
