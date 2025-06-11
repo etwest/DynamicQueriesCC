@@ -39,7 +39,7 @@ class HybridConnectivityManager {
         // can also just be a vector probably
         absl::flat_hash_set<node_id_t> _is_vertex_sketched;
 
-        static constexpr size_t MOVE_TO_SKETCH = 128;
+        static constexpr size_t MOVE_TO_SKETCH = 1400;
         
         size_t count_explicit_neighbors(node_id_t vertex) {
             // std::cout << "count_explicit_neighbors for vertex: " << vertex << std::endl;
@@ -115,7 +115,7 @@ class HybridConnectivityManager {
             // it takes responsibility of updating dense edge counts.
             // WHICH MEANS - it's gonna remove a pending dense edge that was NEVER counted.
             // unless unintiialize is called before flushing
-            std::cout << "Uninitializing sketch for vertex " << vertex << std::endl;
+            // std::cout << "Uninitializing sketch for vertex " << vertex << std::endl;
             unlikely_if (!is_vertex_sketched(vertex)) {
                 return;
             }
@@ -124,12 +124,14 @@ class HybridConnectivityManager {
             delete recovery_sketches[vertex]->cleanup_sketch;
             delete recovery_sketches[vertex];
             recovery_sketches.erase(vertex);
-            std::cout << "Uninitialized sketch for vertex " << vertex << std::endl;
+            // std::cout << "Uninitialized sketch for vertex " << vertex << std::endl;
             
             //update your neighbors' dense edge counts
             for (auto &level_edges: cf_algo.leaves[vertex]->vertex->E) {
                 for (node_id_t neighbor: *level_edges.second) {
-                    if (is_vertex_sketched(neighbor)) {
+                    // note that we do this for EVERY edge in the CF
+                    // EXCEPT for the ones that are because of the sketching algo
+                    if (!is_forest_edge_from_sketch(Edge{vertex, neighbor})) {
                         num_pending_dense_edges[neighbor]--;
                     }
                 }
@@ -138,6 +140,8 @@ class HybridConnectivityManager {
         
         void flush_transaction_log() {
             // std::cout << "Flushing transaction log of size: " << sketching_algo.get_transaction_log().size() << std::endl;
+            // TODO - maybe get rid of this line, but rn we need it for correctness potentially:
+            sketching_algo.process_all_updates();
             for (auto &update: sketching_algo.get_transaction_log()) {
                 if (update.type == DELETE) {
                     remove_from_cf(update.edge.src, update.edge.dst);
@@ -236,16 +240,15 @@ class HybridConnectivityManager {
             // likely_if (!recovery_sketches[vertex]->worth_recovery_attempt()) {
             //     return false;
             // }
-            std::cout << "RECOVERING YA HURDDDDDDDDDD" << std::endl;
             auto recovery_attempt = recovery_sketches[vertex]->recover();
             unlikely_if (recovery_attempt.result == FAILURE) {
                 // TODO - handle failure case
-                std::cout << "RECOVERY FAILED YA HURD" << std::endl;
-                std::cout << "recovery attempt size: " << num_edges[vertex] << std::endl;
-                std::cout << "recovered: " << recovery_attempt.recovered_indices.size() << std::endl;
                 return false;
             }
-            std::cout << "RECOVERY SUCCEEDED YA HURD" << std::endl;
+            // std::cout << "RECOVERY SUCCEEDED YA HURD" << std::endl;
+            // std::cout << "edge count for vertex " << vertex << " is " << num_edges[vertex] << std::endl;
+            // std::cout << "edge count in cf for vertex " << vertex << " is " << num_cf_edges[vertex] << std::endl;
+            // std::cout << "recovered: " << recovery_attempt.recovered_indices.size() << std::endl;
             // then remove the edge from neighbors' recovery structures
             for (vec_t &vec: recovery_attempt.recovered_indices) {
                 Edge edge = inv_concat_pairing_fn(vec);
@@ -260,6 +263,7 @@ class HybridConnectivityManager {
             // before we flush the transaction log - uninitialize
             // this has to happen here by current designs, since we only want to decrement
             // pending_dense_edges for edges that WERE NOT already part of the recovery process
+            // std::cout << "Spooky: Uninitializing sketch for vertex " << vertex << std::endl;
             uninitialize_vertex_sketch(vertex);
 
             // and apply the transaction log
@@ -271,11 +275,13 @@ class HybridConnectivityManager {
             // TODO - it might be worth thinking about this and optimizing
             //     i.e. if we just apply the transaction log, we might delete an edge from the cf,
             //     and then put it right back here later.
+            //     NOTE - THERE MIGHT BE DOUBLE-DIPPED EDGES
+            //     
             for (vec_t &vec: recovery_attempt.recovered_indices) {
                 Edge edge = inv_concat_pairing_fn(vec);
                 insert_to_cf(edge.src, edge.dst);
             }
-            
+            return true;
         }
 
         inline void insert_to_cf(node_id_t src, node_id_t dst) {
@@ -380,7 +386,7 @@ class HybridConnectivityManager {
                     recovery_sketches[update.edge.src]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
                     recovery_sketches[update.edge.dst]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
                     // TODO - verify that we don't need to flush transaction log
-                    // flush_transaction_log();
+                    flush_transaction_log();
                     check_and_perform_recovery(update.edge.src);
                     check_and_perform_recovery(update.edge.dst);
                 }

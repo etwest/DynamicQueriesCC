@@ -168,7 +168,7 @@ TEST(GraphTierSuite, hybrid_update_speed_test) {
             hybrid_manager.update(update);
             unlikely_if(i%1000000 == 0 || i == edgecount-1) {
                 std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
-                std::cout << "Memory usage: " << hybrid_manager.cf_algo.getMemUsage() / 1000000 << std::endl;
+                // std::cout << "Memory usage: " << hybrid_manager.cf_algo.getMemUsage() / 1000000 << std::endl;
             }
         }
         // Communicate to all other nodes that the stream has ended
