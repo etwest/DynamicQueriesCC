@@ -9,7 +9,14 @@ class HybridConnectivityManager {
         // TODO - make this not public
         InputNode sketching_algo;
         SCCWN<> cf_algo;
+        
+        void set_threshold(size_t threshold) {
+            // TODO - do this in an aesthetically better way lol.
+            MOVE_TO_SKETCH = threshold;
+        }
     private:
+        // TODO - this aint a great way
+        size_t MOVE_TO_SKETCH = 1400;
         
         size_t seed;
         node_id_t num_nodes;
@@ -39,7 +46,6 @@ class HybridConnectivityManager {
         // can also just be a vector probably
         absl::flat_hash_set<node_id_t> _is_vertex_sketched;
 
-        static constexpr size_t MOVE_TO_SKETCH = 1400;
         
         size_t count_explicit_neighbors(node_id_t vertex) {
             // std::cout << "count_explicit_neighbors for vertex: " << vertex << std::endl;

@@ -15,6 +15,7 @@
 
 
 const int DEFAULT_BATCH_SIZE = 100;
+const int DEFAULT_HYBRID_THRESHOLD = 1400;
 const vec_t DEFAULT_SKETCH_ERR = 1;
 
 // TEST(GraphTierSuite, hybrid_mixed_speed_test) {
@@ -128,6 +129,7 @@ TEST(GraphTierSuite, hybrid_update_speed_test) {
 
     // Parameters
     int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
+    int threshold = (batch_size_arg==0) ? DEFAULT_HYBRID_THRESHOLD : hybrid_threshold_arg;
     height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
     sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
@@ -158,6 +160,7 @@ TEST(GraphTierSuite, hybrid_update_speed_test) {
         HybridConnectivityManager hybrid_manager(
             num_nodes, num_tiers, update_batch_size, seed
         );
+        hybrid_manager.set_threshold(threshold);
         long edgecount = stream.edges();
         // long count = 100000000;
         // edgecount = std::min(edgecount, count);
@@ -205,6 +208,7 @@ TEST(GraphTiersSuite, hybrid_query_speed_test) {
 
     // Parameters
     int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
+    int threshold = (batch_size_arg==0) ? DEFAULT_HYBRID_THRESHOLD : hybrid_threshold_arg;
     height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
 	sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
@@ -233,6 +237,7 @@ TEST(GraphTiersSuite, hybrid_query_speed_test) {
         HybridConnectivityManager hybrid_driver(
             num_nodes, num_tiers, update_batch_size, seed
         );
+        hybrid_driver.set_threshold(threshold);
 
         long total_time = 0;
         for (int batch = 0; batch < 10; batch++) {
