@@ -8,12 +8,12 @@ class HybridConnectivityManager {
     public:
         // TODO - make this not public
         InputNode sketching_algo;
+        SCCWN<> cf_algo;
     private:
         
         size_t seed;
         node_id_t num_nodes;
         // GraphTiers<DefaultSketchColumn> sketching_algo;
-        SCCWN<> cf_algo;
         // TODO - move semantics for sparserecovery?
         absl::flat_hash_map<node_id_t, SparseRecovery*> recovery_sketches;
         
@@ -65,7 +65,7 @@ class HybridConnectivityManager {
         bool is_forest_edge_from_sketch(Edge edge) {
             // TODO - watch out for performance penalty of this.
             // might be a reason to use an alternate scheme
-            return edges_from_sketch.find(VERTICES_TO_EDGE(edge.src, edge.dst)) != edges_from_sketch.end();
+            return edges_from_sketch.find(concat_pairing_fn(edge.src, edge.dst)) != edges_from_sketch.end();
         }
         
         bool is_edge_in_cf(Edge edge) {
@@ -84,8 +84,11 @@ class HybridConnectivityManager {
             // std::cout << "Initializing sketch for vertex " << vertex << std::endl << " with neighbors count "
                     //   << count_explicit_neighbors(vertex) << std::endl;
             // TODO - is basically a no-op from the perspective of the sketching algo
+            if (is_vertex_sketched(vertex)) {
+                return;
+            }
             _is_vertex_sketched.insert(vertex);
-            recovery_sketches.emplace(vertex, new SparseRecovery(num_nodes, MOVE_TO_SKETCH / 4, 2.0, seed ));
+            recovery_sketches[vertex] = new SparseRecovery(num_nodes, MOVE_TO_SKETCH / 4, 1.0, seed);
             
             // update your neighbors' dense edge counts
             for (auto &level_edges: cf_algo.leaves[vertex]->vertex->E) {
@@ -108,22 +111,22 @@ class HybridConnectivityManager {
         }
 
         void uninitialize_vertex_sketch(node_id_t vertex) {
-            // TODO - is basically a no-op from the perspective of the sketching algo
+            // WEIRD CASE - even though this doesnt put the edges into the CF from the sketch,
+            // it takes responsibility of updating dense edge counts.
+            // WHICH MEANS - it's gonna remove a pending dense edge that was NEVER counted.
+            // unless unintiialize is called before flushing
+            std::cout << "Uninitializing sketch for vertex " << vertex << std::endl;
+            unlikely_if (!is_vertex_sketched(vertex)) {
+                return;
+            }
             _is_vertex_sketched.erase(vertex);
-            delete[] recovery_sketches[vertex];
+            // TODO - for now, the cleanup sketch isnt deleted by destructing
+            delete recovery_sketches[vertex]->cleanup_sketch;
+            delete recovery_sketches[vertex];
             recovery_sketches.erase(vertex);
+            std::cout << "Uninitialized sketch for vertex " << vertex << std::endl;
             
             //update your neighbors' dense edge counts
-            // for (size_t level=0; level < MAX_LEVEL; level++) {
-            //     auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex], level);
-            //     if (edge_set) {
-            //         for (node_id_t neighbor: *edge_set) {
-            //             if (is_vertex_sketched(neighbor)) {
-            //                 num_pending_dense_edges[neighbor]--;
-            //             }
-            //         }
-            //     }
-            // }
             for (auto &level_edges: cf_algo.leaves[vertex]->vertex->E) {
                 for (node_id_t neighbor: *level_edges.second) {
                     if (is_vertex_sketched(neighbor)) {
@@ -138,11 +141,11 @@ class HybridConnectivityManager {
             for (auto &update: sketching_algo.get_transaction_log()) {
                 if (update.type == DELETE) {
                     remove_from_cf(update.edge.src, update.edge.dst);
-                    edges_from_sketch.erase(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
+                    edges_from_sketch.erase(concat_pairing_fn(update.edge.src, update.edge.dst));
                 }
                 else {
                     insert_to_cf(update.edge.src, update.edge.dst);
-                    edges_from_sketch.insert(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
+                    edges_from_sketch.insert(concat_pairing_fn(update.edge.src, update.edge.dst));
                 }
             }
             sketching_algo.flush_transaction_log();
@@ -200,11 +203,13 @@ class HybridConnectivityManager {
             }
             
             // 3) insert them into the sketching algo
+            // AND the recovery sketches
             for (node_id_t neighbor: _neighbors_buffer) {
                 if (neighbor != vertex_to_flush) {
                     sketching_algo.update(GraphUpdate{Edge{vertex_to_flush, neighbor}, INSERT});
                     // TODO - ensure this is initialized
-                    recovery_sketches[vertex_to_flush]->update(VERTICES_TO_EDGE(vertex_to_flush, neighbor));
+                    recovery_sketches[vertex_to_flush]->update(concat_pairing_fn(vertex_to_flush, neighbor));
+                    recovery_sketches[neighbor]->update(concat_pairing_fn(vertex_to_flush, neighbor));
                 }
             }
             // apply the transaction log
@@ -215,21 +220,32 @@ class HybridConnectivityManager {
         }
         
         bool check_and_perform_recovery(node_id_t vertex) {
-            return false;
+            // return false;
             /*
                 Assumes the vertex is sketched
                 Checks if the recovery sketch is sufficiently sparse
                 If so, performs a recovery attempt
             */
             // or use the explicit degree because of well-formed stream assumption 
-            likely_if (!recovery_sketches[vertex]->worth_recovery_attempt()) {
+            if (!is_vertex_sketched(vertex)) {
                 return false;
             }
+            likely_if (num_edges[vertex] > MOVE_TO_SKETCH / 4) {
+                return false;
+            }
+            // likely_if (!recovery_sketches[vertex]->worth_recovery_attempt()) {
+            //     return false;
+            // }
+            std::cout << "RECOVERING YA HURDDDDDDDDDD" << std::endl;
             auto recovery_attempt = recovery_sketches[vertex]->recover();
-            unlikely_if (recovery_attempt.result = FAILURE) {
+            unlikely_if (recovery_attempt.result == FAILURE) {
                 // TODO - handle failure case
+                std::cout << "RECOVERY FAILED YA HURD" << std::endl;
+                std::cout << "recovery attempt size: " << num_edges[vertex] << std::endl;
+                std::cout << "recovered: " << recovery_attempt.recovered_indices.size() << std::endl;
                 return false;
             }
+            std::cout << "RECOVERY SUCCEEDED YA HURD" << std::endl;
             // then remove the edge from neighbors' recovery structures
             for (vec_t &vec: recovery_attempt.recovered_indices) {
                 Edge edge = inv_concat_pairing_fn(vec);
@@ -241,6 +257,11 @@ class HybridConnectivityManager {
                 Edge edge = inv_concat_pairing_fn(vec);
                 sketching_algo.update(GraphUpdate{edge, DELETE});
             }
+            // before we flush the transaction log - uninitialize
+            // this has to happen here by current designs, since we only want to decrement
+            // pending_dense_edges for edges that WERE NOT already part of the recovery process
+            uninitialize_vertex_sketch(vertex);
+
             // and apply the transaction log
             flush_transaction_log();
             // and add the edges back to the cluster forest
@@ -254,8 +275,6 @@ class HybridConnectivityManager {
                 Edge edge = inv_concat_pairing_fn(vec);
                 insert_to_cf(edge.src, edge.dst);
             }
-            // now we can clear the recovery data structure
-            uninitialize_vertex_sketch(vertex);
             
         }
 
@@ -280,12 +299,12 @@ class HybridConnectivityManager {
                 insert_to_cf(update.edge.src, update.edge.dst);
                 
                 // check to see if we densified the vertices enough to initialize their sketches
-                unlikely_if (count_explicit_neighbors(update.edge.src) >= MOVE_TO_SKETCH) {
+                unlikely_if (!is_vertex_sketched(update.edge.src) && count_explicit_neighbors(update.edge.src) >= MOVE_TO_SKETCH) {
                     // these functions should be no-ops on dense edges
                     // std::cout << "neighbor count for " << update.edge.dst << " is " << count_explicit_neighbors(update.edge.dst) << std::endl;
                     initialize_vertex_sketch(update.edge.src);
                 }
-                unlikely_if (count_explicit_neighbors(update.edge.dst) >= MOVE_TO_SKETCH) {
+                unlikely_if (!is_vertex_sketched(update.edge.src) && count_explicit_neighbors(update.edge.dst) >= MOVE_TO_SKETCH) {
                     initialize_vertex_sketch(update.edge.dst);
                 }
                 
@@ -322,13 +341,13 @@ class HybridConnectivityManager {
                 // if (cf_edges[update.edge.src].find(update.edge.dst) != cf_edges[update.edge.src].end()) {
                 // if (cf_algo.has_edge(update.edge.src, update.edge.dst)) {
                 if (this->is_edge_in_cf(update.edge)) {
-                    edge_id_t edge_id = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
+                    edge_id_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
                     // if edge comes from sketching algo:
                     if (edges_from_sketch.find(edge_id) != edges_from_sketch.end()) {
                         // case a)
                         sketching_algo.update(update);
-                        recovery_sketches[update.edge.src]->update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
-                        recovery_sketches[update.edge.dst]->update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
+                        recovery_sketches[update.edge.src]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
+                        recovery_sketches[update.edge.dst]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
                         flush_transaction_log();
                         check_and_perform_recovery(update.edge.src);
                         check_and_perform_recovery(update.edge.dst);
@@ -358,8 +377,8 @@ class HybridConnectivityManager {
                 else {
                     // THIS IS THE OBVIOUS BUFFERING CASE FOR DELETIONS
                     sketching_algo.update(update);
-                    recovery_sketches[update.edge.src]->update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
-                    recovery_sketches[update.edge.dst]->update(VERTICES_TO_EDGE(update.edge.src, update.edge.dst));
+                    recovery_sketches[update.edge.src]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
+                    recovery_sketches[update.edge.dst]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
                     // TODO - verify that we don't need to flush transaction log
                     // flush_transaction_log();
                     check_and_perform_recovery(update.edge.src);
@@ -371,10 +390,14 @@ class HybridConnectivityManager {
         }
 
         bool connectivity_query(node_id_t a, node_id_t b) {
+            sketching_algo.process_all_updates();
+            flush_transaction_log();
             return cf_algo.is_connected(a, b);
         }
         
         std::vector<std::set<node_id_t>> cc_query() {
+            sketching_algo.process_all_updates();
+            flush_transaction_log();
             // TODO - this aint great.
             std::vector<std::set<node_id_t>> ret;
             std::unordered_map<uint64_t, std::set<node_id_t>> component_map;
