@@ -3,6 +3,8 @@
 
 #include <sys/resource.h> // for rusage
 
+#define PrintQuery
+
 static double get_max_mem_used() {
   struct rusage data;
   getrusage(RUSAGE_SELF, &data);
@@ -239,9 +241,20 @@ void bin_query_stream(string path, bool use_union_find = true) {
 			} else if (op.type == DELETE) {
 				g.delete_edge(op.edge.src, op.edge.dst);
 			} else if (op.type == BREAKPOINT) { // streaming utilities doesn't include QUERY = 2?
-				clock_t t = clock();
-				g.query(op.edge.src, op.edge.dst);
-				query_time += clock() - t;
+				// queries in our streams come in batches. Time a bunch at once to reduce clock overhead
+				clock_t qt = clock();
+				while (ops[i + 1].type == BREAKPOINT && i < num_ops) {
+					bool conn = g.query(ops[i].edge.src, ops[i].edge.dst);
+#ifdef PrintQuery
+					std::cout << ops[i].edge.src << "--" << ops[i].edge.dst << (conn ? " yes" : " no") << std::endl;
+#endif
+					i++;
+				}
+				bool conn = g.query(ops[i].edge.src, ops[i].edge.dst);
+#ifdef PrintQuery
+				std::cout << ops[i].edge.src << "--" << ops[i].edge.dst << (conn ? " yes" : " no") << std::endl;
+#endif
+				query_time += clock() - qt;
 			} else {
 				std::cerr << "ERROR: did not recognize update type: " << op.type << std::endl;
 				exit(EXIT_FAILURE);
