@@ -41,6 +41,9 @@ class HybridConnectivityManager {
         
         // buffer for when we need to collect all neighbors
         std::vector<node_id_t> _neighbors_buffer;
+        
+        // non-tree deletion buffer
+        std::vector<edge_id_t> non_tree_deletion_buffer;
 
         // TODO - this might be replaced by something internal to modified-cupcake
         // can also just be a vector probably
@@ -230,7 +233,8 @@ class HybridConnectivityManager {
         }
         
         bool check_and_perform_recovery(node_id_t vertex) {
-            // return false;
+            // TODO - there is still a bug with updating pending dense edges
+            return false;
             /*
                 Assumes the vertex is sketched
                 Checks if the recovery sketch is sufficiently sparse
@@ -240,6 +244,8 @@ class HybridConnectivityManager {
             if (!is_vertex_sketched(vertex)) {
                 return false;
             }
+            // std::cout << "Checking recovery for vertex " << vertex << std::endl;
+            // std::cout << "num edges for vertex " << vertex << " is " << num_edges[vertex] << std::endl;
             likely_if (num_edges[vertex] > MOVE_TO_SKETCH / 4) {
                 return false;
             }
@@ -313,10 +319,12 @@ class HybridConnectivityManager {
                 // check to see if we densified the vertices enough to initialize their sketches
                 unlikely_if (!is_vertex_sketched(update.edge.src) && count_explicit_neighbors(update.edge.src) >= MOVE_TO_SKETCH) {
                     // these functions should be no-ops on dense edges
-                    // std::cout << "neighbor count for " << update.edge.dst << " is " << count_explicit_neighbors(update.edge.dst) << std::endl;
+                    // std::cout << "neighbor count for " << update.edge.src << " is " << count_explicit_neighbors(update.edge.src) << std::endl;
                     initialize_vertex_sketch(update.edge.src);
+
                 }
-                unlikely_if (!is_vertex_sketched(update.edge.src) && count_explicit_neighbors(update.edge.dst) >= MOVE_TO_SKETCH) {
+                unlikely_if (!is_vertex_sketched(update.edge.dst) && count_explicit_neighbors(update.edge.dst) >= MOVE_TO_SKETCH) {
+                    // std::cout << "neighbor count for " << update.edge.dst << " is " << count_explicit_neighbors(update.edge.dst) << std::endl;
                     initialize_vertex_sketch(update.edge.dst);
                 }
                 
@@ -329,11 +337,13 @@ class HybridConnectivityManager {
                     auto v1 = e.first;
                     auto v2 = e.second;
                     if (is_vertex_sketched(v2)) {
+                        // std::cout << "Num pending dense edges for vertex " << v1 << " is " << num_pending_dense_edges[v1] << std::endl;
                         if (++num_pending_dense_edges[v1] >= MOVE_TO_SKETCH) {
                             // TODO - ensure this is a no-op if already initialized
                             initialize_vertex_sketch(v1);
                             // flush the edges to the sketching algo
                             num_pending_dense_edges[v1] = 0;
+                            // std::cout << "Flushing edges to sketch for vertex " << v1 << std::endl;
                             flush_edges_to_sketch(v1);
                         }
                     }
@@ -356,6 +366,7 @@ class HybridConnectivityManager {
                     edge_id_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
                     // if edge comes from sketching algo:
                     if (edges_from_sketch.find(edge_id) != edges_from_sketch.end()) {
+                        // std::cout << "Connectivity edge from sketching algo: " <<  update.edge.src << ", "<< update.edge.dst << std::endl;
                         // case a)
                         sketching_algo.update(update);
                         recovery_sketches[update.edge.src]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
@@ -387,14 +398,28 @@ class HybridConnectivityManager {
                 // 2) edge does not exist in the CF:
                 //  * it must be in the sketch algo, so update the sketch algo and apply transaction log.
                 else {
-                    // THIS IS THE OBVIOUS BUFFERING CASE FOR DELETIONS
-                    sketching_algo.update(update);
-                    recovery_sketches[update.edge.src]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
-                    recovery_sketches[update.edge.dst]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
-                    // TODO - verify that we don't need to flush transaction log
-                    flush_transaction_log();
-                    check_and_perform_recovery(update.edge.src);
-                    check_and_perform_recovery(update.edge.dst);
+                    // we can buffer this deletion as long as:
+                    // 1) we know the edge does not disconnect two components
+
+                    non_tree_deletion_buffer.push_back(concat_pairing_fn(update.edge.src, update.edge.dst));
+                    if (non_tree_deletion_buffer.size() >= 100) {
+                        // std::cout << "Flushing non-tree deletion buffer of size: " << non_tree_deletion_buffer.size() << std::endl;
+                        for (edge_id_t edge_id: non_tree_deletion_buffer) {
+                            Edge edge = inv_concat_pairing_fn(edge_id);
+                            sketching_algo.update(GraphUpdate{edge, DELETE});
+                            recovery_sketches[edge.src]->update(concat_pairing_fn(edge.src, edge.dst));
+                            recovery_sketches[edge.dst]->update(concat_pairing_fn(edge.src, edge.dst));
+                            check_and_perform_recovery(edge.src);
+                            check_and_perform_recovery(edge.dst);
+                        }
+                        non_tree_deletion_buffer.clear();
+                        flush_transaction_log();
+                    }
+                    // sketching_algo.update(update);
+                    // // TODO - verify that we don't need to flush transaction log
+                    // flush_transaction_log();
+                    // check_and_perform_recovery(update.edge.src);
+                    // check_and_perform_recovery(update.edge.dst);
                 }
                 // TODO - eventually implement a check to see if we need to remove
                 // one of the vertices from the sketch algo and dump the edges out.
@@ -427,6 +452,10 @@ class HybridConnectivityManager {
                 ret.push_back(pair.second);
             }
             return ret;
+        }
+
+        size_t num_sketched_vertices() const {
+            return _is_vertex_sketched.size();
         }
 
 };

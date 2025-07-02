@@ -172,6 +172,7 @@ TEST(GraphTierSuite, hybrid_update_speed_test) {
             unlikely_if(i%1000000 == 0 || i == edgecount-1) {
                 std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
                 // std::cout << "Memory usage: " << hybrid_manager.cf_algo.getMemUsage() / 1000000 << std::endl;
+                std::cout << "Sketched nodes: " << hybrid_manager.num_sketched_vertices() << " out of " << num_nodes << std::endl;
             }
         }
         // Communicate to all other nodes that the stream has ended
@@ -329,6 +330,122 @@ TEST(GraphTiersSuite, hybrid_mini_correctness_test) {
                 FAIL();
             }
         }
+        // One by one cut all of the nodes into singletons
+        for (node_id_t i = 0; i < num_nodes-1; i++) {
+            hybrid_driver.update({{i, i+1}, DELETE});
+            gv.edge_update({i,i+1});
+            std::vector<std::set<node_id_t>> cc = hybrid_driver.cc_query();
+            try {
+                // gv.reset_cc_state();
+                gv.verify_cc_from_component_set(cc);
+            } catch (IncorrectCCException& e) {
+                std::cout << "Incorrect cc found after cutting nodes " << i << " and " << i+1 << std::endl;
+                std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << i+2 << " components" << std::endl;
+                FAIL();
+            }
+        }
+        // Communicate to all other nodes that the stream has ended
+        hybrid_driver.sketching_algo.end();
+    } else if (world_rank < num_tiers+1) {
+        int tier_num = world_rank-1;
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
+        tier_node.main();
+    }
+}
+
+TEST(GraphTiersSuite, hybrid_small_correctness_test) {
+    int world_rank_buf;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
+    uint32_t world_rank = world_rank_buf;
+    int world_size_buf;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
+    uint32_t world_size = world_size_buf;
+
+    uint32_t num_nodes = 512;
+
+    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    if (world_size != num_tiers+1)
+        FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
+    // Parameters
+    int update_batch_size = 1;
+    height_factor = 1;
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
+
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
+
+    if (world_rank == 0) {
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        // InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        // 
+        HybridConnectivityManager hybrid_driver(
+            num_nodes, num_tiers, update_batch_size, seed
+        );
+        hybrid_driver.set_threshold(10);
+        GraphVerifier gv(num_nodes);
+        // Link all of the nodes into 1 connected component
+        for (node_id_t i = 0; i < num_nodes-1; i++) {
+            hybrid_driver.update({{i, i+1}, INSERT});
+            gv.edge_update({i,i+1});
+            // std::cout << "Attempting query" << std::endl;
+            std::vector<std::set<node_id_t>> cc = hybrid_driver.cc_query();
+            try {
+                // gv.reset_cc_state();
+                gv.verify_cc_from_component_set(cc);
+            } catch (IncorrectCCException& e) {
+                std::cout << "Incorrect cc found after linking nodes " << i << " and " << i+1 << std::endl;
+                std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << num_nodes-i-1 << " components" << std::endl;
+                FAIL();
+            }
+        }
+        // augment first few nodes so that they are hubs for the first half of the nodes.
+        node_id_t hub_nodes = 25;
+        for (node_id_t i=0; i < hub_nodes; i++) {
+            // don't insert any edges that already exist: 
+            for (node_id_t j = hub_nodes+2; j < num_nodes/2; j++) {
+                hybrid_driver.update({{i, j}, INSERT});
+                gv.edge_update({i,j});
+            }
+            std::vector<std::set<node_id_t>> cc = hybrid_driver.cc_query();
+            try {
+                // gv.reset_cc_state();
+                gv.verify_cc_from_component_set(cc);
+            } catch (IncorrectCCException& e) {
+                std::cout << "Incorrect cc found after cutting nodes " << i << " and " << i+1 << std::endl;
+                std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << i+2 << " components" << std::endl;
+                FAIL();
+            }
+        }
+        std::cout << "Number of sketched nodes: " << hybrid_driver.num_sketched_vertices() << std::endl;
+        for (node_id_t i=0; i < hub_nodes; i++) {
+            for (node_id_t j = hub_nodes+2; j < num_nodes/2; j++) {
+                hybrid_driver.update({{i, j}, DELETE});
+                gv.edge_update({i,j});
+            }
+            std::vector<std::set<node_id_t>> cc = hybrid_driver.cc_query();
+            try {
+                // gv.reset_cc_state();
+                gv.verify_cc_from_component_set(cc);
+            } catch (IncorrectCCException& e) {
+                std::cout << "Incorrect cc found after cutting nodes " << i << " and " << i+1 << std::endl;
+                std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << i+2 << " components" << std::endl;
+                FAIL();
+            }
+        }
+        std::cout << "Number of sketched nodes: " << hybrid_driver.num_sketched_vertices() << std::endl;
+        
         // One by one cut all of the nodes into singletons
         for (node_id_t i = 0; i < num_nodes-1; i++) {
             hybrid_driver.update({{i, i+1}, DELETE});
@@ -617,7 +734,7 @@ TEST(GraphTiersSuite, hybrid_correctness_test) {
             hybrid_driver.update(update);
             // Correctness testing by performing a cc query
             gv.edge_update(update.edge);
-            unlikely_if(i%10000 == 0 || i == edgecount-1) {
+            unlikely_if(i%100000 == 0 || i == edgecount-1) {
                 std::vector<std::set<node_id_t>> cc = hybrid_driver.cc_query();
                 try {
                     // gv.reset_cc_state();

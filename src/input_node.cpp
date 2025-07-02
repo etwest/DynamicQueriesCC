@@ -3,6 +3,7 @@
 
 long normal_refreshes = 0;
 long dt_operation_time = 0;
+long num_updates = 0;
 
 InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size, int seed) :
     num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed) {
@@ -24,6 +25,7 @@ InputNode::~InputNode() {
 }
 
 void InputNode::update(GraphUpdate update) {
+    num_updates++;
     UpdateMessage update_message;
     update_message.update = update;
     update_buffer[buffer_size++] = update_message;
@@ -34,6 +36,11 @@ void InputNode::update(GraphUpdate update) {
 void InputNode::process_updates() {
     if (buffer_size == 1)
         return;
+    // BUFFER PRE-PROCESSING !
+    // for every update; if we know it's isolated (adds new connectivity) info,
+    // swap it to the front of the buffer
+
+
     uint32_t num_updates = buffer_size-1;
     // If less than 1/10 of the last updates are isolated use sliding window
     bool prev_strat = using_sliding_window;
@@ -196,4 +203,5 @@ void InputNode::end() {
      std::cout << "======================= INPUT NODE ======================" << std::endl;
      std::cout << "Dynamic tree operations time (ms): " << dt_operation_time/1000 << std::endl;
      std::cout << "Normal refreshes: " << normal_refreshes << std::endl;
+     std::cout << "Number of updates: " << num_updates << std::endl;
 }
