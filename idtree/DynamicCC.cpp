@@ -3,7 +3,7 @@
 
 #include <sys/resource.h> // for rusage
 
-#define PrintQuery
+// #define PrintQuery
 
 static double get_max_mem_used() {
   struct rusage data;
@@ -270,9 +270,10 @@ void bin_query_stream(string path, bool use_union_find = true) {
 
 	clock_t end = clock();
 
-	std::cout << "Processing: " << path << " took:" << std::endl;
-	std::cout << "Insert latency: " << (end - start - query_time) * 1.0 / CLOCKS_PER_SEC << " seconds" << std::endl;
-	std::cout << "Query latency: " << query_time * 1.0 / CLOCKS_PER_SEC << " seconds" << std::endl;
+	std::ofstream out("dyn_results.txt");
+	out << "Processing: " << path << " took:" << std::endl;
+	out << "Insert latency: " << (end - start - query_time) * 1.0 / CLOCKS_PER_SEC << " seconds" << std::endl;
+	out << "Query latency: " << query_time * 1.0 / CLOCKS_PER_SEC << " seconds" << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -311,8 +312,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	t = clock() - t;
-	printf( "Total time=%0.3lf seconds\n", t*1.0/CLOCKS_PER_SEC);
-	cout << "Memory usage = " << get_max_mem_used() << " MiB" << endl;
+	std::ofstream out("dyn_results.txt", std::ios::app);
+	out << "Total time = " << t*1.0/CLOCKS_PER_SEC << " seconds\n" << endl;
+	out << "Memory usage = " << get_max_mem_used() << " MiB" << endl;
 	
 
 	return 0;
