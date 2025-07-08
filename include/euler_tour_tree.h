@@ -69,4 +69,12 @@ public:
   SkipListNode<SketchClass>* get_root(node_id_t u);
   const SketchClass& get_aggregate(node_id_t u);
   uint32_t get_size(node_id_t u);
+  uint32_t num_components() {
+    std::set<void*> roots;
+    for (node_id_t i = 0; i < ett_nodes.size(); ++i) {
+      auto root = ett_nodes[i].get_root();
+      roots.insert(root);
+    }
+    return roots.size();
+  }
 };

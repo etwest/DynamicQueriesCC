@@ -119,14 +119,19 @@ void InputNode::process_updates() {
         MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, start_tier+1, 0, MPI_COMM_WORLD);
         for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
             int rank = tier + 1;
+            // bool break_early = true;
             if (tier != 0)
             for (auto endpoint : {0,1}) {
                 std::ignore = endpoint;
                 // Receive a broadcast to see if the current tier/endpoint is isolated or not
                 EttUpdateMessage update_message;
                 bcast(&update_message, sizeof(UpdateMessage), rank);
-                if (update_message.type == NOT_ISOLATED)
+                if (update_message.type == NOT_ISOLATED) {
                     continue;
+                }
+                // else {
+                //     break_early = false;
+                // }
                 this_update_isolated = true;
                 // Process a LCT query message first
                 LctResponseMessage response_message;
@@ -161,6 +166,7 @@ void InputNode::process_updates() {
                     STOP(dt_operation_time, dt_operation_timer2);
                 }
             }
+            // if (break_early) break;
         }
         isolation_count -= (int)isolation_history_queue.front();
         isolation_history_queue.pop();

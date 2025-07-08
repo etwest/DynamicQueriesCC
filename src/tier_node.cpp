@@ -31,7 +31,8 @@ void TierNode::main() {
         // Receive a batch of updates and check if it is the end of stream
         bcast(update_buffer, sizeof(UpdateMessage)*(batch_size+1), 0);
         if (update_buffer[0].end) {
-            // std::cout << "============= TIER " << tier_num << " NODE =============" << std::endl;
+            std::cout << "============= TIER " << tier_num << " NODE =============" << std::endl 
+            << "Number of components: " << ett.num_components() << std::endl;
             // std::cout << "Greedy batch time (ms): " << greedy_batch_time/1000 << std::endl;
             // std::cout << "\tSketch update time (ms): " << sketch_update_time/1000 << std::endl;
             // std::cout << "\tSketch query time (ms): " << sketch_query_time/1000 << std::endl;
@@ -169,6 +170,8 @@ void TierNode::main() {
                 for (int endpoint : {0,1}) {
                     std::ignore = endpoint;
                     // Receive a broadcast to see if the endpoint at the current tier is isolated or not
+                    // OR to see if the component is maximized.
+                    // if the component is maximized, further broadcasts are not needed
                     EttUpdateMessage update_message;
                     bcast(&update_message, sizeof(EttUpdateMessage), rank);
                     if (update_message.type == NOT_ISOLATED) continue;

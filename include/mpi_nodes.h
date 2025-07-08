@@ -14,7 +14,7 @@
 
 
 enum TreeOperationType {
-  NOT_ISOLATED=0, ISOLATED=1, EMPTY, LINK, CUT, LCT_QUERY
+  NOT_ISOLATED=0, ISOLATED=1, EMPTY, LINK, CUT, LCT_QUERY, MAXIMIZED
 };
 
 typedef struct {

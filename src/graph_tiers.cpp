@@ -77,7 +77,7 @@ void GraphTiers<SketchClass>::refresh(GraphUpdate update, bool did_cut) {
 	// In parallel check if all tiers are not isolated
 	START(iso);
 	std::atomic<bool> isolated(false);
-	//#pragma omp parallel for
+	// #pragma omp parallel for
 	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
 		// Check if the tree containing first endpoint is isolated
 		uint32_t tier_size1 = root_nodes[2*tier]->size;
@@ -112,6 +112,7 @@ void GraphTiers<SketchClass>::refresh(GraphUpdate update, bool did_cut) {
 		return;
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
+		bool both_components_maximized = true;
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
 			// Check if the tree containing this endpoint is isolated
 			START(size);
@@ -131,6 +132,10 @@ void GraphTiers<SketchClass>::refresh(GraphUpdate update, bool did_cut) {
 			ett_agg.reset_sample_state();
 			SketchSample query_result = ett_agg.sample();
 			STOP(sketch_query, sq);
+			
+			if (query_result.result != ZERO) {
+				both_components_maximized = false;
+			}
 
 			// Check for new edge to eliminate isolation
 			if (query_result.result != GOOD)
@@ -179,6 +184,9 @@ void GraphTiers<SketchClass>::refresh(GraphUpdate update, bool did_cut) {
 			link_cut_tree.link(a,b, tier+1);
 			STOP(lct_time, lct4);
 		}
+		// if (both_components_maximized) {
+		// 	break;
+		// }
 	}
 }
 

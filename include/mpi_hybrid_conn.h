@@ -401,25 +401,25 @@ class HybridConnectivityManager {
                     // we can buffer this deletion as long as:
                     // 1) we know the edge does not disconnect two components
 
-                    non_tree_deletion_buffer.push_back(concat_pairing_fn(update.edge.src, update.edge.dst));
-                    if (non_tree_deletion_buffer.size() >= 100) {
-                        // std::cout << "Flushing non-tree deletion buffer of size: " << non_tree_deletion_buffer.size() << std::endl;
-                        for (edge_id_t edge_id: non_tree_deletion_buffer) {
-                            Edge edge = inv_concat_pairing_fn(edge_id);
-                            sketching_algo.update(GraphUpdate{edge, DELETE});
-                            recovery_sketches[edge.src]->update(concat_pairing_fn(edge.src, edge.dst));
-                            recovery_sketches[edge.dst]->update(concat_pairing_fn(edge.src, edge.dst));
-                            check_and_perform_recovery(edge.src);
-                            check_and_perform_recovery(edge.dst);
-                        }
-                        non_tree_deletion_buffer.clear();
-                        flush_transaction_log();
-                    }
-                    // sketching_algo.update(update);
-                    // // TODO - verify that we don't need to flush transaction log
-                    // flush_transaction_log();
-                    // check_and_perform_recovery(update.edge.src);
-                    // check_and_perform_recovery(update.edge.dst);
+                    // non_tree_deletion_buffer.push_back(concat_pairing_fn(update.edge.src, update.edge.dst));
+                    // if (non_tree_deletion_buffer.size() >= 100) {
+                    //     // std::cout << "Flushing non-tree deletion buffer of size: " << non_tree_deletion_buffer.size() << std::endl;
+                    //     for (edge_id_t edge_id: non_tree_deletion_buffer) {
+                    //         Edge edge = inv_concat_pairing_fn(edge_id);
+                    //         sketching_algo.update(GraphUpdate{edge, DELETE});
+                    //         recovery_sketches[edge.src]->update(concat_pairing_fn(edge.src, edge.dst));
+                    //         recovery_sketches[edge.dst]->update(concat_pairing_fn(edge.src, edge.dst));
+                    //         check_and_perform_recovery(edge.src);
+                    //         check_and_perform_recovery(edge.dst);
+                    //     }
+                    //     non_tree_deletion_buffer.clear();
+                    //     flush_transaction_log();
+                    // }
+                    sketching_algo.update(update);
+                    // TODO - verify that we don't need to flush transaction log
+                    flush_transaction_log();
+                    check_and_perform_recovery(update.edge.src);
+                    check_and_perform_recovery(update.edge.dst);
                 }
                 // TODO - eventually implement a check to see if we need to remove
                 // one of the vertices from the sketch algo and dump the edges out.
