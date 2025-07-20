@@ -4,9 +4,12 @@
 #include <atomic>
 #include <parlay/sequence.h>
 #include <parlay/primitives.h>
+// #include <folly/AtomicHashArray.h>
+#include <folly/concurrency/ConcurrentHashMap.h>
 
 #include "euler_tour_tree.h"
 #include "link_cut_tree.h"
+// #include "parlay_hash/unordered_set.h"
 
 template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConcept<SketchClass, vec_t>)
 class BatchTiers {
@@ -25,7 +28,10 @@ class BatchTiers {
         // to be checked for isolation
         std::vector<parlay::sequence<SkipListNode<SketchClass>*>> _updated_components;
         
-        parlay::sequence<SkipListNode<SketchClass>*> _current_isolated_components;
+        // tracks components that were already checked for isolation and had their
+        // associated link/cut instructions logged.
+        // parlay::sequence<SkipListNode<SketchClass>*> _current_isolated_components;
+        folly::ConcurrentHashMap<node_id_t, uint32_t> _already_checked_components;
         
         // links to "broadcast" to all higher tiers
         parlay::sequence<Edge> _pending_links;
@@ -135,7 +141,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     // SHORT CUTS: we can also tell if a component is maximized by checking for an empty sketch. This
     // means we can avoid doing further isolation checks. 
     // for (uint32_t)
-    for (uint32_t tier = first_isolated_tier, tier < ett.size()-1; tier++) {
+    for (uint32_t tier = first_isolated_tier; tier < ett.size()-1; tier++) {
         _updated_components[tier].clear();
     }
     for (uint32_t tier = first_isolated_tier; tier < ett.size()-1; tier++) {
@@ -144,7 +150,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         // TODO - can be parallel
         for (size_t update_idx = 0; update_idx < num_updates; update_idx++) {
             for (bool src_or_dst : {true, false}) {
-                SkipListNode<SketchClass>* root = root_node(tier, update_idx, src);
+                SkipListNode<SketchClass>* root = root_node(tier, update_idx, src_or_dst);
                 SkipListNode<SketchClass>* actual_root = root->get_root();
                 _updated_components[tier].push_back(actual_root);
             }
@@ -153,9 +159,15 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         // checked for isolation
         parlay::parallel_for(0, _updated_components[tier].size(), [&](size_t i) {
             SkipListNode<SketchClass>* component_root = _updated_components[tier][i];
+            // in case a component was previously merged already
+            component_root = component_root->get_root();
+            // we should skip this check
+            if (_already_checked_components.find(component_root->node->vertex) != _already_checked_components.end()) {
+                return;
+            }
             // TODO - WHAT SHOULD THIS ACTUALLY BE
             SkipListNode<SketchClass> *next_tier_root =
-                ett[tier + 1].get_root(component_root->node->id);
+                ett[tier + 1].get_root(component_root->node->vertex);
             SketchClass &ett_agg = component_root->sketch_agg;
             // TODO - do we want to sample before? idts. but we can at least
             // do the empty check with a special new primitive
@@ -167,7 +179,9 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             if (component_root->size == next_tier_root->size) {
                 if (query_result.result == GOOD) {
                     // this component is isolated, so we need to add it to the list
-                    _current_isolated_components.push_back(component_root);
+                    // _current_isolated_components.push_back(component_root);
+                    // _current_isolated_components.insert(component_root->node->vertex);
+                    _already_checked_components.insert(component_root->node->vertex, tier);
 
                     // .. and see if a path exists between the endpoints in the LCT
                     edge_id_t edge = query_result.idx;
@@ -197,7 +211,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         for (const Edge &link : _pending_links) {
             link_cut_tree.link(link.src, link.dst, tier + 1);
         }
-        for (const Edge &cut : _pending_cuts) {
+        for (auto &cut : _pending_cuts) {
             link_cut_tree.cut(cut.first.src, cut.first.dst);           
         }
         
@@ -205,8 +219,8 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         // for each tier, we'll perform the cuts and links, and then add any entries to _updated_components[tier] that
         // we need to.
         parlay::parallel_for(tier + 1, ett.size(), [&](size_t t) {
-            for (const Edge &cut : _pending_cuts) {
-                // do not perform cut if the vertex has not yet appeared (duh?)
+            for (auto &cut : _pending_cuts) {
+                // do not perform cut if the edge has not yet appeared (duh?)
                 if (cut.second < t) 
                     continue;
                 // cut the edge in the current tier
@@ -225,6 +239,12 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                 _updated_components[t].push_back(root);
             }
         });
+        
+        // at this point, all links and cuts induced have been performed, and we have a log
+        // of components that need to be checked for isolation in the next tier.
+        _pending_links.clear();
+        _pending_cuts.clear();
+        _already_checked_components.clear();
 
     }
 };
