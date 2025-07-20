@@ -155,6 +155,14 @@ void SkipListNode<SketchClass>::update_agg(vec_t update_idx) {
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void SkipListNode<SketchClass>::update_agg_atomic(vec_t update_idx) {
+	if (!this->sketch_agg.is_initialized()) // Only do something if this node has a sketch
+		return;
+	// TODO - do we need to do batchiing here too?
+	this->sketch_agg.atomic_update(update_idx);
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 void SkipListNode<SketchClass>::process_updates() {
 	if (!this->sketch_agg.is_initialized()) // Only do something if this node has a sketch
 		return;
@@ -176,7 +184,20 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(vec_t upda
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg_atomic(vec_t update_idx) {
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	while (curr) {
+		curr->update_agg_atomic(update_idx);
+		prev = curr;
+		curr = prev->get_parent();
+	}
+	return prev;
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(SketchClass &sketch) {
+	// returns the last node that was updated
 	SkipListNode* curr = this;
 	SkipListNode* prev;
 	if (!this->sketch_agg.is_initialized()) {

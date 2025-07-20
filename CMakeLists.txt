@@ -51,7 +51,8 @@ FetchContent_Declare(
   # GIT_TAG             2c633f5814f7edc79632cceb629280f6221b0281 #ksparse_recovery
   #GIT_TAG             4fff2c813c61c027ef3d555c38b9934bea6d1073
   # GIT_TAG             4ad8eeeb3f3162ef2730c5a9aaa1233914ccf347
-  GIT_TAG             a390949b19d062e2119b86e7081377431b51c53d
+  # GIT_TAG             a390949b19d062e2119b86e7081377431b51c53d
+  GIT_TAG             892b5b71b139100c309c79bb6ab94a5596fc606d
 )
 
 
@@ -89,6 +90,7 @@ add_executable(dynamicCC_tests
   src/euler_tour_tree.cpp
   src/link_cut_tree.cpp
   src/graph_tiers.cpp
+  src/batch_tiers.cpp
 )
 target_include_directories(dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
 add_dependencies(dynamicCC_tests GraphZeppelinVerifyCC dycon)

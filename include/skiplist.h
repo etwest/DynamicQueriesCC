@@ -60,11 +60,16 @@ public:
   const SketchClass& get_list_aggregate();
   // Update all the aggregate sketches with the input vector from the current node to its root
   SkipListNode<SketchClass>* update_path_agg(vec_t update_idx);
+  // // same, but atomically
+  SkipListNode<SketchClass>* update_path_agg_atomic(vec_t update_idx);
+  // SkipListNode<SketchClass>* update_path_agg_atomic(vec_t update_idx)
   // Add the given sketch to all aggregate sketches from the current node to its root
   SkipListNode<SketchClass>* update_path_agg(SketchClass &sketch);
 
   // Update just this node's aggregate sketch
   void update_agg(vec_t update_idx);
+  // Same but atomically
+  void update_agg_atomic(vec_t update_idx);
 
   // Apply all the sketch updates currently in the update buffer
   void process_updates();

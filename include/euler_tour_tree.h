@@ -38,6 +38,7 @@ public:
 
   SketchClass& get_sketch(SkipListNode<SketchClass>* caller);
   SkipListNode<SketchClass>* update_sketch(vec_t update_idx);
+  SkipListNode<SketchClass>* update_sketch_atomic(vec_t update_idx);
 
   SkipListNode<SketchClass>* get_root();
 
@@ -65,6 +66,7 @@ public:
   void cut(node_id_t u, node_id_t v);
   bool has_edge(node_id_t u, node_id_t v);
   SkipListNode<SketchClass>* update_sketch(node_id_t u, vec_t update_idx);
+  SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, vec_t update_idx);
   std::pair<SkipListNode<SketchClass>*, SkipListNode<SketchClass>*> update_sketches(node_id_t u, node_id_t v, vec_t update_idx);
   SkipListNode<SketchClass>* get_root(node_id_t u);
   const SketchClass& get_aggregate(node_id_t u);

@@ -61,9 +61,11 @@ void GraphTiers<SketchClass>::update(GraphUpdate update) {
 			ett[i].cut(update.edge.src, update.edge.dst);
 			ENDPOINT_CANARY("Cutting Tier " << i << " ETT With", update.edge.src, update.edge.dst);
 		}
+		// maintain roots of u,v endpoints
 		root_nodes[2*i] = ett[i].update_sketch(update.edge.src, (vec_t)edge);
 		root_nodes[2*i+1] = ett[i].update_sketch(update.edge.dst, (vec_t)edge);
 		ENDPOINT_CANARY("Updating Sketch With", update.edge.src, update.edge.dst);
+		
 	}
 	STOP(sketch_time, su);
 	// Refresh the data structure
@@ -82,6 +84,10 @@ void GraphTiers<SketchClass>::refresh(GraphUpdate update, bool did_cut) {
 		// Check if the tree containing first endpoint is isolated
 		uint32_t tier_size1 = root_nodes[2*tier]->size;
 		uint32_t next_size1 = root_nodes[2*(tier+1)]->size;
+		// NOTE - We know that we are a subset of the next tier's component
+		// by maintenance of variants. 
+		// thus, if the sizes are equal, we are not a proper subset
+		// but are a subset. This means we are violating 
 		if (tier_size1 == next_size1) {
 			root_nodes[2*tier]->process_updates();
 			SketchClass &ett_agg1 = root_nodes[2*tier]->sketch_agg;
