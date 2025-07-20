@@ -245,6 +245,14 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         _pending_links.clear();
         _pending_cuts.clear();
         _already_checked_components.clear();
+        
+        if (components_maximized.load(std::memory_order_relaxed)) {
+            // if all components were maximized, we can skip the next tier
+            // we know that at this point, there are no isolations at higher tiers.
+            // because all potential isolated components must be a union of the modified components
+            // found at this tier. so we can just return
+            return;
+        }
 
     }
 };
