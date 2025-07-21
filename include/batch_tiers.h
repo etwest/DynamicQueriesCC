@@ -15,7 +15,7 @@ template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConce
 class BatchTiers {
     private:
         // size_t maximum_batch_size = 512;
-        size_t maximum_batch_size = 10;
+        size_t maximum_batch_size = 100;
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
         LinkCutTree link_cut_tree;
         

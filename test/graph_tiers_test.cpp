@@ -13,8 +13,8 @@
 
 const vec_t DEFAULT_SKETCH_ERR = 1;
 
-// using GraphTierSystem = GraphTiers<DefaultSketchColumn>;
-using GraphTierSystem = BatchTiers<DefaultSketchColumn>;
+using GraphTierSystem = GraphTiers<DefaultSketchColumn>;
+// using GraphTierSystem = BatchTiers<DefaultSketchColumn>;
 
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
@@ -173,7 +173,7 @@ TEST(GraphTiersSuite, deletion_replace_correctness_test) {
 }
 
 TEST(GraphTiersSuite, omp_correctness_test) {
-    omp_set_dynamic(1);
+    // omp_set_dynamic(1);
     try {
         BinaryGraphStream stream(stream_file, 100000);
 
@@ -215,7 +215,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
 }
 
 TEST(GraphTiersSuite, omp_speed_test) {
-    omp_set_dynamic(1);
+    // omp_set_dynamic(1);
     try {
 	    long time = 0;
         BinaryGraphStream stream(stream_file, 100000);
@@ -251,7 +251,7 @@ TEST(GraphTiersSuite, omp_speed_test) {
 }
 
 TEST(GraphTiersSuite, query_speed_test) {
-    omp_set_dynamic(1);
+    // omp_set_dynamic(1);
     try {
 
         BinaryGraphStream stream(stream_file, 100000);

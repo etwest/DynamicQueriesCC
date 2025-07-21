@@ -116,6 +116,11 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                 uint32_t next_size = next_root->size;
                 if (tier_size == next_size) {
                     // This means that the component is isolated
+                    if (root->sketch_agg.sample().result == GOOD) {
+                        // this means that the component is isolated
+                        std::cout << "isolation found at tier " << tier << " for update idx " << update_idx << std::endl;
+                        return true;
+                    }
                     return root->sketch_agg.sample().result == GOOD;
                 }
             }
@@ -309,6 +314,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 std::vector<std::set<node_id_t>> BatchTiers<SketchClass>::get_cc() {
+    this->flush_buffer();
 	std::vector<std::set<node_id_t>> cc;
 	std::set<EulerTourNode<SketchClass>*> visited;
 	int top = ett.size()-1;
@@ -328,6 +334,7 @@ std::vector<std::set<node_id_t>> BatchTiers<SketchClass>::get_cc() {
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 bool BatchTiers<SketchClass>::is_connected(node_id_t a, node_id_t b) {
+    this->flush_buffer();
     // TODO - use a sketchless ETT
 	return this->link_cut_tree.find_root(a) == this->link_cut_tree.find_root(b);
 }
