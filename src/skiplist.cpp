@@ -18,7 +18,8 @@ SkipListNode<SketchClass>::SkipListNode(EulerTourNode<SketchClass>* node, long s
   //   sketch_agg = new SketchClass(
   //       SketchClass::suggest_capacity(sketch_len), seed);
   if (has_sketch)
-    sketch_agg = SketchClass(SketchClass::suggest_capacity(sketch_len), seed);
+    this->sketch_agg = SketchClass(SketchClass::suggest_capacity(sketch_len), seed);
+  return;
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
