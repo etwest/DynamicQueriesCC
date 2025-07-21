@@ -75,14 +75,11 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             }
         }
     });
+    // note: can just put this in the above region or use pardo
     // and process on the LCT:
     for (const auto& update : updates) {
         if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
-        }
-        if (update.edge.src == update.edge.dst) {
-            // self-loop, skip
-            std::cout << "YO WTF" << std::endl;
         }
     }
     
@@ -91,6 +88,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     // in parallel, accross every tier and update,
     // update the ETT aggregates
     // then, reduce to find the maximum 
+    // TODO - make sure tree edge deletions arent being processed twice.
     parlay::parallel_for(0, num_tiers*num_updates, [&](size_t i) {
         size_t tier = i / num_updates;
         size_t update_idx = i % num_updates;
@@ -121,7 +119,6 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                         // std::cout << "isolation found at tier " << tier << " for update idx " << update_idx << std::endl;
                         return true;
                     }
-                    return root->sketch_agg.sample().result == GOOD;
                 }
             }
             return false;
@@ -138,7 +135,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     // 3) proceed tier-serially: 
     // * at the first isolated tier, collect all components that are isolated.
     //  * each isolated component will give a new edge (a,b)
-    //  * if a path exists already between a and b in the final tier, then cut the maximum weight
+    //  * if a path exists already between a and b in the final tier/LCT, then cut the maximum weight
     //    edge on the path, starting from the tier where it first appears (call it tier M) and going until the final one.
     //    
     //    (NOTE THAT tier M has to have a higher index than the first isolated tier. Because we know that
@@ -156,11 +153,13 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     // SHORT CUTS: we can also tell if a component is maximized by checking for an empty sketch. This
     // means we can avoid doing further isolation checks. 
     // for (uint32_t)
+    // TODO - is_empty check optimization
     for (uint32_t tier = first_isolated_tier; tier < ett.size()-1; tier++) {
         _updated_components[tier].clear();
     }
     for (uint32_t tier = first_isolated_tier; tier < ett.size()-1; tier++) {
-        std::atomic_bool components_maximized(true);
+        // std::atomic_bool components_maximized(true);
+        bool components_maximized=true;
         
         // TODO - can be parallel
         for (size_t update_idx = 0; update_idx < num_updates; update_idx++) {
@@ -194,7 +193,11 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             // do the empty check with a special new primitive
             SketchSample query_result = ett_agg.sample();
             if (query_result.result != ZERO) {
-                components_maximized.store(false, std::memory_order_relaxed);
+                if (components_maximized) {
+                    bool f = false;
+                    bool t = true;
+                    __sync_bool_compare_and_swap((bool *)&components_maximized, true, false);
+                }
             }
 
             if (component_root->size == next_tier_root->size) {
@@ -211,12 +214,14 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                     // check if a path exists between the endpoints
                     auto a_root = link_cut_tree.find_root(a);
                     auto b_root = link_cut_tree.find_root(b);
+                    // TODO - ETT
                     
                     // if it does, then we either need to cut it, or ignore this update
 
                     if (a_root == b_root) {
                         // a path exists, so we need to cut the maximum weight edge
                         // on the path
+                        // THIS REALLY CANT BE PARALLELIZED atm
                         std::pair<edge_id_t, uint32_t> max_edge = link_cut_tree.path_aggregate(a, b);
                         node_id_t c = (node_id_t)max_edge.first;
                         node_id_t d = (node_id_t)(max_edge.first >> 32);
@@ -224,25 +229,11 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                         // if the first appeared tier is equal to tier+1, then we should check if this
                         // was a link we had just discovered. If so, we neither cut it, not include this link.
                         if (first_appeared_tier == tier + 1) {
-                            // check to see if this was a link we had just done:
-                            bool just_found = false;
-                            for (const Edge &link : _pending_links) {
-                                if (link.src == c && link.dst == d) {
-                                    just_found = true;
-                                    break;
-                                }
-                            }
-                            if (!just_found) {
-                                //if this is NOT a new link, we need to cut it
-                                _pending_cuts.push_back({{c, d}, first_appeared_tier});
-                                link_cut_tree.cut(c, d);
-                                // and push the link we just found
-                                _pending_links.push_back({a, b});
-                                link_cut_tree.link(a, b, tier + 1 );
-                                
-                            }
-                            // otherwise, if the link was just found, we want to IGNORE
-                            // this update.
+                            // YOU KNOW that these couldnt have been connected in the tier above
+                            // because otherwise the components coulld not have been the same size
+                            // (which is necessary for isolation condition)
+                            // 
+                            // so: DO NOTHING
                         }
                         else {
                             // likewise, if it's a higher tier, definitely perform the cut
@@ -263,11 +254,6 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             }
         }
         
-        // then update the LCT with the pending links and cuts
-        // size_t sz = _pending_cuts.size();;
-        // for (auto &cut : _pending_cuts) {
-        //     link_cut_tree.cut(cut.first.src, cut.first.dst);           
-        // }
         
         // at this point, we know exactly what cuts and links we need to do at higher tiers.
         // for each tier, we'll perform the cuts and links, and then add any entries to _updated_components[tier] that
@@ -282,15 +268,17 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                 // add the root node to the updated components list
                 // SkipListNode<SketchClass>* root = ett[t].get_root(cut.first.src);
                 // SkipListNode<SketchClass>* other_root = ett[t].get_root(cut.first.dst);
-                _updated_components[t].push_back(cut.first.src);
-                _updated_components[t].push_back(cut.first.dst);
+                // you can probably just not do this.
+                // _updated_components[t].push_back(cut.first.src);
+                // _updated_components[t].push_back(cut.first.dst);
+                // THE NEW EDGE YOU ADDED captures this.
             }
             for (const Edge &link : _pending_links) {
                 // link the two endpoints in the current tier
                 ett[t].link(link.src, link.dst);
                 // add the root node to the updated components list
                 // SkipListNode<SketchClass>* root = ett[t].get_root(link.src);
-                _updated_components[t].push_back(link.src);
+                // _updated_components[t].push_back(link.src);
             }
         });
 
@@ -301,13 +289,13 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         _pending_cuts.clear();
         _already_checked_components.clear();
         
-        if (components_maximized.load(std::memory_order_relaxed)) {
-            // if all components were maximized, we can skip the next tier
-            // we know that at this point, there are no isolations at higher tiers.
-            // because all potential isolated components must be a union of the modified components
-            // found at this tier. so we can just return
-            return;
-        }
+        // if (components_maximized) {
+        //     // if all components were maximized, we can skip the next tier
+        //     // we know that at this point, there are no isolations at higher tiers.
+        //     // because all potential isolated components must be a union of the modified components
+        //     // found at this tier. so we can just return
+        //     return;
+        // }
 
     }
 };

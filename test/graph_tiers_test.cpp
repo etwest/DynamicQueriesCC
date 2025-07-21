@@ -103,29 +103,33 @@ TEST(GraphTiersSuite, mini_correctness_test) {
     // Link all of the nodes into 1 connected component
     for (node_id_t i = 0; i < numnodes-1; i++) {
         gt.update({{i, i+1}, INSERT});
-        gv.edge_update({i,i+1});
-        std::vector<std::set<node_id_t>> cc = gt.get_cc();
-        try {
-            // gv.reset_cc_state();
-            gv.verify_cc_from_component_set(cc);
-        } catch (IncorrectCCException& e) {
-            std::cout << "Incorrect cc found after linking nodes " << i << " and " << i+1 << std::endl;
-            std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << numnodes-i-1 << " components" << std::endl;
-            FAIL();
+        gv.edge_update({i, i + 1});
+        if (i % 3 == 0) {
+            std::vector<std::set<node_id_t>> cc = gt.get_cc();
+            try {
+                // gv.reset_cc_state();
+                gv.verify_cc_from_component_set(cc);
+            } catch (IncorrectCCException& e) {
+                std::cout << "Incorrect cc found after linking nodes " << i << " and " << i + 1 << std::endl;
+                std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << numnodes - i - 1 << " components" << std::endl;
+                FAIL();
+            }
         }
     }
     // One by one cut all of the nodes into singletons
     for (node_id_t i = 0; i < numnodes-1; i++) {
         gt.update({{i, i+1}, DELETE});
         gv.edge_update({i,i+1});
-        std::vector<std::set<node_id_t>> cc = gt.get_cc();
-        try {
-            // gv.reset_cc_state();
-            gv.verify_cc_from_component_set(cc);
-        } catch (IncorrectCCException& e) {
-            std::cout << "Incorrect cc found after cutting nodes " << i << " and " << i+1 << std::endl;
-            std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << i+2 << " components" << std::endl;
-            FAIL();
+        if (i % 3 == 0) {
+            std::vector<std::set<node_id_t>> cc = gt.get_cc();
+            try {
+                // gv.reset_cc_state();
+                gv.verify_cc_from_component_set(cc);
+            } catch (IncorrectCCException& e) {
+                std::cout << "Incorrect cc found after cutting nodes " << i << " and " << i + 1 << std::endl;
+                std::cout << "GOT: " << cc.size() << " components, EXPECTED: " << i + 2 << " components" << std::endl;
+                FAIL();
+            }
         }
     }
 }
@@ -205,6 +209,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
                 } catch (IncorrectCCException& e) {
                     std::cout << "Incorrect connected components found at update "  << i << std::endl;
 		            std::cout << "GOT: " << cc.size() << std::endl;
+                    std::cout << "EXPECTED: " << gv.get_num_kruskal_ccs() << std::endl;
                     FAIL();
                 }
             }

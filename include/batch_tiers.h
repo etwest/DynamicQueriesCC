@@ -15,7 +15,8 @@ template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConce
 class BatchTiers {
     private:
         // size_t maximum_batch_size = 512;
-        size_t maximum_batch_size = 100;
+        // size_t maximum_batch_size = 100;
+        size_t maximum_batch_size = 1e4;
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
         LinkCutTree link_cut_tree;
         
@@ -62,7 +63,7 @@ class BatchTiers {
             // add to buffer:
             update_buffer.push_back(update);
             bool is_tree_edge_deletion = (update.type == DELETE &&
-                                          link_cut_tree.find_root(update.edge.src) == link_cut_tree.find_root(update.edge.dst));
+                                          link_cut_tree.has_edge(update.edge.src, update.edge.dst));
             if (update_buffer.size() >= maximum_batch_size || is_tree_edge_deletion) {
                 // process the batch
                 update_batch(update_buffer);
