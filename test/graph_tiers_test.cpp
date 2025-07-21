@@ -13,8 +13,8 @@
 
 const vec_t DEFAULT_SKETCH_ERR = 1;
 
-using GraphTierSystem = GraphTiers<DefaultSketchColumn>;
-// using GraphTierSystem = BatchTiers<DefaultSketchColumn>;
+// using GraphTierSystem = GraphTiers<DefaultSketchColumn>;
+using GraphTierSystem = BatchTiers<DefaultSketchColumn>;
 
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
@@ -91,7 +91,12 @@ TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
 }
 
 TEST(GraphTiersSuite, mini_correctness_test) {
+
     node_id_t numnodes = 10;
+    height_factor = 1 / log2(log2(numnodes));
+    sketch_len = Sketch::calc_vector_length(numnodes);
+    sketch_err = DEFAULT_SKETCH_ERR;
+
     GraphTierSystem gt(numnodes);
     GraphVerifier gv(numnodes);
 

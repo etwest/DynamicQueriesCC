@@ -70,7 +70,7 @@ void GraphTiers<SketchClass>::update(GraphUpdate update) {
 	STOP(sketch_time, su);
 	// Refresh the data structure
 	START(ref);
-	refresh(update, did_cut);
+	this->refresh(update, did_cut);
 	STOP(refresh_time, ref);
 }
 

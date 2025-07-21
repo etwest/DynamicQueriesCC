@@ -118,7 +118,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                     // This means that the component is isolated
                     if (root->sketch_agg.sample().result == GOOD) {
                         // this means that the component is isolated
-                        std::cout << "isolation found at tier " << tier << " for update idx " << update_idx << std::endl;
+                        // std::cout << "isolation found at tier " << tier << " for update idx " << update_idx << std::endl;
                         return true;
                     }
                     return root->sketch_agg.sample().result == GOOD;
