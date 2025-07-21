@@ -26,7 +26,7 @@ extern std::atomic<long> num_sketch_batches;
 // and the spanning forest of the entire graph
 template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConcept<SketchClass, vec_t>)
 class GraphTiers {
-  FRIEND_TEST(GraphTiersSuite, mini_correctness_test);
+  // FRIEND_TEST(GraphTiersSuite, mini_correctness_test);
 private:
   std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
   std::vector<SkipListNode<SketchClass>*> root_nodes;

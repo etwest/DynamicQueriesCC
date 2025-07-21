@@ -5,12 +5,16 @@
 #include <iostream>
 #include <fstream>
 #include "graph_tiers.h"
+#include "batch_tiers.h"
 #include "binary_graph_stream.h"
 // #include "mat_graph_verifier.h"
 #include "graph_verifier.h"
 #include "util.h"
 
 const vec_t DEFAULT_SKETCH_ERR = 1;
+
+// using GraphTierSystem = GraphTiers<DefaultSketchColumn>;
+using GraphTierSystem = BatchTiers<DefaultSketchColumn>;
 
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
@@ -39,7 +43,7 @@ TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
     height_factor = 1;//1./log2(log2(stream.nodes()));
     sketch_len = Sketch::calc_vector_length(stream.nodes());
     sketch_err = DEFAULT_SKETCH_ERR;
-    GraphTiers gt(stream.nodes());
+    GraphTierSystem gt(stream.nodes());
 
     long total_update_time = 0;
     long total_query_time = 0;
@@ -88,7 +92,7 @@ TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
 
 TEST(GraphTiersSuite, mini_correctness_test) {
     node_id_t numnodes = 10;
-    GraphTiers gt(numnodes);
+    GraphTierSystem gt(numnodes);
     GraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -123,7 +127,7 @@ TEST(GraphTiersSuite, mini_correctness_test) {
 
 TEST(GraphTiersSuite, deletion_replace_correctness_test) {
     node_id_t numnodes = 50;
-    GraphTiers gt(numnodes);
+    GraphTierSystem gt(numnodes);
     GraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -177,7 +181,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
         sketch_len = Sketch::calc_vector_length(stream.nodes());
         sketch_err = DEFAULT_SKETCH_ERR;
 
-        GraphTiers gt(stream.nodes());
+        GraphTierSystem gt(stream.nodes());
         int edgecount = stream.edges();
         edgecount = 1000000;
         GraphVerifier gv(stream.nodes());
@@ -220,7 +224,7 @@ TEST(GraphTiersSuite, omp_speed_test) {
         sketch_len = Sketch::calc_vector_length(stream.nodes());
         sketch_err = DEFAULT_SKETCH_ERR;
 
-        GraphTiers gt(stream.nodes());
+        GraphTierSystem gt(stream.nodes());
         int edgecount = stream.edges();
         start = std::chrono::high_resolution_clock::now();
 
@@ -257,7 +261,7 @@ TEST(GraphTiersSuite, query_speed_test) {
         sketch_err = DEFAULT_SKETCH_ERR;
         
         int nodecount = stream.nodes();
-        GraphTiers gt(nodecount);
+        GraphTierSystem gt(nodecount);
         int edgecount = 150000;
 
         std::cout << "Building up graph..." <<  std::endl;

@@ -4,5 +4,5 @@
 #include "sketch/sketch_concept.h"
 
 
-// using DefaultSketchColumn = FixedSizeSketchColumn;
-using DefaultSketchColumn = ResizeableSketchColumn;
+using DefaultSketchColumn = FixedSizeSketchColumn;
+// using DefaultSketchColumn = ResizeableSketchColumn;
