@@ -80,6 +80,10 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
         }
+        if (update.edge.src == update.edge.dst) {
+            // self-loop, skip
+            std::cout << "YO WTF" << std::endl;
+        }
     }
     
     // 1) STEP 1: Speculative non-tree edge update processing
@@ -91,8 +95,9 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         size_t tier = i / num_updates;
         size_t update_idx = i % num_updates;
         GraphUpdate update = updates[update_idx];
-        SkipListNode<> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, update_idx);
-        SkipListNode<> *dst_parent = ett[tier].update_sketch_atomic(update.edge.dst, update_idx);
+        vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
+        SkipListNode<> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, edge_id);
+        SkipListNode<> *dst_parent = ett[tier].update_sketch_atomic(update.edge.dst, edge_id);
 
         root_node(tier, update_idx, true) = src_parent;
         root_node(tier, update_idx, false) = dst_parent;
@@ -173,11 +178,12 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             // in case a component was previously merged already
             SkipListNode<SketchClass> *component_root = ett[tier].get_root(vertex_in_component);
             SkipListNode<SketchClass> *next_tier_root = ett[tier + 1].get_root(vertex_in_component);
-            if (_already_checked_components.find((size_t) (component_root)) != _already_checked_components.end()) {
+            if (_already_checked_components.find((size_t) (component_root)) != _already_checked_components.end()) { 
+                // std::cout << "yerr" << std::endl;
                 // return;
-                break;
+                continue;
             }
-            // TODO - WHAT SHOULD THIS ACTUALLY BE
+            _already_checked_components.insert_or_assign((size_t) component_root, tier);
             SketchClass &ett_agg = component_root->sketch_agg;
             // TODO - do we want to sample before? idts. but we can at least
             // do the empty check with a special new primitive
@@ -191,7 +197,6 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                     // this component is isolated, so we need to add it to the list
                     // _current_isolated_components.push_back(component_root);
                     // _current_isolated_components.insert(component_root->node->vertex);
-                    _already_checked_components.insert_or_assign((size_t) component_root, tier);
 
                     // .. and see if a path exists between the endpoints in the LCT
                     edge_id_t edge = query_result.idx;
@@ -201,6 +206,8 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                     // check if a path exists between the endpoints
                     auto a_root = link_cut_tree.find_root(a);
                     auto b_root = link_cut_tree.find_root(b);
+                    
+                    // if it does, then we either need to cut it, or ignore this update
 
                     if (a_root == b_root) {
                         // a path exists, so we need to cut the maximum weight edge
@@ -209,18 +216,53 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
                         node_id_t c = (node_id_t)max_edge.first;
                         node_id_t d = (node_id_t)(max_edge.first >> 32);
                         uint32_t first_appeared_tier = max_edge.second;
-                        _pending_cuts.push_back({{c, d}, first_appeared_tier});
+                        // if the first appeared tier is equal to tier+1, then we should check if this
+                        // was a link we had just discovered. If so, we neither cut it, not include this link.
+                        if (first_appeared_tier == tier + 1) {
+                            // check to see if this was a link we had just done:
+                            bool just_found = false;
+                            for (const Edge &link : _pending_links) {
+                                if (link.src == c && link.dst == d) {
+                                    just_found = true;
+                                    break;
+                                }
+                            }
+                            if (!just_found) {
+                                //if this is NOT a new link, we need to cut it
+                                _pending_cuts.push_back({{c, d}, first_appeared_tier});
+                                link_cut_tree.cut(c, d);
+                                // and push the link we just found
+                                _pending_links.push_back({a, b});
+                                link_cut_tree.link(a, b, tier + 1 );
+                                
+                            }
+                            // otherwise, if the link was just found, we want to IGNORE
+                            // this update.
+                        }
+                        else {
+                            // likewise, if it's a higher tier, definitely perform the cut
+                            _pending_cuts.push_back({{c, d}, first_appeared_tier});                            
+                            link_cut_tree.cut(c, d);
+                            // and push the link we just found
+                            _pending_links.push_back({a, b});
+                            link_cut_tree.link(a, b, tier + 1);
+                        }
                     }
-                    // regardless, we need to link on all higher tiers.
-                    _pending_links.push_back({a, b});
+                    else {
+                        // if there was no competing link between the endpoints in the LCT,
+                        // then we just link them.
+                        _pending_links.push_back({a, b});
+                        link_cut_tree.link(a, b, tier + 1);
+                    }
                 }
             }
         }
         
         // then update the LCT with the pending links and cuts
-        for (auto &cut : _pending_cuts) {
-            link_cut_tree.cut(cut.first.src, cut.first.dst);           
-        }
+        // size_t sz = _pending_cuts.size();;
+        // for (auto &cut : _pending_cuts) {
+        //     link_cut_tree.cut(cut.first.src, cut.first.dst);           
+        // }
         
         // at this point, we know exactly what cuts and links we need to do at higher tiers.
         // for each tier, we'll perform the cuts and links, and then add any entries to _updated_components[tier] that
@@ -247,9 +289,6 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             }
         });
 
-        for (const Edge &link : _pending_links) {
-            link_cut_tree.link(link.src, link.dst, tier + 1);
-        }
         
         // at this point, all links and cuts induced have been performed, and we have a log
         // of components that need to be checked for isolation in the next tier.

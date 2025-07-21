@@ -85,8 +85,8 @@ TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
     std::string out_file = "./../results/gibbs_speed_results/" + stream_file.substr(stream_file.find("/") + 1) + ".txt";
     std::cout << "WRITING RESULTS TO " << out_file << std::endl;
     file.open (out_file, std::ios_base::app);
-    file << " UPDATES/SECOND: " << ((long)(0.9*edgecount))/(total_update_time/1000)*1000 << std::endl;
-    file << " QUERIES/SECOND: " << ((long)(0.1*edgecount))/(total_query_time/1000)*1000 << std::endl;
+    file << " UPDATES/SECOND: " << ((long)(0.9*edgecount))/(1 + total_update_time/1000)*1000 << std::endl;
+    file << " QUERIES/SECOND: " << ((long)(0.1*edgecount))/(1 + total_query_time/1000)*1000 << std::endl;
     file.close();
 }
 
