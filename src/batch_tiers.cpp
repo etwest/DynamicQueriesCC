@@ -274,7 +274,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
             size_t update_idx = src_sorted_update_idxs[i];
             GraphUpdate update = updates[update_idx];
             vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
-            SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, edge_id);
+            SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch(update.edge.src, edge_id);
             root_node(tier, update_idx, true) = src_parent;
         }
         for (size_t i = 0; i < num_updates; i++) {
@@ -284,11 +284,11 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
             size_t update_idx = dst_sorted_update_idxs[i];
             GraphUpdate update = updates[update_idx];
             vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
-            SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch_atomic(update.edge.dst, edge_id);
+            SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch(update.edge.dst, edge_id);
             root_node(tier, update_idx, false) = dst_parent;
         }
         for (size_t i = 0; i < num_updates; i++) {
-            root_node(tier, i, true)->process_updates();
+            root_node(tier, i, false)->process_updates();
         }
     });
 }
