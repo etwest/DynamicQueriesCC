@@ -87,8 +87,8 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         }
     }
     // 1) Step 1: Process all sketch aggs in true batch parallel.
-    // _process_sketch_aggs_only(updates);
-    _process_sketch_aggs_tier_sequential(updates);
+    _process_sketch_aggs_only(updates);
+    // _process_sketch_aggs_tier_sequential(updates);
     
     // 2) Step 2: Check for isolated components.
     uint32_t first_isolated_tier = _search_for_isolated_components(updates);
@@ -225,6 +225,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
         return updates[i].edge.dst < updates[j].edge.dst;
     });
 
+    bool conservative=true;
     // do src updates:
     parlay::blocked_for(0, num_updates * num_tiers, granularity, [&](size_t block_idx, size_t start, size_t end) {
         for (size_t i = start; i < end; i++) {
@@ -235,7 +236,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
             SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, edge_id);
             root_node(tier, update_idx, true) = src_parent;
         }
-    });
+    }, conservative);
     // now dst updates:
     parlay::blocked_for(0, num_updates * num_tiers, granularity, [&](size_t block_idx, size_t start, size_t end) {
         for (size_t i = start; i < end; i++) {
@@ -246,7 +247,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
             SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch_atomic(update.edge.dst, edge_id);
             root_node(tier, update_idx, false) = dst_parent;
         }
-    });
+    }, conservative);
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
@@ -269,6 +270,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
 
     // do src updates:
     // parlay::blocked_for(0, num_updates * num_tiers, granularity, [&](size_t block_idx, size_t start, size_t end) {
+    bool conservative=true;
     parlay::parallel_for(0, num_tiers, [&](size_t tier) {
         for (size_t i = 0; i < num_updates; i++) {
             size_t update_idx = src_sorted_update_idxs[i];
@@ -290,7 +292,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
         for (size_t i = 0; i < num_updates; i++) {
             root_node(tier, i, false)->process_updates();
         }
-    });
+    }, 0, conservative);
 }
 
 template<typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
