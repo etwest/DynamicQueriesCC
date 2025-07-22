@@ -270,6 +270,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
 
     // do src updates:
     // parlay::blocked_for(0, num_updates * num_tiers, granularity, [&](size_t block_idx, size_t start, size_t end) {
+    // bool conservative=false;
     bool conservative=true;
     parlay::parallel_for(0, num_tiers, [&](size_t tier) {
         for (size_t i = 0; i < num_updates; i++) {
