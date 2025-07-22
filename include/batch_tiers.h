@@ -17,8 +17,8 @@ class BatchTiers {
     private:
         // size_t maximum_batch_size = 512;
         // size_t maximum_batch_size = 100;
-        size_t maximum_batch_size = 1 << 16;
-        size_t granularity = 1 << 13;  // suggested number of tier-updates per thread 
+        size_t maximum_batch_size = 1 << 12;
+        size_t granularity = 1 << 8;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
         LinkCutTree link_cut_tree;
         // TODO - add the sketchless ETT for querying 
@@ -95,6 +95,10 @@ class BatchTiers {
             return _root_nodes[tier][update_idx * 2 + (src_or_dst ? 0 : 1)];
         };
         void _process_sketch_aggs_only(const parlay::sequence<GraphUpdate> &updates);
+        
+        
+        // same thing but seperates by tiers. this avoids the needs for atomics.
+        void _process_sketch_aggs_tier_sequential(const parlay::sequence<GraphUpdate> &updates);
 
         uint32_t _search_for_isolated_components(const parlay::sequence<GraphUpdate> &updates);
         
