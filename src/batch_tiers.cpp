@@ -68,7 +68,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
 
     // 0) Step 0: Process any necessary tree cut operations on every tier. 
     // we WONT immediately do the sketch updates in this case, and will rely on the next parallel branch for that
-    parlay::parallel_for(0, ett.size(), [&](size_t i) {
+    parlay::parallel_for(0, ett.size(),[&](size_t i) {
         for (const auto& update : updates) {
             if (update.type == DELETE && ett[i].has_edge(update.edge.src, update.edge.dst)) {
                 ett[i].cut(update.edge.src, update.edge.dst);
@@ -99,7 +99,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
 
         root_node(tier, update_idx, true) = src_parent;
         root_node(tier, update_idx, false) = dst_parent;
-    });
+    }, granularity);
     
     // we can use parlay::find, as long as we are using "tier-major" order
     auto isolation_tabulate = parlay::delayed_tabulate(
