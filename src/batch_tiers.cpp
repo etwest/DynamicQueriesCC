@@ -89,18 +89,58 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     // update the ETT aggregates
     // then, reduce to find the maximum 
     // TODO - make sure tree edge deletions arent being processed twice.
-    parlay::parallel_for(0, num_tiers*num_updates, [&](size_t i) {
-        size_t tier = i / num_updates;
-        size_t update_idx = i % num_updates;
-        GraphUpdate update = updates[update_idx];
-        vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
-        SkipListNode<> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, edge_id);
-        SkipListNode<> *dst_parent = ett[tier].update_sketch_atomic(update.edge.dst, edge_id);
+    // parlay::parallel_for(0, num_tiers*num_updates, [&](size_t i) {
+    //     size_t tier = i / num_updates;
+    //     size_t update_idx = i % num_updates;
+    //     GraphUpdate update = updates[update_idx];
+    //     vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
+    //     SkipListNode<> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, edge_id);
+    //     SkipListNode<> *dst_parent = ett[tier].update_sketch_atomic(update.edge.dst, edge_id);
 
-        root_node(tier, update_idx, true) = src_parent;
-        root_node(tier, update_idx, false) = dst_parent;
-    }, granularity);
-    
+    //     root_node(tier, update_idx, true) = src_parent;
+    //     root_node(tier, update_idx, false) = dst_parent;
+    // }, granularity);
+
+    // step 1 memory optimization:
+    // enforce greater locality by first doing edges in
+    // lower, higher sorted order (only do the srcs)
+    // then in higher, lower (invert, then do dsts)
+    auto src_sorted_update_idxs = parlay::tabulate(num_updates, [&](size_t i) {
+        return i;
+    });
+    parlay::sort_inplace(src_sorted_update_idxs, [&](size_t i, size_t j) {
+        return updates[i].edge.src < updates[j].edge.src;
+    });
+    auto dst_sorted_update_idxs = parlay::tabulate(num_updates, [&](size_t i) {
+        return i;
+    });
+    parlay::sort_inplace(dst_sorted_update_idxs, [&](size_t i, size_t j) {
+        return updates[i].edge.dst < updates[j].edge.dst;
+    });
+
+    // do src updates:
+    parlay::blocked_for(0, num_updates * num_tiers, granularity, [&](size_t block_idx, size_t start, size_t end) {
+        for (size_t i = start; i < end; i++) {
+            size_t tier = i / num_updates;
+            size_t update_idx = src_sorted_update_idxs[i % num_updates];
+            GraphUpdate update = updates[update_idx];
+            vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
+            SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, edge_id);
+            root_node(tier, update_idx, true) = src_parent;
+        }
+    });
+    // now dst updates:
+    parlay::blocked_for(0, num_updates * num_tiers, granularity, [&](size_t block_idx, size_t start, size_t end) {
+        for (size_t i = start; i < end; i++) {
+            size_t tier = i / num_updates;
+            size_t update_idx = dst_sorted_update_idxs[i % num_updates];
+            GraphUpdate update = updates[update_idx];
+            vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
+            SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch_atomic(update.edge.dst, edge_id);
+            root_node(tier, update_idx, false) = dst_parent;
+        }
+    });
+
     // we can use parlay::find, as long as we are using "tier-major" order
     auto isolation_tabulate = parlay::delayed_tabulate(
         (num_tiers - 1) * num_updates,
@@ -154,6 +194,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     // means we can avoid doing further isolation checks. 
     // for (uint32_t)
     // TODO - is_empty check optimization
+    // return;
     for (uint32_t tier = first_isolated_tier; tier < ett.size()-1; tier++) {
         _updated_components[tier].clear();
     }
@@ -194,8 +235,8 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             SketchSample query_result = ett_agg.sample();
             if (query_result.result != ZERO) {
                 if (components_maximized) {
-                    bool f = false;
-                    bool t = true;
+                    // bool f = false;
+                    // bool t = true;
                     __sync_bool_compare_and_swap((bool *)&components_maximized, true, false);
                 }
             }
@@ -289,13 +330,13 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         _pending_cuts.clear();
         _already_checked_components.clear();
         
-        // if (components_maximized) {
-        //     // if all components were maximized, we can skip the next tier
-        //     // we know that at this point, there are no isolations at higher tiers.
-        //     // because all potential isolated components must be a union of the modified components
-        //     // found at this tier. so we can just return
-        //     return;
-        // }
+        if (components_maximized) {
+            // if all components were maximized, we can skip the next tier
+            // we know that at this point, there are no isolations at higher tiers.
+            // because all potential isolated components must be a union of the modified components
+            // found at this tier. so we can just return
+            return;
+        }
 
     }
 };
