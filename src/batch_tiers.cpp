@@ -87,8 +87,8 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         }
     }
     // 1) Step 1: Process all sketch aggs in true batch parallel.
-    _process_sketch_aggs_only(updates);
-    // _process_sketch_aggs_tier_sequential(updates);
+    // _process_sketch_aggs_only(updates);
+    _process_sketch_aggs_tier_sequential(updates);
     
     // 2) Step 2: Check for isolated components.
     uint32_t first_isolated_tier = _search_for_isolated_components(updates);

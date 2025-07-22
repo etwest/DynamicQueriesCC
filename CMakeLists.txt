@@ -53,7 +53,7 @@ FetchContent_Declare(
   # GIT_TAG             4ad8eeeb3f3162ef2730c5a9aaa1233914ccf347
   # GIT_TAG             a390949b19d062e2119b86e7081377431b51c53d
   # GIT_TAG             892b5b71b139100c309c79bb6ab94a5596fc606d
-  GIT_TAG            ac958847f82f62d53c7f883e4072c5ec06444352
+  GIT_TAG            93ebbd16ef54b79d5977a19f78c8bdbba6871217
 )
 add_compile_definitions(GLOG_USE_GLOG_EXPORT)
 
