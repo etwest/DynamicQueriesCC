@@ -9,6 +9,7 @@
 
 #include "euler_tour_tree.h"
 #include "link_cut_tree.h"
+#include "union_find.h"
 // #include "parlay_hash/unordered_set.h"
 
 template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConcept<SketchClass, vec_t>)
@@ -20,7 +21,12 @@ class BatchTiers {
         size_t granularity = 1 << 13;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
         LinkCutTree link_cut_tree;
-        
+        // TODO - add the sketchless ETT for querying 
+        // 
+
+        // "root" nodes for each candidate component at each tier.
+        union_find<int32_t> _component_reps_dsu;
+                
         // matrix of [num_tiers x ( batch_size * 2 )]
         std::vector<parlay::sequence<SkipListNode<SketchClass>*>> _root_nodes;
         
@@ -87,9 +93,11 @@ class BatchTiers {
     private:
         SkipListNode<SketchClass>*& root_node(size_t tier, size_t update_idx, bool src_or_dst) {
             return _root_nodes[tier][update_idx * 2 + (src_or_dst ? 0 : 1)];
-        }
+        };
+        void _process_sketch_aggs_only(const parlay::sequence<GraphUpdate> &updates);
+
+        uint32_t _search_for_isolated_components(const parlay::sequence<GraphUpdate> &updates);
         
-    
-    
+        bool _fix_isolations_at_tier(const parlay::sequence<GraphUpdate> &updates, uint32_t tier_idx);
 };
 
