@@ -19,15 +19,17 @@ class BatchTiers {
         // size_t maximum_batch_size = 100;
         size_t maximum_batch_size = 1 << 20;
         // size_t maximum_batch_size = 1024;
-        size_t granularity = 1 << 17;  // suggested number of tier-updates per thread 
+        size_t granularity = 1 << 10;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
         LinkCutTree link_cut_tree;
+
         // TODO - add the sketchless ETT for querying 
         // 
 
         // "root" nodes for each candidate component at each tier.
         union_find<int32_t> _component_reps_dsu;
                 
+        static thread_local parlay::sequence<ColumnEntryDelta> _deltas_buffer;
         // matrix of [num_tiers x ( batch_size * 2 )]
         std::vector<parlay::sequence<SkipListNode<SketchClass>*>> _root_nodes;
         

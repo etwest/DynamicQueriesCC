@@ -5,6 +5,11 @@
 #include "sketch/sketch_columns.h"
 #include "sketch_interfacing.h"
 
+#include <parlay/sequence.h>
+
+// using ColumnEntryDeltas = parlay::sequence<ColumnEntryDelta>::const_view_type;
+using ColumnEntryDeltas = parlay::sequence<ColumnEntryDelta>::view_type;
+
 
 
 #ifndef SKETCH_BUFFER_SIZE
@@ -65,11 +70,31 @@ public:
   // SkipListNode<SketchClass>* update_path_agg_atomic(vec_t update_idx)
   // Add the given sketch to all aggregate sketches from the current node to its root
   SkipListNode<SketchClass>* update_path_agg(SketchClass &sketch);
+  
+  SkipListNode<SketchClass>* update_path_agg(const ColumnEntryDelta &delta);
+  SkipListNode<SketchClass>* update_path_agg(const ColumnEntryDeltas &deltas);
 
   // Update just this node's aggregate sketch
   void update_agg(vec_t update_idx);
   // Same but atomically
   void update_agg_atomic(vec_t update_idx);
+  //Just apply the delta
+  void update_agg_entry_delta(const ColumnEntryDelta& delta) {
+      if (!this->sketch_agg.is_initialized())  // Only do something if this node has a sketch
+          return;
+      this->sketch_agg.apply_entry_delta(delta);
+  }
+
+  void update_agg_entry_deltas(const ColumnEntryDeltas &deltas) {
+      if (!this->sketch_agg.is_initialized())  // Only do something if this node has a sketch
+          return;
+      size_t sz = deltas.size();
+      if (sz > 1) {
+        std::cout << "yerr" << std::endl;  
+      }
+      for (const auto& delta : deltas)
+          this->sketch_agg.apply_entry_delta(delta);
+  }
 
   // Apply all the sketch updates currently in the update buffer
   void process_updates();

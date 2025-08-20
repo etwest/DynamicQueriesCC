@@ -40,7 +40,8 @@ static void print_metrics() {
 TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
     BinaryGraphStream stream(stream_file, 100000);
     long edgecount = stream.edges();
-    height_factor = 1;//1./log2(log2(stream.nodes()));
+    // height_factor = 1;//1./log2(log2(stream.nodes()));
+    height_factor = 1/log2(log2(stream.nodes()));
     sketch_len = Sketch::calc_vector_length(stream.nodes());
     sketch_err = DEFAULT_SKETCH_ERR;
     GraphTierSystem gt(stream.nodes());
@@ -230,7 +231,8 @@ TEST(GraphTiersSuite, omp_speed_test) {
 	    long time = 0;
         BinaryGraphStream stream(stream_file, 100000);
 
-        height_factor = 1;//1./log2(log2(stream.nodes()));
+        // height_factor = 1;//1./log2(log2(stream.nodes()));
+        height_factor = 1/log2(log2(stream.nodes()));
         sketch_len = Sketch::calc_vector_length(stream.nodes());
         sketch_err = DEFAULT_SKETCH_ERR;
 

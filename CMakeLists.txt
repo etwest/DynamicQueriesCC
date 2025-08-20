@@ -53,7 +53,7 @@ FetchContent_Declare(
   # GIT_TAG             4ad8eeeb3f3162ef2730c5a9aaa1233914ccf347
   # GIT_TAG             a390949b19d062e2119b86e7081377431b51c53d
   # GIT_TAG             892b5b71b139100c309c79bb6ab94a5596fc606d
-  GIT_TAG            93ebbd16ef54b79d5977a19f78c8bdbba6871217
+  GIT_TAG            f5aec7a3e18cf262da7dca6068297ee42071c531
 )
 add_compile_definitions(GLOG_USE_GLOG_EXPORT)
 
@@ -81,6 +81,8 @@ FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
 #add_compile_options(-fsanitize=undefined)
 #add_link_options(-fsanitize=undefined)
 
+find_package(TBB REQUIRED)
+
 add_executable(dynamicCC_tests
   test/test_runner.cpp
   test/skiplist_test.cpp
@@ -96,7 +98,7 @@ add_executable(dynamicCC_tests
 )
 target_include_directories(dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
 add_dependencies(dynamicCC_tests GraphZeppelinVerifyCC dycon)
-target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelinVerifyCC dycon ${MPI_LIBRARIES})
+target_link_libraries(dynamicCC_tests PRIVATE GraphZeppelinVerifyCC dycon ${MPI_LIBRARIES} TBB::tbb)
 
 target_compile_options(dynamicCC_tests PUBLIC -fopenmp)
 target_link_options(dynamicCC_tests PUBLIC -fopenmp)
