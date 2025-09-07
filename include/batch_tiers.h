@@ -17,7 +17,8 @@ class BatchTiers {
     private:
         // size_t maximum_batch_size = 512;
         // size_t maximum_batch_size = 100;
-        size_t maximum_batch_size = 1 << 20;
+        // size_t maximum_batch_size = 1 << 20;
+        size_t maximum_batch_size = 1 << 15;
         // size_t maximum_batch_size = 1024;
         size_t granularity = 1 << 10;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier

@@ -278,7 +278,6 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
         return updates[i].edge.dst < updates[j].edge.dst;
     });
 
-    // do src updates:
     // bool conservative=false;
     // bool conservative=true;
     tbb::parallel_for(
@@ -319,10 +318,10 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
     // tbb::parallel_for(
     //     tbb::blocked_range<size_t>(0, num_tiers, 1),
     //     [&](const tbb::blocked_range<size_t> &r) {
-            // for (size_t tier = r.begin(); tier != r.end(); ++tier) {
-    // for (size_t tier = 0; tier < num_tiers; tier++) {
+    //         for (size_t tier = r.begin(); tier != r.end(); ++tier) {
+    //             // for (size_t tier = 0; tier < num_tiers; tier++) {
     //             // source loop:
-    //             size_t i=0;
+    //             size_t i = 0;
     //             while (i < num_updates) {
     //                 _deltas_buffer.clear();
     //                 size_t j = i;
@@ -330,27 +329,25 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
     //                     GraphUpdate update = updates[src_sorted_update_idxs[j]];
     //                     vec_t edge_id = concat_pairing_fn(
     //                         update.edge.src,
-    //                         update.edge.dst
-    //                     );
+    //                         update.edge.dst);
     //                     auto delta = ett[tier].generate_entry_delta(
     //                         update.edge.src,
-    //                         edge_id
-    //                     );
+    //                         edge_id);
     //                     _deltas_buffer.push_back(delta);
 
     //                     j++;
     //                 }
     //                 SkipListNode<SketchClass> *src_parent = this->ett[tier].update_sketch(
     //                     updates[src_sorted_update_idxs[i]].edge.src,
-    //                     _deltas_buffer.head(_deltas_buffer.size())
-    //                 );
+    //                     _deltas_buffer.head(_deltas_buffer.size()));
     //                 for (size_t k = i; k < j; k++) {
     //                     size_t update_idx = src_sorted_update_idxs[k];
     //                     root_node(tier, update_idx, true) = src_parent;
     //                 }
-    //                 i++;
+    //                 i = j;
     //             }
-    //             i=0;
+    //             // dest loop:
+    //             i = 0;
     //             while (i < num_updates) {
     //                 _deltas_buffer.clear();
     //                 size_t j = i;
@@ -358,12 +355,10 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
     //                     GraphUpdate update = updates[dst_sorted_update_idxs[j]];
     //                     vec_t edge_id = concat_pairing_fn(
     //                         update.edge.src,
-    //                         update.edge.dst
-    //                     );
+    //                         update.edge.dst);
     //                     auto delta = ett[tier].generate_entry_delta(
     //                         update.edge.dst,
-    //                         edge_id
-    //                     );
+    //                         edge_id);
     //                     _deltas_buffer.push_back(delta);
     //                     j++;
     //                 }
@@ -374,11 +369,15 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
     //                     size_t update_idx = dst_sorted_update_idxs[k];
     //                     root_node(tier, update_idx, false) = dst_parent;
     //                 }
-    //                 i++;
+    //                 i = j;
     //             }
+    //             // parlay::parallel_for(0, num_updates, [&](size_t k) {
+    //             //     root_node(tier, k, true)->process_updates();
+    //             //     root_node(tier, k, false)->process_updates();
+    //             // });
     //         }
-        // }
-        // tbb::static_partitioner{}
+    //     }
+    //     // tbb::static_partitioner{}
     // );
 }
 

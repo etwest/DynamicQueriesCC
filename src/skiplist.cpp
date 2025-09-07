@@ -200,6 +200,7 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(const Colu
 	SkipListNode* curr = this;
 	SkipListNode* prev;
 	while (curr) {
+		// __builtin_prefetch(curr->get_parent());
 		curr->update_agg_entry_delta(delta);
 		prev = curr;
 		curr = prev->get_parent();

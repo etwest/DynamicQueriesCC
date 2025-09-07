@@ -89,9 +89,6 @@ public:
       if (!this->sketch_agg.is_initialized())  // Only do something if this node has a sketch
           return;
       size_t sz = deltas.size();
-      if (sz > 1) {
-        std::cout << "yerr" << std::endl;  
-      }
       for (const auto& delta : deltas)
           this->sketch_agg.apply_entry_delta(delta);
   }
