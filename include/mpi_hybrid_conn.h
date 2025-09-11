@@ -3,11 +3,19 @@
 #include <dycon/localTree/SCCWN.hpp>
 #include "recovery.h"
 
+template <typename T>
+concept DynamicSketchConcept = requires(T t) {
+    { t.process_all_updates()} -> std::same_as<void>;
+    { t.get_transaction_log() } -> std::same_as<const std::vector<GraphUpdate>&>;
+    { t.update( std::declval<GraphUpdate>() ) } -> std::same_as<void>;
+};
+
+template <typename SketchAlgoClass = InputNode> requires(DynamicSketchConcept<SketchAlgoClass>)
 class HybridConnectivityManager {
     // TODO 
     public:
         // TODO - make this not public
-        InputNode sketching_algo;
+        SketchAlgoClass sketching_algo;
         SCCWN<> cf_algo;
         
         void set_threshold(size_t threshold) {
@@ -16,7 +24,7 @@ class HybridConnectivityManager {
         }
     private:
         // TODO - this aint a great way
-        size_t MOVE_TO_SKETCH = 1400;
+        size_t MOVE_TO_SKETCH = 200;
         
         size_t seed;
         node_id_t num_nodes;
@@ -176,21 +184,6 @@ class HybridConnectivityManager {
         void flush_edges_to_sketch(node_id_t vertex_to_flush) {
             // 1) find all edges incident to vertex_to_flush AND to a dense edge
             _neighbors_buffer.clear();
-            // for (size_t level=0; level < MAX_LEVEL; level++) {
-            //     auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex_to_flush], level);
-            //     if (edge_set) {
-            //         for (node_id_t neighbor: *edge_set) {
-            //             // TODO - double check if this is the right way to do this
-            //             if (is_vertex_sketched(neighbor) && !is_forest_edge_from_sketch(Edge{vertex_to_flush, neighbor}))
-            //             {
-            //                 // if the edge is not from the sketching algo, and it's connected to a dense vertex
-            //                 // add it to the buffer and 
-            //                 // and increment the pending dense edge count
-            //                 _neighbors_buffer.push_back(neighbor);
-            //             }
-            //         }
-            //     }
-            // }
             for (auto &level_edges: cf_algo.leaves[vertex_to_flush]->vertex->E) {
                 for (node_id_t neighbor: *level_edges.second) {
                     // TODO - double check if this is the right way to do this

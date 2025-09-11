@@ -92,6 +92,8 @@ add_executable(dynamicCC_tests
 
   src/skiplist.cpp
   src/euler_tour_tree.cpp
+  src/sketchless_skiplist.cpp
+  src/sketchless_euler_tour_tree.cpp
   src/link_cut_tree.cpp
   src/graph_tiers.cpp
   src/batch_tiers.cpp
@@ -124,7 +126,7 @@ target_compile_options(mpi_dynamicCC_tests PUBLIC -fopenmp)
 target_link_options(mpi_dynamicCC_tests PUBLIC -fopenmp)
 
 
-add_executable(hybrid_dynamicCC_tests
+add_executable(hybrid_mpi_dynamicCC_tests
   test/hybrid_test_runner.cpp
   test/hybrid_tests.cpp
 
@@ -136,13 +138,35 @@ add_executable(hybrid_dynamicCC_tests
   src/input_node.cpp
   src/tier_node.cpp
 )
-target_compile_definitions(hybrid_dynamicCC_tests PUBLIC SKETCH_BUFFER_SIZE=${SKETCH_BUFFER_SIZE})
-target_include_directories(hybrid_dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
-add_dependencies(hybrid_dynamicCC_tests GraphZeppelinVerifyCC dycon)
-target_link_libraries(hybrid_dynamicCC_tests PRIVATE GraphZeppelinVerifyCC dycon ${MPI_LIBRARIES})
+target_compile_definitions(hybrid_mpi_dynamicCC_tests PUBLIC SKETCH_BUFFER_SIZE=${SKETCH_BUFFER_SIZE})
+target_include_directories(hybrid_mpi_dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
+add_dependencies(hybrid_mpi_dynamicCC_tests GraphZeppelinVerifyCC dycon)
+target_link_libraries(hybrid_mpi_dynamicCC_tests PRIVATE GraphZeppelinVerifyCC dycon ${MPI_LIBRARIES})
 
-target_compile_options(hybrid_dynamicCC_tests PUBLIC -fopenmp)
-target_link_options(hybrid_dynamicCC_tests PUBLIC -fopenmp)
+target_compile_options(hybrid_mpi_dynamicCC_tests PUBLIC -fopenmp)
+target_link_options(hybrid_mpi_dynamicCC_tests PUBLIC -fopenmp)
+
+add_executable(hybrid_shmem_dynamicCC_tests
+  test/hybrid_shmem_test_runner.cpp
+  test/hybrid_shmem_tests.cpp
+
+  src/skiplist.cpp
+  src/graph_tiers.cpp
+  src/batch_tiers.cpp
+  src/sketchless_skiplist.cpp
+  src/euler_tour_tree.cpp
+  src/sketchless_euler_tour_tree.cpp
+  src/link_cut_tree.cpp
+  # src/input_node.cpp
+  # src/tier_node.cpp
+)
+target_compile_definitions(hybrid_shmem_dynamicCC_tests PUBLIC SKETCH_BUFFER_SIZE=${SKETCH_BUFFER_SIZE})
+target_include_directories(hybrid_shmem_dynamicCC_tests PUBLIC include ${MPI_C_INCLUDE_PATH})
+add_dependencies(hybrid_shmem_dynamicCC_tests GraphZeppelinVerifyCC dycon)
+target_link_libraries(hybrid_shmem_dynamicCC_tests PRIVATE GraphZeppelinVerifyCC dycon ${MPI_LIBRARIES} TBB::tbb)
+
+target_compile_options(hybrid_shmem_dynamicCC_tests PUBLIC -fopenmp)
+target_link_options(hybrid_shmem_dynamicCC_tests PUBLIC -fopenmp)
 
 #######
 # TODO: Is MPI INCLUDE PATH necessary?

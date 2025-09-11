@@ -22,7 +22,7 @@ long normal_refreshes = 0;
 
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-GraphTiers<SketchClass>::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
+GraphTiers<SketchClass>::GraphTiers(node_id_t num_nodes, uint64_t seed) : link_cut_tree(num_nodes) {
 	// Algorithm parameters
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
@@ -30,7 +30,7 @@ GraphTiers<SketchClass>::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nod
 	std::random_device dev;
     std::mt19937 rng(dev());
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
-    int seed = dist(rng);
+    // int seed = dist(rng);
     std::cout << "SEED: " << seed << std::endl;
     rng.seed(seed);
 	dist(rng); // To give 1:1 correspondence with MPI seeds

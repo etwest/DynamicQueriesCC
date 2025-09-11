@@ -157,7 +157,7 @@ TEST(GraphTierSuite, hybrid_update_speed_test) {
         srand(seed);
         std::cout << "InputNode seed: " << seed << std::endl;
         // InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
-        HybridConnectivityManager hybrid_manager(
+        HybridConnectivityManager<> hybrid_manager(
             num_nodes, num_tiers, update_batch_size, seed
         );
         hybrid_manager.set_threshold(threshold);

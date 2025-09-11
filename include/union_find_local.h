@@ -13,7 +13,7 @@
 // Blelloch, Fineman, Gibbons, and Shun
 // for a discussion of link/find.
 template <class vertex>
-struct union_find {
+struct union_find_local {
     parlay::sequence<std::atomic<vertex>> parents;
 
     bool is_root(vertex u) {
@@ -21,7 +21,7 @@ struct union_find {
     }
 
     // initialize n elements all as roots
-    union_find(size_t n) : parents(parlay::tabulate<std::atomic<vertex>>(n, [](long) { return -1; })) {}
+    union_find_local(size_t n) : parents(parlay::tabulate<std::atomic<vertex>>(n, [](long) { return -1; })) {}
 
     vertex find(vertex i) {
         if (is_root(i)) return i;
@@ -61,4 +61,4 @@ struct union_find {
     }
 };
 
-template struct union_find<int32_t>;
+template struct union_find_local<int32_t>;

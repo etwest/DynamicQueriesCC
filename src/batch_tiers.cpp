@@ -30,16 +30,16 @@ template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>
 thread_local parlay::sequence<ColumnEntryDelta> BatchTiers<SketchClass>::_deltas_buffer = parlay::sequence<ColumnEntryDelta>();
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes) : link_cut_tree(num_nodes), _component_reps_dsu(1) {
+BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) {
 	// Algorithm parameters
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
-    _component_reps_dsu = union_find<int32_t>(this->maximum_batch_size * 2);
+    _component_reps_dsu = union_find_local<int32_t>(this->maximum_batch_size * 2);
 
 	// Initialize all the ETTs
 	std::random_device dev;
     std::mt19937 rng(dev());
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
-    int seed = dist(rng);
+    // int seed = dist(rng);
     std::cout << "SEED: " << seed << std::endl;
     rng.seed(seed);
 	dist(rng); // To give 1:1 correspondence with MPI seeds
@@ -53,6 +53,36 @@ BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes) : link_cut_tree(num_nod
 	for (auto& tier_roots : _root_nodes) {
 		tier_roots.resize(maximum_batch_size * 2);
 	}
+    // and _updated_components
+    _updated_components.resize(num_tiers);
+}
+
+template <typename SketchClass>
+    requires(SketchColumnConcept<SketchClass, vec_t>)
+BatchTiers<SketchClass>::BatchTiers(
+    node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed) : 
+link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) {
+    // TODO - use the batch_size parameter?
+    _component_reps_dsu = union_find_local<int32_t>(maximum_batch_size * 2);
+
+    // Initialize all the ETTs
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    // int seed = dist(rng);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    dist(rng); // To give 1:1 correspondence with MPI seeds
+    for (uint32_t i = 0; i < num_tiers; i++) {
+        int tier_seed = dist(rng);
+        ett.emplace_back(num_nodes, i, tier_seed);
+    }
+
+    // Initialize the root nodes matrix
+    _root_nodes.resize(num_tiers);
+    for (auto& tier_roots : _root_nodes) {
+        tier_roots.resize(maximum_batch_size * 2);
+    }
     // and _updated_components
     _updated_components.resize(num_tiers);
 }
@@ -92,8 +122,10 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     // note: can just put this in the above region or use pardo
     // and process on the LCT:
     for (const auto& update : updates) {
-        if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
+        if (update.type == DELETE && is_tree_edge(update.edge.src, update.edge.dst)) {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
+            query_ett.cut(update.edge.src, update.edge.dst);
+            transaction_log.push_back(update);
         }
     }
     // 1) Step 1: Process all sketch aggs in true batch parallel.
@@ -192,7 +224,8 @@ template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>
 bool BatchTiers<SketchClass>::is_connected(node_id_t a, node_id_t b) {
     this->flush_buffer();
     // TODO - use a sketchless ETT
-	return this->link_cut_tree.find_root(a) == this->link_cut_tree.find_root(b);
+	// return this->link_cut_tree.find_root(a) == this->link_cut_tree.find_root(b);
+    return query_ett.is_connected(a, b); 
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
@@ -311,8 +344,8 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
                     root_node(tier, i, false)->process_updates();
                 }
             }
-        }
-        // tbb::static_partitioner{}
+        },
+        tbb::static_partitioner{}
     );
     // 0, conservative);
     // tbb::parallel_for(
@@ -523,9 +556,14 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
                         // likewise, if it's a higher tier, definitely perform the cut
                         _pending_cuts.push_back({{c, d}, first_appeared_tier});
                         link_cut_tree.cut(c, d);
+                        query_ett.cut(c, d);
+                        transaction_log.push_back({{c, d}, DELETE});
+
                         // and push the link we just found
                         _pending_links.push_back({a, b});
                         link_cut_tree.link(a, b, tier + 1);
+                        query_ett.link(a, b);
+                        transaction_log.push_back({{a, b}, INSERT});
                         // and update the dsu
                     }
                 } else {
@@ -533,6 +571,8 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
                     // then we just link them.
                     _pending_links.push_back({a, b});
                     link_cut_tree.link(a, b, tier + 1);
+                    query_ett.link(a,b);
+                    transaction_log.push_back({{a, b}, INSERT});
                 }
             }
         }
@@ -541,18 +581,26 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
     // at this point, we know exactly what cuts and links we need to do at higher tiers.
     // for each tier, we'll perform the cuts and links, and then add any entries to _updated_components[tier] that
     // we need to.
-    parlay::parallel_for(tier + 1, ett.size(), [&](size_t t) {
-        for (auto &cut : _pending_cuts) {
-            // do not perform cut if the edge has not yet appeared (duh?)
-            if (cut.second < t)
-                continue;
-            // cut the edge in the current tier
-            ett[t].cut(cut.first.src, cut.first.dst);
-        }
-        for (const Edge &link : _pending_links) {
-            ett[t].link(link.src, link.dst);
-        }
-    });
+    // parlay::parallel_for(tier + 1, ett.size(), [&](size_t t) {
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(tier + 1, ett.size(), 1),
+        [&](const tbb::blocked_range<size_t> &r) {
+            for (size_t t = r.begin(); t != r.end(); ++t) {
+                // for (size_t t = tier + 1; t < ett.size(); t
+                for (auto &cut : _pending_cuts) {
+                    // do not perform cut if the edge has not yet appeared (duh?)
+                    if (cut.second < t)
+                        continue;
+                    // cut the edge in the current tier
+                    ett[t].cut(cut.first.src, cut.first.dst);
+                }
+                for (const Edge &link : _pending_links) {
+                    ett[t].link(link.src, link.dst);
+                }
+            }
+        },
+        tbb::static_partitioner{});
+    // });
 
     // at this point, all links and cuts induced have been performed, and we have a log
     // of components that need to be checked for isolation in the next tier.

@@ -9,9 +9,13 @@
 #include "binary_graph_stream.h"
 // #include "mat_graph_verifier.h"
 #include "graph_verifier.h"
+#include "mpi_hybrid_conn.h"
 #include "util.h"
 
 const vec_t DEFAULT_SKETCH_ERR = 1;
+
+
+size_t update_batch_size = 200;
 
 // using GraphTierSystem = GraphTiers<DefaultSketchColumn>;
 using GraphTierSystem = BatchTiers<DefaultSketchColumn>;
@@ -37,7 +41,7 @@ static void print_metrics() {
     std::cout << "Total number of normal refreshes: " << normal_refreshes << std::endl;
 }
 
-TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
+TEST(HybridGraphTiersSuite, gibbs_mixed_speed_test) {
     BinaryGraphStream stream(stream_file, 100000);
     long edgecount = stream.edges();
     // height_factor = 1;//1./log2(log2(stream.nodes()));
@@ -48,7 +52,12 @@ TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
     std::mt19937 rng(dev());
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
     uint64_t seed = dist(rng);
-    GraphTierSystem gt(stream.nodes(), seed);
+    // GraphTierSystem gt(stream.nodes(), seed);
+    // HybridConnectivityManager<GraphTierSystem> 
+    uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
+    HybridConnectivityManager<GraphTierSystem> hybrid_driver(
+        stream.nodes(), num_tiers, update_batch_size, seed
+    );
 
     long total_update_time = 0;
     long total_query_time = 0;
@@ -64,14 +73,14 @@ TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
                 doing_updates = false;
                 query_timer = std::chrono::high_resolution_clock::now();
             }
-            gt.is_connected(operation.edge.src, operation.edge.dst);
+            hybrid_driver.connectivity_query(operation.edge.src, operation.edge.dst);
         } else {
             unlikely_if (!doing_updates) {
                 total_query_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - query_timer).count();
                 doing_updates = true;
                 update_timer = std::chrono::high_resolution_clock::now();
             }
-            gt.update(operation);
+            hybrid_driver.update(operation);
         }
         unlikely_if(i%1000000 == 0 || i == edgecount-1) {
             std::cout << "FINISHED OPERATION " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
@@ -95,7 +104,7 @@ TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
     file.close();
 }
 
-TEST(GraphTiersSuite, mini_correctness_test) {
+TEST(HybridGraphTiersSuite, mini_correctness_test) {
 
     node_id_t numnodes = 10;
     height_factor = 1 / log2(log2(numnodes));
@@ -143,7 +152,7 @@ TEST(GraphTiersSuite, mini_correctness_test) {
     }
 }
 
-TEST(GraphTiersSuite, deletion_replace_correctness_test) {
+TEST(HybridGraphTiersSuite, deletion_replace_correctness_test) {
     node_id_t numnodes = 50;
 	std::random_device dev;
     std::mt19937 rng(dev());
@@ -194,7 +203,7 @@ TEST(GraphTiersSuite, deletion_replace_correctness_test) {
 
 }
 
-TEST(GraphTiersSuite, omp_correctness_test) {
+TEST(HybridGraphTiersSuite, omp_correctness_test) {
     // omp_set_dynamic(1);
     try {
         BinaryGraphStream stream(stream_file, 100000);
@@ -241,7 +250,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
     }
 }
 
-TEST(GraphTiersSuite, omp_speed_test) {
+TEST(HybridGraphTiersSuite, omp_speed_test) {
     // omp_set_dynamic(1);
     try {
 	    long time = 0;
@@ -282,7 +291,7 @@ TEST(GraphTiersSuite, omp_speed_test) {
     }
 }
 
-TEST(GraphTiersSuite, query_speed_test) {
+TEST(HybridGraphTiersSuite, query_speed_test) {
     // omp_set_dynamic(1);
     try {
 

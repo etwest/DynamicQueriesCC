@@ -34,7 +34,7 @@ private:
   void refresh(GraphUpdate update, bool did_cut);
 
 public:
-  GraphTiers(node_id_t num_nodes);
+  GraphTiers(node_id_t num_nodes, uint64_t seed);
   ~GraphTiers();
 
   // apply an edge update

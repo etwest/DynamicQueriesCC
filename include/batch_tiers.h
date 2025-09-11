@@ -9,7 +9,8 @@
 
 #include "euler_tour_tree.h"
 #include "link_cut_tree.h"
-#include "union_find.h"
+#include "union_find_local.h"
+#include "sketchless_euler_tour_tree.h"
 // #include "parlay_hash/unordered_set.h"
 
 template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConcept<SketchClass, vec_t>)
@@ -18,17 +19,20 @@ class BatchTiers {
         // size_t maximum_batch_size = 512;
         // size_t maximum_batch_size = 100;
         // size_t maximum_batch_size = 1 << 20;
-        size_t maximum_batch_size = 1 << 15;
-        // size_t maximum_batch_size = 1024;
+        // size_t maximum_batch_size = 1 << 15;
+        size_t maximum_batch_size = 1024;
         size_t granularity = 1 << 10;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
+        SketchlessEulerTourTree query_ett;
         LinkCutTree link_cut_tree;
+        
+        std::vector<GraphUpdate> transaction_log;
 
         // TODO - add the sketchless ETT for querying 
         // 
 
         // "root" nodes for each candidate component at each tier.
-        union_find<int32_t> _component_reps_dsu;
+        union_find_local<int32_t> _component_reps_dsu;
                 
         static thread_local parlay::sequence<ColumnEntryDelta> _deltas_buffer;
         // matrix of [num_tiers x ( batch_size * 2 )]
@@ -64,17 +68,36 @@ class BatchTiers {
         
         
     public:
-        BatchTiers(node_id_t num_nodes);
+        BatchTiers(node_id_t num_nodes, uint64_t seed);
+        BatchTiers(node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed);
         ~BatchTiers();
+        
+        void flush_transaction_log() {
+            transaction_log.clear();
+        }
 
+        const std::vector<GraphUpdate>& get_transaction_log() const {
+            return transaction_log;
+        }
+        
+        void process_all_updates() {
+            if (update_buffer.size() > 0) {
+                update_batch(update_buffer);
+                update_buffer.clear();
+            }
+        }
 
         void update_batch(const parlay::sequence<GraphUpdate> &updates);
+        
+        bool is_tree_edge(node_id_t a, node_id_t b) {
+            return query_ett.has_edge(a, b);
+        }
         
         void update(const GraphUpdate &update) {
             // add to buffer:
             update_buffer.push_back(update);
             bool is_tree_edge_deletion = (update.type == DELETE &&
-                                          link_cut_tree.has_edge(update.edge.src, update.edge.dst));
+                                          is_tree_edge(update.edge.src, update.edge.dst));
             if (update_buffer.size() >= maximum_batch_size || is_tree_edge_deletion) {
                 // process the batch
                 update_batch(update_buffer);

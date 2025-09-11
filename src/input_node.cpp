@@ -82,7 +82,7 @@ void InputNode::process_updates() {
         unlikely_if (split_revert_buffer[update_idx-1] != MAX_INT) {
             link_cut_tree.link(update.edge.src, update.edge.dst, split_revert_buffer[update_idx-1]);
             query_ett.link(update.edge.src, update.edge.dst);
-            // transaction_log.add(update.edge, INSERT);
+            // transaction_log.add(update.edge, generate_entry_dINSERT);
             // // TODO - not actually sure if update is an insert type
             transaction_log.push_back(GraphUpdate{update.edge, INSERT});
         }
