@@ -52,6 +52,16 @@ SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch_atomic(node
   return ett_nodes[u].update_sketch_atomic(update_idx);
 }
 
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch_atomic(node_id_t u, const ColumnEntryDelta &delta) {
+  return ett_nodes[u].update_sketch_atomic(delta);
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch_atomic(node_id_t u, const ColumnEntryDeltas &deltas) {
+  return ett_nodes[u].update_sketch_atomic(deltas);
+}
+
 template <typename SketchClass>
   requires(SketchColumnConcept<SketchClass, vec_t>)
 std::pair<SkipListNode<SketchClass> *, SkipListNode<SketchClass> *>
@@ -200,6 +210,16 @@ template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>
 SkipListNode<SketchClass>* EulerTourNode<SketchClass>::update_sketch_atomic(vec_t update_idx) {
   assert(allowed_caller);
   return this->allowed_caller->update_path_agg_atomic(update_idx);
+}
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourNode<SketchClass>::update_sketch_atomic(const ColumnEntryDelta &delta) {
+  assert(allowed_caller);
+  return this->allowed_caller->update_path_agg_atomic(delta);
+}
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourNode<SketchClass>::update_sketch_atomic(const ColumnEntryDeltas &deltas) {
+  assert(allowed_caller);
+  return this->allowed_caller->update_path_agg_atomic(deltas);
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)

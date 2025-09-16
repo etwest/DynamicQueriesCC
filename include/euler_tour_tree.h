@@ -41,7 +41,9 @@ public:
   SkipListNode<SketchClass>* update_sketch(const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch(const ColumnEntryDeltas &deltas);
   SkipListNode<SketchClass>* update_sketch_atomic(vec_t update_idx);
-  
+  SkipListNode<SketchClass>* update_sketch_atomic(const ColumnEntryDelta &delta);
+  SkipListNode<SketchClass>* update_sketch_atomic(const ColumnEntryDeltas &deltas);
+
   const ColumnEntryDelta generate_entry_delta(vec_t update) const {
     return this->allowed_caller->sketch_agg.generate_entry_delta(update);
   }
@@ -75,6 +77,9 @@ public:
   SkipListNode<SketchClass>* update_sketch(node_id_t u, const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch(node_id_t u, const ColumnEntryDeltas &deltas);
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, vec_t update_idx);
+  SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDelta &delta);
+  SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDeltas &deltas);
+
   ColumnEntryDelta generate_entry_delta(node_id_t u, vec_t update) const {
       // TODO - the specific node isnt actually meaningful here.
       return ett_nodes[u].generate_entry_delta(update);

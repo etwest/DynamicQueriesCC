@@ -74,6 +74,9 @@ public:
   SkipListNode<SketchClass>* update_path_agg(const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_path_agg(const ColumnEntryDeltas &deltas);
 
+  SkipListNode<SketchClass>* update_path_agg_atomic(const ColumnEntryDelta &delta);
+  SkipListNode<SketchClass>* update_path_agg_atomic(const ColumnEntryDeltas &deltas);
+
   // Update just this node's aggregate sketch
   void update_agg(vec_t update_idx);
   // Same but atomically
@@ -91,6 +94,19 @@ public:
       size_t sz = deltas.size();
       for (const auto& delta : deltas)
           this->sketch_agg.apply_entry_delta(delta);
+  }
+  // and the atomic versions:
+  void update_agg_atomic_entry_delta(const ColumnEntryDelta &delta) {
+      if (!this->sketch_agg.is_initialized())  // Only do something if this node has a sketch
+          return;
+      this->sketch_agg.atomic_apply_entry_delta(delta);
+  }
+  void update_agg_atomic_entry_deltas(const ColumnEntryDeltas &deltas) {
+      if (!this->sketch_agg.is_initialized())  // Only do something if this node has a sketch
+          return;
+      size_t sz = deltas.size();
+      for (const auto& delta : deltas)
+          this->sketch_agg.atomic_apply_entry_delta(delta);
   }
 
   // Apply all the sketch updates currently in the update buffer

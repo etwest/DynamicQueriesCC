@@ -207,6 +207,18 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(const Colu
 	}
 	return prev;
 }
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg_atomic(const ColumnEntryDelta &delta) {
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	while (curr) {
+		// __builtin_prefetch(curr->get_parent());
+		curr->update_agg_atomic_entry_delta(delta);
+		prev = curr;
+		curr = prev->get_parent();
+	}
+	return prev;
+}
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(const ColumnEntryDeltas &deltas) {
@@ -219,6 +231,19 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(const Colu
 	}
 	return prev;
 }
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg_atomic(const ColumnEntryDeltas &deltas) {
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	while (curr) {
+		curr->update_agg_atomic_entry_deltas(deltas);
+		prev = curr;
+		curr = prev->get_parent();
+	}
+	return prev;
+}
+
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(SketchClass &sketch) {

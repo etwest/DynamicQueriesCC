@@ -276,7 +276,8 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
             size_t update_idx = src_sorted_update_idxs[i % num_updates];
             GraphUpdate update = updates[update_idx];
             vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
-            SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, edge_id);
+            ColumnEntryDelta delta = ett[tier].generate_entry_delta(update.edge.src, edge_id);
+            SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, delta);
             root_node(tier, update_idx, true) = src_parent;
         }
     }, conservative);
@@ -287,7 +288,8 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
             size_t update_idx = dst_sorted_update_idxs[i % num_updates];
             GraphUpdate update = updates[update_idx];
             vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
-            SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch_atomic(update.edge.dst, edge_id);
+            ColumnEntryDelta delta = ett[tier].generate_entry_delta(update.edge.dst, edge_id);
+            SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch_atomic(update.edge.dst, delta);
             root_node(tier, update_idx, false) = dst_parent;
         }
     }, conservative);
