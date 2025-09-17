@@ -284,8 +284,8 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
             SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, delta);
             root_node(tier, update_idx, true) = src_parent;
         }
-    });
-    // }, tbb::static_partitioner{});
+    // });
+    }, tbb::static_partitioner{});
     // }, conservative);
     // now dst updates:
     // parlay::blocked_for(0, num_updates * num_tiers, granularity, [&](size_t block_idx, size_t start, size_t end) {
@@ -303,8 +303,9 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
                 root_node(tier, update_idx, false) = dst_parent;
                 // }, conservative);}
             }
-            // }, tbb::static_partitioner{});
-        });
+        },
+        tbb::static_partitioner{});
+    // });
     // }, conservative);
 }
 

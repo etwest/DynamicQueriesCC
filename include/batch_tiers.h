@@ -19,9 +19,9 @@ class BatchTiers {
         // size_t maximum_batch_size = 512;
         // size_t maximum_batch_size = 100;
         // size_t maximum_batch_size = 1 << 20;
-        size_t maximum_batch_size = 1 << 15;
+        size_t maximum_batch_size = 1 << 20;
         // size_t maximum_batch_size = 1024;
-        size_t granularity = 1 << 6;  // suggested number of tier-updates per thread 
+        size_t granularity = 1 << 11;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
         SketchlessEulerTourTree query_ett;
         LinkCutTree link_cut_tree;
@@ -96,9 +96,10 @@ class BatchTiers {
         void update(const GraphUpdate &update) {
             // add to buffer:
             update_buffer.push_back(update);
-            bool is_tree_edge_deletion = (update.type == DELETE &&
-                                          is_tree_edge(update.edge.src, update.edge.dst));
-            if (update_buffer.size() >= maximum_batch_size || is_tree_edge_deletion) {
+            // bool is_tree_edge_deletion = (update.type == DELETE &&
+            //                               is_tree_edge(update.edge.src, update.edge.dst));
+            // if (update_buffer.size() >= maximum_batch_size || is_tree_edge_deletion) {
+            if (update_buffer.size() >= maximum_batch_size) {
                 // std::cout << "is_tree_edge_deletion: " << is_tree_edge_deletion << ", buffer size: " << update_buffer.size() << std::endl;
                 // process the batch
                 update_batch(update_buffer);
