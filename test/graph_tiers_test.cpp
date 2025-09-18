@@ -42,7 +42,6 @@ TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
     long edgecount = stream.edges();
     // height_factor = 1;//1./log2(log2(stream.nodes()));
     height_factor = 1/log2(log2(stream.nodes()));
-    height_factor /= 5;
     sketch_len = Sketch::calc_vector_length(stream.nodes());
     sketch_err = DEFAULT_SKETCH_ERR;
 	std::random_device dev;
