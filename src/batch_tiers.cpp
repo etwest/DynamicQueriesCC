@@ -130,8 +130,8 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
         }
     }
     // 1) Step 1: Process all sketch aggs in true batch parallel.
-    // _process_sketch_aggs_only(updates);
-    _process_sketch_aggs_tier_sequential(updates);
+    _process_sketch_aggs_only(updates);
+    // _process_sketch_aggs_tier_sequential(updates);
     
     // 2) Step 2: Check for isolated components.
     uint32_t first_isolated_tier = _search_for_isolated_components(updates);
@@ -196,6 +196,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             // we know that at this point, there are no isolations at higher tiers.
             // because all potential isolated components must be a union of the modified components
             // found at this tier. so we can just return
+            std::cout << "All components maximized at tier " << tier << ", skipping further checks" << std::endl;
             return;
         }
     }
@@ -538,9 +539,6 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
 
         if (component_root->size == next_tier_root->size) {
             if (query_result.result == GOOD) {
-                // this component is isolated, so we need to add it to the list
-                // _current_isolated_components.push_back(component_root);
-                // _current_isolated_components.insert(component_root->node->vertex);
 
                 // .. and see if a path exists between the endpoints in the LCT
                 edge_id_t edge = query_result.idx;
