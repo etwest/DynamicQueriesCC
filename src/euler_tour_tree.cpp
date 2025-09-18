@@ -71,18 +71,19 @@ EulerTourTree<SketchClass>::update_sketches(node_id_t u, node_id_t v,
   SkipListNode<SketchClass>* curr1 = ett_nodes[u].allowed_caller;
   SkipListNode<>* curr2 = ett_nodes[v].allowed_caller;
 	SkipListNode<> *prev1, *prev2;
+  ColumnEntryDelta delta = generate_entry_delta(u, update_idx);
 	while (curr1 || curr2) {
     if (curr1 == curr2) {
       SkipListNode<>* root  = curr1->get_root();
       return {root, root};
     }
     if (curr1) {
-      curr1->update_agg(update_idx);
+      curr1->update_agg_entry_delta(delta);
       prev1 = curr1;
       curr1 = prev1->get_parent();
     }
     if (curr2) {
-      curr2->update_agg(update_idx);
+      curr2->update_agg_entry_delta(delta);
       prev2 = curr2;
       curr2 = prev2->get_parent();
     }
