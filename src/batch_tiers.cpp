@@ -33,6 +33,7 @@ template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>
 BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) {
 	// Algorithm parameters
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    // TODO - we can be a bit more ambitious?
     _component_reps_dsu = union_find_local<int32_t>(this->maximum_batch_size * 2);
 
 	// Initialize all the ETTs
@@ -268,7 +269,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
         return updates[i].edge.dst < updates[j].edge.dst;
     });
 
-    bool conservative=true;
+    // bool conservative=true;
     // do src updates:
     // parlay::blocked_for(0, num_updates * num_tiers, granularity, [&](size_t block_idx, size_t start, size_t end) {
         // for (size_t i = start; i < end; i++) {
@@ -284,8 +285,8 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
             SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, delta);
             root_node(tier, update_idx, true) = src_parent;
         }
-    // });
-    }, tbb::static_partitioner{});
+    });
+    // }, tbb::static_partitioner{});
     // }, conservative);
     // now dst updates:
     // parlay::blocked_for(0, num_updates * num_tiers, granularity, [&](size_t block_idx, size_t start, size_t end) {
@@ -303,9 +304,8 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
                 root_node(tier, update_idx, false) = dst_parent;
                 // }, conservative);}
             }
-        },
-        tbb::static_partitioner{});
-    // });
+        });
+    // tbb::static_partitioner{});
     // }, conservative);
 }
 

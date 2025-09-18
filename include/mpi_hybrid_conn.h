@@ -158,7 +158,7 @@ class HybridConnectivityManager {
         void flush_transaction_log() {
             // std::cout << "Flushing transaction log of size: " << sketching_algo.get_transaction_log().size() << std::endl;
             // TODO - maybe get rid of this line, but rn we need it for correctness potentially:
-            sketching_algo.process_all_updates();
+            // sketching_algo.process_all_updates();
             for (auto &update: sketching_algo.get_transaction_log()) {
                 if (update.type == DELETE) {
                     remove_from_cf(update.edge.src, update.edge.dst);
@@ -219,10 +219,10 @@ class HybridConnectivityManager {
                 }
             }
             // apply the transaction log
-            flush_transaction_log();
+            // flush_transaction_log();
+            // TODO - just do this in reads for now.
+            // we should think about this
                         
-
-            
         }
         
         bool check_and_perform_recovery(node_id_t vertex) {
