@@ -272,6 +272,25 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(SketchClas
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(const SketchClass &sketch) {
+	// returns the last node that was updated
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	if (!this->sketch_agg.is_initialized()) {
+		assert(false);
+		// NOTE - SHOULD NOT USE IN THIS CASE
+		// TODO - make this code less confusing if possible.
+	} else {
+	  while (curr) {
+		curr->sketch_agg.merge(sketch);
+		prev = curr;
+		curr = prev->get_parent();
+	  }
+	}
+	return prev;
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 std::set<EulerTourNode<SketchClass>*> SkipListNode<SketchClass>::get_component() {
 	std::set<EulerTourNode<SketchClass>*> nodes;
 	SkipListNode* curr = this->get_first()->right; //Skip over the boundary node

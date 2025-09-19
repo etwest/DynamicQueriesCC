@@ -40,6 +40,7 @@ public:
   SkipListNode<SketchClass>* update_sketch(vec_t update_idx);
   SkipListNode<SketchClass>* update_sketch(const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch(const ColumnEntryDeltas &deltas);
+  SkipListNode<SketchClass>* update_sketch(const SketchClass &sketch);
   SkipListNode<SketchClass>* update_sketch_atomic(vec_t update_idx);
   SkipListNode<SketchClass>* update_sketch_atomic(const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch_atomic(const ColumnEntryDeltas &deltas);
@@ -76,6 +77,7 @@ public:
   SkipListNode<SketchClass>* update_sketch(node_id_t u, vec_t update_idx);
   SkipListNode<SketchClass>* update_sketch(node_id_t u, const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch(node_id_t u, const ColumnEntryDeltas &deltas);
+  SkipListNode<SketchClass>* update_sketch(node_id_t u, const SketchClass &sketch);
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, vec_t update_idx);
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDeltas &deltas);

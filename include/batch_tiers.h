@@ -16,10 +16,12 @@
 template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConcept<SketchClass, vec_t>)
 class BatchTiers {
     private:
+        size_t num_nodes;
+        uint64_t seed;
         // size_t maximum_batch_size = 512;
         // size_t maximum_batch_size = 100;
         // size_t maximum_batch_size = 1 << 20;
-        size_t maximum_batch_size = 1 << 22;
+        size_t maximum_batch_size = 1 << 20;
         // size_t maximum_batch_size = 1024;
         size_t granularity = 1 << 11;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
@@ -34,7 +36,8 @@ class BatchTiers {
         // "root" nodes for each candidate component at each tier.
         union_find_local<int32_t> _component_reps_dsu;
                 
-        static thread_local parlay::sequence<ColumnEntryDelta> _deltas_buffer;
+        // static thread_local parlay::sequence<ColumnEntryDelta> _deltas_buffer;
+        // static thread_local SketchClass _scratch_sketch;
         // matrix of [num_tiers x ( batch_size * 2 )]
         std::vector<parlay::sequence<SkipListNode<SketchClass>*>> _root_nodes;
         

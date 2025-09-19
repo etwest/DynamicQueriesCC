@@ -26,11 +26,11 @@
 // 	return this->link_cut_tree.find_root(a) == this->link_cut_tree.find_root(b);
 // }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-thread_local parlay::sequence<ColumnEntryDelta> BatchTiers<SketchClass>::_deltas_buffer = parlay::sequence<ColumnEntryDelta>();
+// template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+// thread_local parlay::sequence<ColumnEntryDelta> BatchTiers<SketchClass>::_deltas_buffer = parlay::sequence<ColumnEntryDelta>();
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) {
+BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) {
 	// Algorithm parameters
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
     // TODO - we can be a bit more ambitious?
@@ -61,8 +61,7 @@ BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : link_c
 template <typename SketchClass>
     requires(SketchColumnConcept<SketchClass, vec_t>)
 BatchTiers<SketchClass>::BatchTiers(
-    node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed) : 
-link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) {
+    node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) {
     // TODO - use the batch_size parameter?
     _component_reps_dsu = union_find_local<int32_t>(maximum_batch_size * 2);
 
@@ -330,107 +329,112 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
 
     // bool conservative=false;
     // bool conservative=true;
-    tbb::parallel_for(
-        tbb::blocked_range<size_t>(0, num_tiers, 1),
-        [&](const tbb::blocked_range<size_t> &r) {
-            for (size_t tier = r.begin(); tier != r.end(); ++tier) {
-                for (size_t i = 0; i < num_updates; i++) {
-                    size_t update_idx = src_sorted_update_idxs[i];
-                    // size_t update_idx = i;
-                    GraphUpdate update = updates[update_idx];
-                    vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
-                    // SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch(update.edge.src, edge_id);
-                    const ColumnEntryDelta delta = ett[tier].generate_entry_delta(update.edge.src, edge_id);
-                    SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch(update.edge.src, delta);
-                    // SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, delta);
-                    
-                    root_node(tier, update_idx, true) = src_parent;
-                }
-                for (size_t i = 0; i < num_updates; i++) {
-                    root_node(tier, i, true)->process_updates();
-                }
-                for (size_t i = 0; i < num_updates; i++) {
-                    size_t update_idx = dst_sorted_update_idxs[i];
-                    // size_t update_idx = i;
-                    GraphUpdate update = updates[update_idx];
-                    vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
-                    // SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch(update.edge.dst, edge_id);
-                    const ColumnEntryDelta delta = ett[tier].generate_entry_delta(update.edge.dst, edge_id);
-                    SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch(update.edge.dst, delta);
-                    root_node(tier, update_idx, false) = dst_parent;
-                }
-                for (size_t i = 0; i < num_updates; i++) {
-                    root_node(tier, i, false)->process_updates();
-                }
-            }
-        },
-        tbb::static_partitioner{}
-    );
-    // 0, conservative);
     // tbb::parallel_for(
     //     tbb::blocked_range<size_t>(0, num_tiers, 1),
     //     [&](const tbb::blocked_range<size_t> &r) {
     //         for (size_t tier = r.begin(); tier != r.end(); ++tier) {
-    //             // for (size_t tier = 0; tier < num_tiers; tier++) {
-    //             // source loop:
-    //             size_t i = 0;
-    //             while (i < num_updates) {
-    //                 _deltas_buffer.clear();
-    //                 size_t j = i;
-    //                 while (j < num_updates && updates[src_sorted_update_idxs[j]].edge.src == updates[src_sorted_update_idxs[i]].edge.src) {
-    //                     GraphUpdate update = updates[src_sorted_update_idxs[j]];
-    //                     vec_t edge_id = concat_pairing_fn(
-    //                         update.edge.src,
-    //                         update.edge.dst);
-    //                     auto delta = ett[tier].generate_entry_delta(
-    //                         update.edge.src,
-    //                         edge_id);
-    //                     _deltas_buffer.push_back(delta);
-
-    //                     j++;
-    //                 }
-    //                 SkipListNode<SketchClass> *src_parent = this->ett[tier].update_sketch(
-    //                     updates[src_sorted_update_idxs[i]].edge.src,
-    //                     _deltas_buffer.head(_deltas_buffer.size()));
-    //                 for (size_t k = i; k < j; k++) {
-    //                     size_t update_idx = src_sorted_update_idxs[k];
-    //                     root_node(tier, update_idx, true) = src_parent;
-    //                 }
-    //                 i = j;
+    //             for (size_t i = 0; i < num_updates; i++) {
+    //                 size_t update_idx = src_sorted_update_idxs[i];
+    //                 // size_t update_idx = i;
+    //                 GraphUpdate update = updates[update_idx];
+    //                 vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
+    //                 // SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch(update.edge.src, edge_id);
+    //                 const ColumnEntryDelta delta = ett[tier].generate_entry_delta(update.edge.src, edge_id);
+    //                 SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch(update.edge.src, delta);
+    //                 // SkipListNode<SketchClass> *src_parent = ett[tier].update_sketch_atomic(update.edge.src, delta);
+                    
+    //                 root_node(tier, update_idx, true) = src_parent;
     //             }
-    //             // dest loop:
-    //             i = 0;
-    //             while (i < num_updates) {
-    //                 _deltas_buffer.clear();
-    //                 size_t j = i;
-    //                 while (j < num_updates && updates[dst_sorted_update_idxs[j]].edge.dst == updates[dst_sorted_update_idxs[i]].edge.dst) {
-    //                     GraphUpdate update = updates[dst_sorted_update_idxs[j]];
-    //                     vec_t edge_id = concat_pairing_fn(
-    //                         update.edge.src,
-    //                         update.edge.dst);
-    //                     auto delta = ett[tier].generate_entry_delta(
-    //                         update.edge.dst,
-    //                         edge_id);
-    //                     _deltas_buffer.push_back(delta);
-    //                     j++;
-    //                 }
-    //                 SkipListNode<SketchClass> *dst_parent = this->ett[tier].update_sketch(
-    //                     updates[dst_sorted_update_idxs[i]].edge.dst,
-    //                     _deltas_buffer.head(_deltas_buffer.size()));
-    //                 for (size_t k = i; k < j; k++) {
-    //                     size_t update_idx = dst_sorted_update_idxs[k];
-    //                     root_node(tier, update_idx, false) = dst_parent;
-    //                 }
-    //                 i = j;
+    //             for (size_t i = 0; i < num_updates; i++) {
+    //                 root_node(tier, i, true)->process_updates();
     //             }
-    //             // parlay::parallel_for(0, num_updates, [&](size_t k) {
-    //             //     root_node(tier, k, true)->process_updates();
-    //             //     root_node(tier, k, false)->process_updates();
-    //             // });
+    //             for (size_t i = 0; i < num_updates; i++) {
+    //                 size_t update_idx = dst_sorted_update_idxs[i];
+    //                 // size_t update_idx = i;
+    //                 GraphUpdate update = updates[update_idx];
+    //                 vec_t edge_id = concat_pairing_fn(update.edge.src, update.edge.dst);
+    //                 // SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch(update.edge.dst, edge_id);
+    //                 const ColumnEntryDelta delta = ett[tier].generate_entry_delta(update.edge.dst, edge_id);
+    //                 SkipListNode<SketchClass> *dst_parent = ett[tier].update_sketch(update.edge.dst, delta);
+    //                 root_node(tier, update_idx, false) = dst_parent;
+    //             }
+    //             for (size_t i = 0; i < num_updates; i++) {
+    //                 root_node(tier, i, false)->process_updates();
+    //             }
     //         }
-    //     }
-    //     // tbb::static_partitioner{}
+    //     },
+    //     tbb::static_partitioner{}
     // );
+    // 0, conservative);
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, num_tiers, 1),
+        [&](const tbb::blocked_range<size_t> &r) {
+            for (size_t tier = r.begin(); tier != r.end(); ++tier) {
+                // for (size_t tier = 0; tier < num_tiers; tier++) {
+                // source loop:
+                parlay::sequence<ColumnEntryDelta> _deltas_buffer;
+                size_t i = 0;
+                while (i < num_updates) {
+                    _deltas_buffer.clear();
+                    size_t j = i;
+                    while (j < num_updates && updates[src_sorted_update_idxs[j]].edge.src == updates[src_sorted_update_idxs[i]].edge.src) {
+                        GraphUpdate update = updates[src_sorted_update_idxs[j]];
+                        vec_t edge_id = concat_pairing_fn(
+                            update.edge.src,
+                            update.edge.dst);
+                        auto delta = ett[tier].generate_entry_delta(
+                            update.edge.src,
+                            edge_id);
+                        _deltas_buffer.push_back(delta);
+
+                        j++;
+                    }
+                    SkipListNode<SketchClass> *src_parent = this->ett[tier].update_sketch(
+                        updates[src_sorted_update_idxs[i]].edge.src,
+                        _deltas_buffer.head(_deltas_buffer.size()));
+                    for (size_t k = i; k < j; k++) {
+                        size_t update_idx = src_sorted_update_idxs[k];
+                        root_node(tier, update_idx, true) = src_parent;
+                    }
+                    i = j;
+                }
+                // dest loop:
+                i = 0;
+                while (i < num_updates) {
+                    _deltas_buffer.clear();
+                    size_t j = i;
+                    while (j < num_updates && updates[dst_sorted_update_idxs[j]].edge.dst == updates[dst_sorted_update_idxs[i]].edge.dst) {
+                        GraphUpdate update = updates[dst_sorted_update_idxs[j]];
+                        vec_t edge_id = concat_pairing_fn(
+                            update.edge.src,
+                            update.edge.dst);
+                        auto delta = ett[tier].generate_entry_delta(
+                            update.edge.dst,
+                            edge_id);
+                        _deltas_buffer.push_back(delta);
+                        j++;
+                    }
+                    SkipListNode<SketchClass> *dst_parent = this->ett[tier].update_sketch(
+                        updates[dst_sorted_update_idxs[i]].edge.dst,
+                        _deltas_buffer.head(_deltas_buffer.size()));
+                    for (size_t k = i; k < j; k++) {
+                        size_t update_idx = dst_sorted_update_idxs[k];
+                        root_node(tier, update_idx, false) = dst_parent;
+                    }
+                    i = j;
+                }
+                parlay::parallel_for(0, num_updates, [&](size_t k) {
+                    root_node(tier, k, true)->process_updates();
+                    root_node(tier, k, false)->process_updates();
+                });
+                // for (size_t k = 0; k < num_updates; k++) {
+                //     root_node(tier, k, true)->process_updates();
+                //     root_node(tier, k, false)->process_updates();
+                // }
+            }
+        },
+        tbb::static_partitioner{}
+    ); 
 }
 
 template<typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)

@@ -69,6 +69,7 @@ public:
   SkipListNode<SketchClass>* update_path_agg_atomic(vec_t update_idx);
   // SkipListNode<SketchClass>* update_path_agg_atomic(vec_t update_idx)
   // Add the given sketch to all aggregate sketches from the current node to its root
+  SkipListNode<SketchClass>* update_path_agg(const SketchClass &sketch);
   SkipListNode<SketchClass>* update_path_agg(SketchClass &sketch);
   
   SkipListNode<SketchClass>* update_path_agg(const ColumnEntryDelta &delta);
