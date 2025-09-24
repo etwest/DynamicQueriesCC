@@ -6,6 +6,7 @@
 #include "sketch_interfacing.h"
 
 #include <parlay/sequence.h>
+#include <tbb/tbb.h>
 
 // using ColumnEntryDeltas = parlay::sequence<ColumnEntryDelta>::const_view_type;
 using ColumnEntryDeltas = parlay::sequence<ColumnEntryDelta>::view_type;
@@ -37,12 +38,14 @@ class SkipListNode {
   int buffer_size = 0;
   int buffer_capacity;
   vec_t update_buffer[SKETCH_BUFFER_SIZE];
+  bool needs_update = false;
 
 public:
   EulerTourNode<SketchClass>* node;
   SketchClass sketch_agg;
 
   uint32_t size = 1;
+  
 
   SkipListNode(EulerTourNode<SketchClass>* node, long seed, bool has_sketch);
   ~SkipListNode();
@@ -112,6 +115,71 @@ public:
 
   // Apply all the sketch updates currently in the update buffer
   void process_updates();
+  
+  // recompute your aggregate from your children.
+  void recompute_aggs_topdown(int fork_levels) {
+    if (!this->sketch_agg.is_initialized())
+      return;
+    // do not recompute for bottom level nodes
+    if (this->down == nullptr) 
+      return;
+    SkipListNode<SketchClass>* current = this->down;
+    this->sketch_agg.zero_contents();
+    if (fork_levels > 0) {
+      tbb::task_group tg;
+      do {
+        if (current->needs_update) {
+          tg.run([current, fork_levels]() {
+            current->recompute_aggs_topdown(fork_levels-1);
+          });
+        }
+        current = current->right;
+      } while (current != nullptr && current != this->down && current->up == nullptr);
+      tg.wait();
+      current = this->down;
+      do {
+        this->sketch_agg.merge(current->sketch_agg);
+        current = current->right;
+      } while (current != nullptr && current != this->down && current->up == nullptr);
+    }
+    else {
+        do {
+            if (current->needs_update) {
+                current->recompute_aggs_topdown(fork_levels - 1);
+            }
+            this->sketch_agg.merge(current->sketch_agg);
+            current = current->right;
+        } while (current != nullptr && current != this->down && current->up == nullptr);
+    }
+    this->needs_update = false;
+  }
+
+  void recompute_parent_aggs() {
+    SkipListNode<SketchClass>* current = this;
+    while (current->parent != nullptr) {
+      current = current->parent;
+      bool f = false;
+      bool cas_succeed =
+       __sync_bool_compare_and_swap(
+        (bool *)&current->needs_update,
+        false,
+        true
+      );
+      // __atomic_compare_exchange_n(
+      //   (int*)current->needs_update,
+      //   (int*)&f, // expected
+      //   (int)true, // desired
+      //   false, // weak = false
+      //   __ATOMIC_RELAXED
+      // );
+      if (!cas_succeed) {
+        // someone else already set needs_update to true, so we can stop
+        return;
+      }
+    }
+    // TODO - dont make this hard-coded
+    current->recompute_aggs_topdown(2);
+  }
 
   std::set<EulerTourNode<SketchClass>*> get_component();
 

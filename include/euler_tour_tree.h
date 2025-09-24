@@ -77,7 +77,6 @@ private:
   uint32_t tier_num;
 public:
   // std::vector<EulerTourNode<SketchClass>> ett_nodes;
-  // absl::hash_map
   // absl::flat_hash_map<node_id_t, EulerTourNode<SketchClass>*> ett_nodes;
   Container ett_nodes;
   
