@@ -202,8 +202,8 @@ std::vector<std::set<node_id_t>> GraphTiers<SketchClass>::get_cc() {
 	std::set<EulerTourNode<SketchClass>*> visited;
 	int top = ett.size()-1;
 	for (uint32_t i = 0; i < ett[top].ett_nodes.size(); i++) {
-		if (visited.find(&ett[top].ett_nodes[i]) == visited.end()) {
-			std::set<EulerTourNode<SketchClass>*> pointer_component = ett[top].ett_nodes[i].get_component();
+		if (visited.find(&ett[top].ett_node(i)) == visited.end()) {
+			std::set<EulerTourNode<SketchClass>*> pointer_component = ett[top].ett_node(i).get_component();
 			std::set<node_id_t> component;
 			for (auto pointer : pointer_component) {
 				component.insert(pointer->vertex);

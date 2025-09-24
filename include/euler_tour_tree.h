@@ -6,6 +6,8 @@
 #include "sketch/sketch_concept.h"
 #include "sketch_interfacing.h"
 
+#include <absl/container/flat_hash_map.h>
+
 
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
@@ -63,13 +65,55 @@ public:
   friend std::ostream& operator<<(std::ostream& os, const EulerTourNode<T>& ett);
 };
 
-template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConcept<SketchClass, vec_t>)
+template <typename SketchClass = DefaultSketchColumn, 
+typename Container = std::vector<EulerTourNode<SketchClass>>>
+// typename Container = absl::flat_hash_map<node_id_t, EulerTourNode<SketchClass>*>>
+requires(SketchColumnConcept<SketchClass, vec_t>)
 class EulerTourTree {
   SketchClass temp_sketch;
+private:
+  size_t seed;
+  node_id_t max_num_nodes;
+  uint32_t tier_num;
 public:
-  std::vector<EulerTourNode<SketchClass>> ett_nodes;
+  // std::vector<EulerTourNode<SketchClass>> ett_nodes;
+  // absl::hash_map
+  // absl::flat_hash_map<node_id_t, EulerTourNode<SketchClass>*> ett_nodes;
+  Container ett_nodes;
   
-  EulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed);
+  
+  EulerTourTree(node_id_t max_num_nodes, uint32_t tier_num, int seed);
+
+  EulerTourNode<SketchClass>& ett_node(node_id_t u) {
+    if constexpr (std::is_same_v<Container, std::vector<EulerTourNode<SketchClass>>>) {
+        assert(u < ett_nodes.size());
+        return ett_nodes[u];
+    } else {
+        assert(ett_nodes.find(u) != ett_nodes.end());
+        return *ett_nodes[u];
+    }
+  }
+  
+  void initialize_node(node_id_t u) {
+    // no-op with vector implementation
+    if constexpr (!std::is_same_v<Container, std::vector<EulerTourNode<SketchClass>>>) {
+        // assert(ett_nodes.find(u) == ett_nodes.end());
+        ett_nodes[u] = new EulerTourNode<SketchClass>(this->seed, u, this->tier_num);
+    }
+  };
+  void uninitialize_node(node_id_t u) {
+    // no-op with vector implementation
+    if constexpr (!std::is_same_v<Container, std::vector<EulerTourNode<SketchClass>>>) {
+        assert(ett_nodes.find(u) != ett_nodes.end());
+        delete ett_nodes[u];
+    }
+  };
+  
+  void initialize_all_nodes() {
+    for (node_id_t i = 0; i < max_num_nodes; ++i) {
+        initialize_node(i);
+    }
+  };
 
   void link(node_id_t u, node_id_t v);
   void cut(node_id_t u, node_id_t v);
@@ -82,9 +126,9 @@ public:
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDeltas &deltas);
 
-  ColumnEntryDelta generate_entry_delta(node_id_t u, vec_t update) const {
+  ColumnEntryDelta generate_entry_delta(node_id_t u, vec_t update) {
       // TODO - the specific node isnt actually meaningful here.
-      return ett_nodes[u].generate_entry_delta(update);
+      return ett_node(u).generate_entry_delta(update);
   }
 
   std::pair<SkipListNode<SketchClass>*, SkipListNode<SketchClass>*> update_sketches(node_id_t u, node_id_t v, vec_t update_idx);
@@ -94,7 +138,7 @@ public:
   uint32_t num_components() {
     std::set<void*> roots;
     for (node_id_t i = 0; i < ett_nodes.size(); ++i) {
-      auto root = ett_nodes[i].get_root();
+      auto root = ett_node(i).get_root();
       roots.insert(root);
     }
     return roots.size();

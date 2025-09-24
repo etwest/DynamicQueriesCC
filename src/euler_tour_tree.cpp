@@ -2,90 +2,88 @@
 
 #include <euler_tour_tree.h>
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-EulerTourTree<SketchClass>::EulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed) : temp_sketch(0, seed) {
-  // Initialize all the ETT node
-    ett_nodes.reserve(num_nodes);
-    for (node_id_t i = 0; i < num_nodes; ++i) {
-        ett_nodes.emplace_back(seed, i, tier_num);
+template <typename SketchClass, typename Container>
+    requires(SketchColumnConcept<SketchClass, vec_t>)
+EulerTourTree<SketchClass, Container>::EulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed) : temp_sketch(0, seed), seed(seed), max_num_nodes(num_nodes), tier_num(tier_num) {
+    if constexpr (std::is_same_v<Container, std::vector<EulerTourNode<SketchClass>>>) {
+        ett_nodes.reserve(num_nodes);
+        for (node_id_t i = 0; i < num_nodes; ++i) {
+            ett_nodes.emplace_back(seed, i, tier_num);
+        }
     }
-    // Initialize the temp_sketch
-    // this->temp_sketch = new Sketch(sketch_len, seed, 1, sketch_err);
-    // this-> temp_sketch = new SketchClass(4, 0);
     this->temp_sketch = SketchClass(
         SketchClass::suggest_capacity(sketch_len), seed);
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-void EulerTourTree<SketchClass>::link(node_id_t u, node_id_t v) {
-  ett_nodes[u].link(ett_nodes[v], temp_sketch);
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+void EulerTourTree<SketchClass, Container>::link(node_id_t u, node_id_t v) {
+  ett_node(u).link(ett_node(v), temp_sketch);
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-void EulerTourTree<SketchClass>::cut(node_id_t u, node_id_t v) {
-  ett_nodes[u].cut(ett_nodes[v], temp_sketch);
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+void EulerTourTree<SketchClass, Container>::cut(node_id_t u, node_id_t v) {
+  ett_node(u).cut(ett_node(v), temp_sketch);
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-bool EulerTourTree<SketchClass>::has_edge(node_id_t u, node_id_t v) {
-  return ett_nodes[u].has_edge_to(&ett_nodes[v]);
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+bool EulerTourTree<SketchClass, Container>::has_edge(node_id_t u, node_id_t v) {
+  return ett_node(u).has_edge_to(&ett_node(v));
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch(node_id_t u, vec_t update_idx) {
-  return ett_nodes[u].update_sketch(update_idx);
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass, Container>::update_sketch(node_id_t u, vec_t update_idx) {
+  return ett_node(u).update_sketch(update_idx);
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch(node_id_t u, const ColumnEntryDelta &delta) {
-  return ett_nodes[u].update_sketch(delta);
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass, Container>::update_sketch(node_id_t u, const ColumnEntryDelta &delta) {
+  return ett_node(u).update_sketch(delta);
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch(node_id_t u, const ColumnEntryDeltas &deltas) {
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass, Container>::update_sketch(node_id_t u, const ColumnEntryDeltas &deltas) {
   if (deltas.size() >= 8) {
     // std::cout << "Using temp sketch for batch of size " << deltas.size() << std::endl;
     this->temp_sketch.zero_contents();
     for (const auto& delta : deltas) {
       this->temp_sketch.apply_entry_delta(delta);
     }
-    return ett_nodes[u].update_sketch((const SketchClass&)temp_sketch);
+    return ett_node(u).update_sketch((const SketchClass&)temp_sketch);
   }
   else {
-    return ett_nodes[u].update_sketch(deltas);
+    return ett_node(u).update_sketch(deltas);
   }
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch(node_id_t u, const SketchClass &sketch) {
-  return ett_nodes[u].update_sketch(sketch);
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass, Container>::update_sketch(node_id_t u, const SketchClass &sketch) {
+  return ett_node(u).update_sketch(sketch);
 }
 
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch_atomic(node_id_t u, vec_t update_idx) {
-  return ett_nodes[u].update_sketch_atomic(update_idx);
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass, Container>::update_sketch_atomic(node_id_t u, vec_t update_idx) {
+  return ett_node(u).update_sketch_atomic(update_idx);
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch_atomic(node_id_t u, const ColumnEntryDelta &delta) {
-  return ett_nodes[u].update_sketch_atomic(delta);
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass, Container>::update_sketch_atomic(node_id_t u, const ColumnEntryDelta &delta) {
+  return ett_node(u).update_sketch_atomic(delta);
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourTree<SketchClass>::update_sketch_atomic(node_id_t u, const ColumnEntryDeltas &deltas) {
-  return ett_nodes[u].update_sketch_atomic(deltas);
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass, Container>::update_sketch_atomic(node_id_t u, const ColumnEntryDeltas &deltas) {
+  return ett_node(u).update_sketch_atomic(deltas);
 }
 
-template <typename SketchClass>
-  requires(SketchColumnConcept<SketchClass, vec_t>)
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
 std::pair<SkipListNode<SketchClass> *, SkipListNode<SketchClass> *>
-EulerTourTree<SketchClass>::update_sketches(node_id_t u, node_id_t v,
+EulerTourTree<SketchClass, Container>::update_sketches(node_id_t u, node_id_t v,
                                             vec_t update_idx) {
   // Update the paths in lockstep, stopping at the first common node
-  SkipListNode<SketchClass>* curr1 = ett_nodes[u].allowed_caller;
-  SkipListNode<>* curr2 = ett_nodes[v].allowed_caller;
-	SkipListNode<> *prev1, *prev2;
+  SkipListNode<SketchClass>* curr1 = ett_node(u).allowed_caller;
+  SkipListNode<SketchClass>* curr2 = ett_node(v).allowed_caller;
+	SkipListNode<SketchClass> *prev1, *prev2;
   ColumnEntryDelta delta = generate_entry_delta(u, update_idx);
 	while (curr1 || curr2) {
     if (curr1 == curr2) {
@@ -106,19 +104,19 @@ EulerTourTree<SketchClass>::update_sketches(node_id_t u, node_id_t v,
 	return {prev1, prev2};
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourTree<SketchClass>::get_root(node_id_t u) {
-  return ett_nodes[u].get_root();
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourTree<SketchClass, Container>::get_root(node_id_t u) {
+  return ett_node(u).get_root();
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-const SketchClass& EulerTourTree<SketchClass>::get_aggregate(node_id_t u) {
-  return ett_nodes[u].get_aggregate();
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+const SketchClass& EulerTourTree<SketchClass, Container>::get_aggregate(node_id_t u) {
+  return ett_node(u).get_aggregate();
 }
 
-template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-uint32_t EulerTourTree<SketchClass>::get_size(node_id_t u) {
-  return ett_nodes[u].get_size();
+template <typename SketchClass, typename Container> requires(SketchColumnConcept<SketchClass, vec_t>)
+uint32_t EulerTourTree<SketchClass, Container>::get_size(node_id_t u) {
+  return ett_node(u).get_size();
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
@@ -360,7 +358,16 @@ bool EulerTourNode<SketchClass>::cut(EulerTourNode<SketchClass>& other, SketchCl
   return true;
 }
 
+
 template class EulerTourNode<DefaultSketchColumn>;
-template class EulerTourTree<DefaultSketchColumn>;
+
+using VectorContainer = std::vector<EulerTourNode<DefaultSketchColumn>>;
+using HashmapContainer = absl::flat_hash_map<node_id_t, EulerTourNode<DefaultSketchColumn>*>;
+template class EulerTourTree<DefaultSketchColumn, VectorContainer>;
+template class EulerTourTree<DefaultSketchColumn, HashmapContainer>;
+
+
+using ETTWithHashmap = EulerTourTree<DefaultSketchColumn, absl::flat_hash_map<node_id_t, SkipListNode<DefaultSketchColumn>*>>;
+using ETTWithVector = EulerTourTree<DefaultSketchColumn, std::vector<EulerTourNode<DefaultSketchColumn>>>;
 
 // template std::ostream& operator<<(std::ostream&, const EulerTourNode<FixedSizeSketchColumn>&);
