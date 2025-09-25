@@ -49,6 +49,7 @@ TEST(GraphTiersSuite, gibbs_mixed_speed_test) {
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
     uint64_t seed = dist(rng);
     GraphTierSystem gt(stream.nodes(), seed);
+    gt.initialize_all_nodes();
 
     long total_update_time = 0;
     long total_query_time = 0;
@@ -107,6 +108,7 @@ TEST(GraphTiersSuite, mini_correctness_test) {
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
     uint64_t seed = dist(rng);
     GraphTierSystem gt(numnodes, seed);
+    gt.initialize_all_nodes();
     GraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -150,6 +152,7 @@ TEST(GraphTiersSuite, deletion_replace_correctness_test) {
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
     uint64_t seed = dist(rng);
     GraphTierSystem gt(numnodes, seed);
+    gt.initialize_all_nodes();
     GraphVerifier gv(numnodes);
 
     // Link all of the nodes into 1 connected component
@@ -208,6 +211,7 @@ TEST(GraphTiersSuite, omp_correctness_test) {
         std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
         uint64_t seed = dist(rng);
         GraphTierSystem gt(stream.nodes(), seed);
+        gt.initialize_all_nodes();
         int edgecount = stream.edges();
         edgecount = 1000000;
         GraphVerifier gv(stream.nodes());
@@ -257,6 +261,7 @@ TEST(GraphTiersSuite, omp_speed_test) {
         std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
         uint64_t seed = dist(rng);
         GraphTierSystem gt(stream.nodes(), seed);
+        gt.initialize_all_nodes();
         int edgecount = stream.edges();
         start = std::chrono::high_resolution_clock::now();
 
@@ -299,6 +304,7 @@ TEST(GraphTiersSuite, query_speed_test) {
         std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
         uint64_t sketch_seed = dist(rng);
         GraphTierSystem gt(nodecount, sketch_seed);
+        gt.initialize_all_nodes();
         int edgecount = 150000;
 
         std::cout << "Building up graph..." <<  std::endl;

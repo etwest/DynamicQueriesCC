@@ -75,6 +75,25 @@ class BatchTiers {
         BatchTiers(node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed);
         ~BatchTiers();
         
+        void initialize_node(node_id_t u) {
+            for (auto &tree: ett) {
+                tree.initialize_node(u);
+            }
+        }
+
+        void uninitialize_node(node_id_t u) {
+            for (auto &tree: ett) {
+                tree.uninitialize_node(u);
+            }
+        }
+        
+        void initialize_all_nodes() {
+            // TODO - parallel_for?
+            for (auto &tree: ett) {
+                tree.initialize_all_nodes(num_nodes);
+            }
+        }
+        
         void flush_transaction_log() {
             transaction_log.clear();
         }

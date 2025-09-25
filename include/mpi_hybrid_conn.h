@@ -6,6 +6,9 @@
 template <typename T>
 concept DynamicSketchConcept = requires(T t) {
     { t.process_all_updates()} -> std::same_as<void>;
+    { t.initialize_node( std::declval<node_id_t>() ) } -> std::same_as<void>;
+    { t.uninitialize_node( std::declval<node_id_t>() ) } -> std::same_as<void>;
+    { t.initialize_all_nodes() } -> std::same_as<void>;
     { t.get_transaction_log() } -> std::same_as<const std::vector<GraphUpdate>&>;
     { t.update( std::declval<GraphUpdate>() ) } -> std::same_as<void>;
 };
@@ -22,9 +25,13 @@ class HybridConnectivityManager {
             // TODO - do this in an aesthetically better way lol.
             MOVE_TO_SKETCH = threshold;
         }
+        node_id_t sketched_node_count() const {
+            return this->recovery_sketches.size();
+        }
     private:
         // TODO - this aint a great way
-        size_t MOVE_TO_SKETCH = 200;
+        size_t MOVE_TO_SKETCH = 10000;
+        // size_t MOVE_TO_SKETCH = 1000000;
         
         size_t seed;
         node_id_t num_nodes;
@@ -115,6 +122,7 @@ class HybridConnectivityManager {
                     }
                 }
             }
+            sketching_algo.initialize_node(vertex);
             // for (size_t level=0; level < MAX_LEVEL; level++) {
             //     auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex], level);
             //     if (edge_set) {
@@ -153,6 +161,7 @@ class HybridConnectivityManager {
                     }
                 }
             }
+            sketching_algo.uninitialize_node(vertex);
         }
         
         void flush_transaction_log() {

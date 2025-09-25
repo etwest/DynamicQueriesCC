@@ -77,6 +77,12 @@ class InputNode {
 public:
   InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size, int seed);
   ~InputNode();
+  // TODO - in reality, the input node needs to communicate
+  // wihh its tier nodes to initialize data structures.
+  // in any hybrid tests, we're just gonna do this ahead of time.
+  void initialize_node(node_id_t u) {}; // no-op
+  void uninitialize_node(node_id_t u) {}; // no-op
+  void initialize_all_nodes() {}; // no-op
   void update(GraphUpdate update);
   void process_all_updates();
   bool connectivity_query(node_id_t a, node_id_t b);
@@ -104,6 +110,15 @@ class TierNode {
   SampleResult* query_result_buffer;
   bool* split_revert_buffer;
   bool using_sliding_window = false;
+  void initialize_node(node_id_t u) {
+      ett.initialize_node(u);
+  };
+  void uninitialize_node(node_id_t u) {
+      ett.uninitialize_node(u);
+  };
+  void initialize_all_nodes(node_id_t max_num_nodes) {
+      ett.initialize_all_nodes(max_num_nodes);
+  };
   void update_tier(GraphUpdate update);
   void ett_update_tier(EttUpdateMessage message);
   void refresh_tier(RefreshMessage messsage);

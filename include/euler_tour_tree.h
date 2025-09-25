@@ -46,6 +46,13 @@ public:
   SkipListNode<SketchClass>* update_sketch_atomic(vec_t update_idx);
   SkipListNode<SketchClass>* update_sketch_atomic(const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch_atomic(const ColumnEntryDeltas &deltas);
+  
+  // update just this node's sketch
+  void update_sketch_noagg_atomic(const ColumnEntryDelta &delta);
+  // void update_sketch_noagg_atomic(const SketchClass &sketch);
+  
+  //recompute the parent aggregates
+  void recompute_aggregates_parallel();
 
   const ColumnEntryDelta generate_entry_delta(vec_t update) const {
     return this->allowed_caller->sketch_agg.generate_entry_delta(update);
@@ -65,9 +72,13 @@ public:
   friend std::ostream& operator<<(std::ostream& os, const EulerTourNode<T>& ett);
 };
 
+
+using VectorContainer = std::vector<EulerTourNode<DefaultSketchColumn>>;
+using HashmapContainer = absl::flat_hash_map<node_id_t, EulerTourNode<DefaultSketchColumn>*>;
+
 template <typename SketchClass = DefaultSketchColumn, 
-typename Container = std::vector<EulerTourNode<SketchClass>>>
-// typename Container = absl::flat_hash_map<node_id_t, EulerTourNode<SketchClass>*>>
+// typename Container = std::vector<EulerTourNode<SketchClass>>>
+typename Container = absl::flat_hash_map<node_id_t, EulerTourNode<SketchClass>*>>
 requires(SketchColumnConcept<SketchClass, vec_t>)
 class EulerTourTree {
   SketchClass temp_sketch;
@@ -113,6 +124,12 @@ public:
         initialize_node(i);
     }
   };
+  void initialize_all_nodes(node_id_t until) {
+    assert(until <= max_num_nodes);
+    for (node_id_t i = 0; i < until; ++i) {
+        initialize_node(i);
+    }
+  }
 
   void link(node_id_t u, node_id_t v);
   void cut(node_id_t u, node_id_t v);
@@ -124,6 +141,12 @@ public:
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, vec_t update_idx);
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDeltas &deltas);
+  
+  void update_sketch_noagg_atomic(const ColumnEntryDelta &delta);
+  // void update_sketch_noagg_atomic(const SketchClass &sketch);
+  
+  //recompute the parent aggregates
+  void recompute_aggregates_parallel();
 
   ColumnEntryDelta generate_entry_delta(node_id_t u, vec_t update) {
       // TODO - the specific node isnt actually meaningful here.

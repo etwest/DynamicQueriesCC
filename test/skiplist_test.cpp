@@ -56,12 +56,13 @@ TEST(SkipListSuite, join_split_test) {
     long seed = time(NULL);
     srand(seed);
     EulerTourTree<DefaultSketchColumn> ett(num_elements, 0, seed);
+    ett.initialize_all_nodes();
     SkipListNode<DefaultSketchColumn>* nodes[num_elements];
 
     // Construct all of the ett_nodes and singleton SkipList nodes
     for (int i = 0; i < num_elements; i++) {
         ett.update_sketch(i, (vec_t)i);
-        nodes[i] = ett.ett_nodes[i].allowed_caller;
+        nodes[i] = ett.ett_node(i).allowed_caller;
     }
 
     // Link all the nodes two at a time, then link them all

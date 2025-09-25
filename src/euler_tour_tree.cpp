@@ -242,6 +242,17 @@ SkipListNode<SketchClass>* EulerTourNode<SketchClass>::update_sketch_atomic(cons
   return this->allowed_caller->update_path_agg_atomic(deltas);
 }
 
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void EulerTourNode<SketchClass>::update_sketch_noagg_atomic(const ColumnEntryDelta &delta) {
+  assert(allowed_caller);
+  this->allowed_caller->update_agg_entry_delta(delta);
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void EulerTourNode<SketchClass>::recompute_aggregates_parallel() {
+  assert(allowed_caller);
+}
+
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 SkipListNode<SketchClass>* EulerTourNode<SketchClass>::get_root() {
@@ -361,8 +372,8 @@ bool EulerTourNode<SketchClass>::cut(EulerTourNode<SketchClass>& other, SketchCl
 
 template class EulerTourNode<DefaultSketchColumn>;
 
-using VectorContainer = std::vector<EulerTourNode<DefaultSketchColumn>>;
-using HashmapContainer = absl::flat_hash_map<node_id_t, EulerTourNode<DefaultSketchColumn>*>;
+// using VectorContainer = std::vector<EulerTourNode<DefaultSketchColumn>>;
+// using HashmapContainer = absl::flat_hash_map<node_id_t, EulerTourNode<DefaultSketchColumn>*>;
 template class EulerTourTree<DefaultSketchColumn, VectorContainer>;
 template class EulerTourTree<DefaultSketchColumn, HashmapContainer>;
 

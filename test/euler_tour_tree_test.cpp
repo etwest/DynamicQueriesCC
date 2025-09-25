@@ -79,6 +79,8 @@ TEST(EulerTourTreeSuite, stress_test) {
   srand(seed);
   std::cout << "Seeding stress test with " << seed << std::endl;
   EulerTourTree ett(nodecount, 0, seed);
+  // ensure that all nodes are iniitalized:
+  ett.initialize_all_nodes();
 
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
@@ -89,11 +91,18 @@ TEST(EulerTourTreeSuite, stress_test) {
     }
     if (i % n/100 == 0)
     {
-      ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
-            [](auto& node){return node.isvalid();}))
-          << "Stress test validation failed, final state:"
-          << std::endl
-          << ett.ett_nodes;
+      // TODO - bring back these test cases
+      for (int j=0; j < nodecount; j++) {
+        ASSERT_TRUE(ett.ett_node(j).isvalid());
+        // << "Stress test validation failed at iteration " 
+        // << i << ", node " << j << ", final state:" 
+        // << std::endl << ett.ett_nodes;
+      }
+      // ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
+      //       [](auto& node){return node.isvalid();}))
+      //     << "Stress test validation failed, final state:"
+      //     << std::endl
+      //     << ett.ett_nodes;
     }
   }
 }
@@ -109,6 +118,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   srand(seed);
   std::cout << "Seeding random links and cuts test with " << seed << std::endl;
   EulerTourTree<DefaultSketchColumn> ett(nodecount, 0, seed);
+  ett.initialize_all_nodes();
   for (int i = 0; i < nodecount; i++)
     ett.update_sketch(i, (vec_t)i);
 
@@ -120,17 +130,23 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     } else {
       ett.cut(a,b);
     }
-    ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
-          [](auto& node){return node.isvalid();}))
-        << "Stress test validation failed, final state:"
-        << std::endl
-        << ett.ett_nodes;
+    for (int j=0; j < nodecount; j++) {
+      ASSERT_TRUE(ett.ett_node(j).isvalid()); 
+      // << "Random links and cuts validation failed at iteration " 
+      // << i << ", node " << j << ", final state:" 
+      // << std::endl << ett.ett_nodes;
+    }
+    // ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
+    //       [](auto& node){return node.isvalid();}))
+    //     << "Stress test validation failed, final state:"
+    //     << std::endl
+    //     << ett.ett_nodes;
   }
 
   std::unordered_set<SkipListNode<DefaultSketchColumn>*> sentinels;
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode<DefaultSketchColumn> *sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
+    SkipListNode<DefaultSketchColumn> *sentinel = ett.ett_node(i).edges.begin()->second->get_last();
     sentinels.insert(sentinel);
   }
 
@@ -139,7 +155,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   std::unordered_map<SkipListNode<DefaultSketchColumn>*, uint32_t> sizes;
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode<DefaultSketchColumn>* sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
+    SkipListNode<DefaultSketchColumn>* sentinel = ett.ett_node(i).edges.begin()->second->get_last();
     if (aggs.find(sentinel) == aggs.end())
     {
       // DefaultSketchColumn* agg = new Sketch(sketch_len, seed, 1, sketch_err);
@@ -159,11 +175,11 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   // Naively compute aggregates for each connected component
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode<DefaultSketchColumn>* sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
+    SkipListNode<DefaultSketchColumn>* sentinel = ett.ett_node(i).edges.begin()->second->get_last();
     sentinel->process_updates();
     if (naive_aggs.find(sentinel) != naive_aggs.end())
     {
-      naive_aggs[sentinel]->merge(ett.ett_nodes[i].allowed_caller->sketch_agg);
+      naive_aggs[sentinel]->merge(ett.ett_node(i).allowed_caller->sketch_agg);
       naive_sizes[sentinel] += 1;
     }
     else
@@ -173,7 +189,7 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
       DefaultSketchColumn *agg = new DefaultSketchColumn(
           DefaultSketchColumn::suggest_capacity(sketch_len), seed);
       naive_aggs.insert({sentinel, agg});
-      naive_aggs[sentinel]->merge(ett.ett_nodes[i].allowed_caller->sketch_agg);
+      naive_aggs[sentinel]->merge(ett.ett_node(i).allowed_caller->sketch_agg);
       naive_sizes[sentinel] = 1;
     }
   }

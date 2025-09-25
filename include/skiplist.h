@@ -154,7 +154,8 @@ public:
     this->needs_update = false;
   }
 
-  void recompute_parent_aggs() {
+  // we have to barrier on all of these finishing
+  SkipListNode<SketchClass>* find_root_with_cas() {
     SkipListNode<SketchClass>* current = this;
     while (current->parent != nullptr) {
       current = current->parent;
@@ -165,20 +166,13 @@ public:
         false,
         true
       );
-      // __atomic_compare_exchange_n(
-      //   (int*)current->needs_update,
-      //   (int*)&f, // expected
-      //   (int)true, // desired
-      //   false, // weak = false
-      //   __ATOMIC_RELAXED
-      // );
       if (!cas_succeed) {
         // someone else already set needs_update to true, so we can stop
-        return;
+        return nullptr;
       }
     }
     // TODO - dont make this hard-coded
-    current->recompute_aggs_topdown(2);
+    return current;
   }
 
   std::set<EulerTourNode<SketchClass>*> get_component();

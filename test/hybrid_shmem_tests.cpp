@@ -84,6 +84,7 @@ TEST(HybridGraphTiersSuite, gibbs_mixed_speed_test) {
         }
         unlikely_if(i%1000000 == 0 || i == edgecount-1) {
             std::cout << "FINISHED OPERATION " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
+            std::cout << "Sketched nodes: " << hybrid_driver.sketched_node_count() << " out of " << stream.nodes() << std::endl;
         }
     }
     if (doing_updates) {
