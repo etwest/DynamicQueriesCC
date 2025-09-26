@@ -49,6 +49,17 @@ declare -a streams=(
 [25]="randomNLOGN_ff_query10_binary"
 [26]="randomNSQRTN_ff_query10_binary"
 [27]="randomDIV_ff_query10_binary"
+[28]="er_50K_0.001_stream_binary"
+[29]="er_50K_0.005_stream_binary"
+[30]="er_50K_0.01_stream_binary"
+[31]="er_50K_0.02_stream_binary"
+[32]="er_50K_0.03_stream_binary"
+[33]="er_50K_0.04_stream_binary"
+[34]="er_50K_0.05_stream_binary"
+[35]="er_50K_0.1_stream_binary"
+[36]="er_50K_0.2_stream_binary"
+[37]="er_50K_0.5_stream_binary"
+[38]="er_50K_1.0_stream_binary"
 )
 
 updates="SPACE.txt"
@@ -70,4 +81,15 @@ do
 done
 
 echo "" >> $updates
+
+updates="SPACE_ER.txt"
+rm $updates
+
+for i in $(seq 28 38);
+do
+	write_out ${streams[$i]} $updates
+done
+
+echo "" >> $updates
+
 	
