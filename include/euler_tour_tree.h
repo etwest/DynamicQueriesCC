@@ -77,8 +77,8 @@ using VectorContainer = std::vector<EulerTourNode<DefaultSketchColumn>>;
 using HashmapContainer = absl::flat_hash_map<node_id_t, EulerTourNode<DefaultSketchColumn>*>;
 
 template <typename SketchClass = DefaultSketchColumn, 
-typename Container = std::vector<EulerTourNode<SketchClass>>>
-// typename Container = absl::flat_hash_map<node_id_t, EulerTourNode<SketchClass>*>>
+// typename Container = std::vector<EulerTourNode<SketchClass>>>
+typename Container = absl::flat_hash_map<node_id_t, EulerTourNode<SketchClass>*>>
 requires(SketchColumnConcept<SketchClass, vec_t>)
 class EulerTourTree {
   SketchClass temp_sketch;
