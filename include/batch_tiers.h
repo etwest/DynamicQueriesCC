@@ -75,6 +75,11 @@ class BatchTiers {
         BatchTiers(node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed);
         ~BatchTiers();
         
+        bool is_initialized(node_id_t u) {
+            // no-op with vector implementation
+            return ett[0].is_initialized(u);
+        };
+        
         void initialize_node(node_id_t u) {
             for (auto &tree: ett) {
                 tree.initialize_node(u);
@@ -116,6 +121,8 @@ class BatchTiers {
         }
         
         void update(const GraphUpdate &update) {
+            assert(this->is_initialized(update.edge.src));
+            assert(this->is_initialized(update.edge.dst));
             // add to buffer:
             update_buffer.push_back(update);
             // bool is_tree_edge_deletion = (update.type == DELETE &&

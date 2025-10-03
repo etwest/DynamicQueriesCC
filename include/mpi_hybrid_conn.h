@@ -30,8 +30,8 @@ class HybridConnectivityManager {
         }
     private:
         // TODO - this aint a great way
-        size_t MOVE_TO_SKETCH = 10000;
-        // size_t MOVE_TO_SKETCH = 1000000;
+        // size_t MOVE_TO_SKETCH = 5000;
+        size_t MOVE_TO_SKETCH = 1000000;
         
         size_t seed;
         node_id_t num_nodes;
@@ -111,8 +111,9 @@ class HybridConnectivityManager {
             if (is_vertex_sketched(vertex)) {
                 return;
             }
+            sketching_algo.initialize_node(vertex);
             _is_vertex_sketched.insert(vertex);
-            recovery_sketches[vertex] = new SparseRecovery(num_nodes, MOVE_TO_SKETCH / 4, 1.0, seed);
+            recovery_sketches[vertex] = new SparseRecovery(num_nodes, 128, 1.0, seed);
             
             // update your neighbors' dense edge counts
             for (auto &level_edges: cf_algo.leaves[vertex]->vertex->E) {
@@ -122,7 +123,6 @@ class HybridConnectivityManager {
                     }
                 }
             }
-            sketching_algo.initialize_node(vertex);
             // for (size_t level=0; level < MAX_LEVEL; level++) {
             //     auto edge_set = localTree::getEdgeSet(cf_algo.leaves[vertex], level);
             //     if (edge_set) {
@@ -458,6 +458,28 @@ class HybridConnectivityManager {
 
         size_t num_sketched_vertices() const {
             return _is_vertex_sketched.size();
+        }
+        
+        size_t get_space_usage_cf() {
+            return cf_algo.getMemUsage();
+        }
+        size_t get_space_usage_driver() {
+            // get the space usage of the driver itself
+            size_t total = sizeof(*this);
+            
+            total += num_pending_dense_edges.capacity() * sizeof(uint16_t);
+            total += num_edges.capacity() * sizeof(uint32_t);
+            total += num_cf_edges.capacity() * sizeof(uint32_t);
+            
+            total += _neighbors_buffer.capacity() * sizeof(node_id_t);
+            total += non_tree_deletion_buffer.capacity() * sizeof(edge_id_t);
+            
+            total += _is_vertex_sketched.bucket_count() * sizeof(node_id_t);
+            total += edges_from_sketch.bucket_count() * sizeof(edge_id_t);
+            total += recovery_sketches.bucket_count() * sizeof(std::pair<node_id_t, SparseRecovery*>);
+            
+
+            return total;
         }
 
 };
