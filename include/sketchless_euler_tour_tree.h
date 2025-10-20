@@ -44,7 +44,7 @@ public:
 
 
 template <
-// typename Container = std::vector<EulerTourNode<SketchClass>>>
+// typename Container = std::vector<SketchlessEulerTourNode>>
 typename Container = absl::flat_hash_map<node_id_t, SketchlessEulerTourNode*>>
 class SketchlessEulerTourTree {
   // TODO - packing order fixes

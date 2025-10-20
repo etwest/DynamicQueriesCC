@@ -122,6 +122,16 @@ class LinkCutTree {
         }
     }
     
+    LinkCutNode* get_node_ptr(node_id_t u) {
+        if constexpr (std::is_same_v<Container, std::vector<LinkCutNode>>) {
+            assert(u < nodes.size());
+            return &nodes[u];
+        } else {
+            assert(nodes.find(u) != nodes.end());
+            return nodes[u];
+        }
+    }
+    
     void initialize_node(node_id_t u) {
       // no-op with vector implementation
       if constexpr (!std::is_same_v<Container, std::vector<LinkCutNode>>) {

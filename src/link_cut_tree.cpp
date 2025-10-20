@@ -230,15 +230,21 @@ LinkCutNode* LinkCutNode::splay() {
 
 
 template <typename Container>
-LinkCutTree<Container>::LinkCutTree(node_id_t num_nodes) : max_nodes(num_nodes) {}
+LinkCutTree<Container>::LinkCutTree(node_id_t num_nodes) : max_nodes(num_nodes) {
+    if constexpr (std::is_same_v<Container, std::vector<LinkCutNode>>) {
+        nodes = Container(num_nodes);
+        nodes.reserve(num_nodes);
+        nodes.emplace_back();
+    }
+}
 
 template <typename Container>
 LinkCutNode* LinkCutTree<Container>::join(LinkCutNode* v, LinkCutNode* w) {
     assert(v != nullptr && w != nullptr && v->get_parent() == nullptr && w->get_parent() == nullptr);
     LinkCutNode* tail = v->get_tail();
     LinkCutNode* head = w->get_head();
-    node_id_t tail_id = tail-&(this->node(0));
-    node_id_t head_id = head-&(this->node(0));
+    node_id_t tail_id = tail - this->get_node_ptr(0);
+    node_id_t head_id = head - this->get_node_ptr(0);
     edge_id_t edge = (tail_id < head_id) ? (((edge_id_t)tail_id << 32) + head_id) : (((edge_id_t)head_id << 32) + tail_id);
     tail->make_preferred_edge(edge);
     head->make_preferred_edge(edge);
@@ -259,8 +265,8 @@ std::pair<LinkCutNode*, LinkCutNode*> LinkCutTree<Container>::split(LinkCutNode*
     LinkCutNode* w = nullptr;
     if (r != nullptr) {
         w = r->recompute_head();
-        node_id_t v_id = v-&(this->node(0));
-        node_id_t w_id = w-&(this->node(0));
+        node_id_t v_id = v - this->get_node_ptr(0);
+        node_id_t w_id = w - this->get_node_ptr(0);
         edge_id_t edge = (v_id < w_id) ? (((edge_id_t)v_id << 32) + w_id) : (((edge_id_t)w_id << 32) + v_id);
         v->unmake_preferred_edge(edge);
         w->unmake_preferred_edge(edge);
@@ -307,8 +313,8 @@ LinkCutNode* LinkCutTree<Container>::evert(LinkCutNode* v) {
 template <typename Container>
 void LinkCutTree<Container>::link(node_id_t v, node_id_t w, uint32_t weight) {
     assert(find_root(v) != find_root(w));
-    LinkCutNode* v_node = &this->node(v);
-    LinkCutNode* w_node = &this->node(w);
+    LinkCutNode* v_node = this->get_node_ptr(v);
+    LinkCutNode* w_node = this->get_node_ptr(w);
     edge_id_t edge = (v < w) ? (((edge_id_t)v << 32) + w) : (((edge_id_t)w << 32) + v);
     v_node->insert_edge(edge, weight);
     w_node->insert_edge(edge, weight);
@@ -322,8 +328,8 @@ void LinkCutTree<Container>::link(node_id_t v, node_id_t w, uint32_t weight) {
 template <typename Container>
 void LinkCutTree<Container>::cut(node_id_t v, node_id_t w) {
     assert(find_root(v) == find_root(w));
-    LinkCutNode* v_node = &this->node(v);
-    LinkCutNode* w_node = &this->node(w);
+    LinkCutNode* v_node = this->get_node_ptr(v);
+    LinkCutNode* w_node = this->get_node_ptr(w);
     edge_id_t edge = (v < w) ? (((edge_id_t)v << 32) + w) : (((edge_id_t)w << 32) + v);
     v_node->remove_edge(edge);
     w_node->remove_edge(edge);
@@ -334,14 +340,14 @@ void LinkCutTree<Container>::cut(node_id_t v, node_id_t w) {
 
 template <typename Container>
 void* LinkCutTree<Container>::find_root(node_id_t v) {
-    return this->expose(&this->node(v))->get_head();
+    return this->expose(this->get_node_ptr(v))->get_head();
 }
 
 template <typename Container>
 std::pair<edge_id_t, uint32_t> LinkCutTree<Container>::path_aggregate(node_id_t v, node_id_t w) {
     assert(find_root(v) == find_root(w));
-    LinkCutNode* v_node = &this->node(v);
-    LinkCutNode* w_node = &this->node(w);
+    LinkCutNode* v_node = this->get_node_ptr(v);
+    LinkCutNode* w_node = this->get_node_ptr(w);
     this->evert(v_node);
     LinkCutNode* p = this->expose(w_node);
     return p->get_max_edge();
@@ -364,9 +370,9 @@ std::vector<std::set<node_id_t>> LinkCutTree<Container>::get_cc() {
 	std::map<LinkCutNode*, std::set<node_id_t>> cc_map;
 	std::map<LinkCutNode*, LinkCutNode*> visited;
 	for (uint32_t i = 0; i < nodes.size(); i++) {
-		if (visited.find(&node(i)) == visited.end()) {
+        if (visited.find(this->get_node_ptr(i)) == visited.end()) {
             std::set<LinkCutNode*> node_component;
-            LinkCutNode* curr = &node(i);
+            LinkCutNode* curr = this->get_node_ptr(i);
             while ((curr->get_parent() && visited.find(curr->get_parent()) == visited.end())
             || (curr->get_head()->get_dparent() && visited.find(curr->get_head()->get_dparent()) == visited.end())) {
                 node_component.insert(curr);
@@ -382,7 +388,7 @@ std::vector<std::set<node_id_t>> LinkCutTree<Container>::get_cc() {
                 cc_map.insert({root, component});
             }
 			for (auto n : node_component) {
-				cc_map[root].insert(n-&node(0));
+                cc_map[root].insert(n - this->get_node_ptr(0));
 				visited.insert({n, root});
 			}
 		}
