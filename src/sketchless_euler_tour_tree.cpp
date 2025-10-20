@@ -2,32 +2,37 @@
 
 #include <sketchless_euler_tour_tree.h>
 
-
-SketchlessEulerTourTree::SketchlessEulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed) {
-  // Initialize all the ETT node
-  ett_nodes.reserve(num_nodes);
-  for (node_id_t i = 0; i < num_nodes; ++i) {
-      ett_nodes.emplace_back(seed, i, tier_num);
-  }
+template <typename Container>
+SketchlessEulerTourTree<Container>::SketchlessEulerTourTree(node_id_t num_nodes, uint32_t tier_num, size_t seed) : seed(seed), tier_num(tier_num), max_num_nodes(num_nodes) {
+    if constexpr (std::is_same_v<Container, std::vector<SketchlessEulerTourNode>>) {
+        ett_nodes.reserve(num_nodes);
+        for (node_id_t i = 0; i < num_nodes; ++i) {
+            ett_nodes.emplace_back(seed, i, tier_num);
+        }
+    }
 }
 
-void SketchlessEulerTourTree::link(node_id_t u, node_id_t v) {
-  ett_nodes[u].link(ett_nodes[v]);
+template <typename Container>
+void SketchlessEulerTourTree<Container>::link(node_id_t u, node_id_t v) {
+  ett_node(u).link(ett_node(v));
+}
+template <typename Container>
+void SketchlessEulerTourTree<Container>::cut(node_id_t u, node_id_t v) {
+  ett_node(u).cut(ett_node(v));
 }
 
-void SketchlessEulerTourTree::cut(node_id_t u, node_id_t v) {
-  ett_nodes[u].cut(ett_nodes[v]);
+template <typename Container>
+bool SketchlessEulerTourTree<Container>::has_edge(node_id_t u, node_id_t v) {
+  return ett_node(u).has_edge_to(&ett_node(v));
 }
 
-bool SketchlessEulerTourTree::has_edge(node_id_t u, node_id_t v) {
-  return ett_nodes[u].has_edge_to(&ett_nodes[v]);
+template <typename Container>
+SketchlessSkipListNode* SketchlessEulerTourTree<Container>::get_root(node_id_t u) {
+  return ett_node(u).get_root();
 }
 
-SketchlessSkipListNode* SketchlessEulerTourTree::get_root(node_id_t u) {
-  return ett_nodes[u].get_root();
-}
-
-bool SketchlessEulerTourTree::is_connected(node_id_t u, node_id_t v) {
+template <typename Container>
+bool SketchlessEulerTourTree<Container>::is_connected(node_id_t u, node_id_t v) {
   return get_root(u) == get_root(v);
 }
 
@@ -168,12 +173,14 @@ bool SketchlessEulerTourNode::cut(SketchlessEulerTourNode& other) {
 
   return true;
 }
-std::vector<std::set<node_id_t>> SketchlessEulerTourTree::cc_query() {
+template <typename Container>
+std::vector<std::set<node_id_t>> SketchlessEulerTourTree<Container>::cc_query() {
   std::vector<std::set<node_id_t>> cc;
 	std::set<SketchlessEulerTourNode*> visited;
-	for (uint32_t i = 0; i < ett_nodes.size(); i++) {
-		if (visited.find(&ett_nodes[i]) == visited.end()) {
-			std::set<SketchlessEulerTourNode*> pointer_component = ett_nodes[i].get_component();
+  // TODO - reimplement this.
+	for (uint32_t i = 0; i < max_num_nodes; i++) {
+		if (visited.find(&ett_node(i)) == visited.end()) {
+			std::set<SketchlessEulerTourNode*> pointer_component = ett_node(i).get_component();
 			std::set<node_id_t> component;
 			for (auto pointer : pointer_component) {
 				component.insert(pointer->vertex);
@@ -184,3 +191,8 @@ std::vector<std::set<node_id_t>> SketchlessEulerTourTree::cc_query() {
 	}
 	return cc; 
 }
+
+
+template class SketchlessEulerTourTree<>;
+// template class SketchlessEulerTourTree<std::vector<SketchlessEulerTourNode>>;
+// template class SketchlessEulerTourTree<absl::flat_hash_map<node_id_t, SketchlessEulerTourNode*>>;

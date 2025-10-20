@@ -25,8 +25,8 @@ class BatchTiers {
         // size_t maximum_batch_size = 1024;
         size_t granularity = 1 << 11;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
-        SketchlessEulerTourTree query_ett;
-        LinkCutTree link_cut_tree;
+        LinkCutTree<> link_cut_tree;
+        SketchlessEulerTourTree<> query_ett;
         
         std::vector<GraphUpdate> transaction_log;
 
@@ -97,6 +97,8 @@ class BatchTiers {
             for (auto &tree: ett) {
                 tree.initialize_all_nodes(num_nodes);
             }
+            query_ett.initialize_all_nodes(num_nodes);
+            link_cut_tree.initialize_all_nodes(num_nodes);
         }
         
         void flush_transaction_log() {

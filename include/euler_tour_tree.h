@@ -116,6 +116,7 @@ public:
     if constexpr (!std::is_same_v<Container, std::vector<EulerTourNode<SketchClass>>>) {
         assert(ett_nodes.find(u) != ett_nodes.end());
         delete ett_nodes[u];
+        // TODO - actually delete form ett
     }
   };
   
