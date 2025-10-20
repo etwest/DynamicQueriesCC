@@ -39,6 +39,10 @@ class LinkCutNode {
   void rotate_up();
 
   public:
+    // delete copy constructor and assignment operator
+    // LinkCutNode(const LinkCutNode&) = delete;
+    // LinkCutNode& operator=(const LinkCutNode&) = delete;
+    
     LinkCutNode* splay();
 
     void link_left(LinkCutNode* left);
@@ -74,8 +78,8 @@ class LinkCutNode {
 };
 
 template <
-typename Container = std::vector<LinkCutNode>>
-// typename Container = absl::flat_hash_map<node_id_t, LinkCutNode*>>
+// typename Container = std::vector<LinkCutNode>>
+typename Container = absl::flat_hash_map<node_id_t, LinkCutNode*>>
 class LinkCutTree {
   FRIEND_TEST(LinkCutTreeSuite, join_split_test);
   FRIEND_TEST(LinkCutTreeSuite, expose_simple_test);

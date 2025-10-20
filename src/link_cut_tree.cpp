@@ -234,8 +234,10 @@ LinkCutTree<Container>::LinkCutTree(node_id_t num_nodes) : max_nodes(num_nodes) 
     if constexpr (std::is_same_v<Container, std::vector<LinkCutNode>>) {
         nodes = Container(num_nodes);
         nodes.reserve(num_nodes);
-        nodes.emplace_back();
+        for (node_id_t i = 0; i < num_nodes; ++i)
+            nodes.emplace_back();
     }
+    initialize_all_nodes();
 }
 
 template <typename Container>
@@ -369,7 +371,8 @@ template <typename Container>
 std::vector<std::set<node_id_t>> LinkCutTree<Container>::get_cc() {
 	std::map<LinkCutNode*, std::set<node_id_t>> cc_map;
 	std::map<LinkCutNode*, LinkCutNode*> visited;
-	for (uint32_t i = 0; i < nodes.size(); i++) {
+	for (uint32_t i = 0; i < max_nodes; i++) {
+        if (!is_initialized(i)) continue;
         if (visited.find(this->get_node_ptr(i)) == visited.end()) {
             std::set<LinkCutNode*> node_component;
             LinkCutNode* curr = this->get_node_ptr(i);
