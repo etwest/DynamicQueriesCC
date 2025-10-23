@@ -68,6 +68,9 @@ public:
         assert(u < ett_nodes.size());
         return ett_nodes[u];
     } else {
+      // if (ett_nodes.find(u) == ett_nodes.end()) {
+      //     std::cout << "ruh oh" << std::endl;
+      // }
         assert(ett_nodes.find(u) != ett_nodes.end());
         return *ett_nodes[u];
     }

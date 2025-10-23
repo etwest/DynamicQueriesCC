@@ -7,6 +7,7 @@
 #include "euler_tour_tree.h"
 #include "sketchless_euler_tour_tree.h"
 #include "link_cut_tree.h"
+// #include "lct_v2.h"
 #include "mpi_functions.h"
 #include "sketch/sketch_concept.h"
 #include "sketch/sketch_columns.h"
@@ -60,6 +61,7 @@ class InputNode {
   node_id_t num_nodes;
   uint32_t num_tiers;
   LinkCutTree<> link_cut_tree;
+  // LinkCutTreeMaxAgg<int8_t> link_cut_tree;
   SketchlessEulerTourTree<> query_ett;
   UpdateMessage* update_buffer;
   

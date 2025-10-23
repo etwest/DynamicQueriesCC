@@ -6,6 +6,7 @@
 
 #include "euler_tour_tree.h"
 #include "link_cut_tree.h"
+// #include "lct_v2.h"
 
 
 // Global variables for performance testing
@@ -30,6 +31,7 @@ class GraphTiers {
 private:
   std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
   std::vector<SkipListNode<SketchClass>*> root_nodes;
+  // LinkCutTreeMaxAgg<int8_t> link_cut_tree;
   LinkCutTree<> link_cut_tree;
   void refresh(GraphUpdate update, bool did_cut);
 

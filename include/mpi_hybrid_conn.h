@@ -30,8 +30,8 @@ class HybridConnectivityManager {
         }
     private:
         // TODO - this aint a great way
-        // size_t MOVE_TO_SKETCH = 5000;
-        size_t MOVE_TO_SKETCH = 1000000;
+        size_t MOVE_TO_SKETCH = 2000;
+        // size_t MOVE_TO_SKETCH = 1000000;
         
         size_t seed;
         node_id_t num_nodes;
@@ -221,10 +221,12 @@ class HybridConnectivityManager {
             // AND the recovery sketches
             for (node_id_t neighbor: _neighbors_buffer) {
                 if (neighbor != vertex_to_flush) {
-                    sketching_algo.update(GraphUpdate{Edge{vertex_to_flush, neighbor}, INSERT});
+                    node_id_t src = std::min(vertex_to_flush, neighbor);
+                    node_id_t dst = std::max(vertex_to_flush, neighbor);
+                    sketching_algo.update(GraphUpdate{Edge{src, dst}, INSERT});
                     // TODO - ensure this is initialized
-                    recovery_sketches[vertex_to_flush]->update(concat_pairing_fn(vertex_to_flush, neighbor));
-                    recovery_sketches[neighbor]->update(concat_pairing_fn(vertex_to_flush, neighbor));
+                    recovery_sketches[src]->update(concat_pairing_fn(src, dst));
+                    recovery_sketches[dst]->update(concat_pairing_fn(src, dst));
                 }
             }
             // apply the transaction log

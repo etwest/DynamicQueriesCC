@@ -549,19 +549,22 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
                 node_id_t b = (node_id_t)(edge >> 32);
 
                 // check if a path exists between the endpoints
-                auto a_root = link_cut_tree.find_root(a);
-                auto b_root = link_cut_tree.find_root(b);
+                // auto a_root = link_cut_tree.find_root(a);
+                // auto b_root = link_cut_tree.find_root(b);
                 // TODO - ETT
 
                 // if it does, then we either need to cut it, or ignore this update
 
-                if (a_root == b_root) {
+                // if (a_root == b_root) {
+                if (link_cut_tree.connected(a, b)) {
                     // a path exists, so we need to cut the maximum weight edge
                     // on the path
                     // THIS REALLY CANT BE PARALLELIZED atm
-                    std::pair<edge_id_t, uint32_t> max_edge = link_cut_tree.path_aggregate(a, b);
-                    node_id_t c = (node_id_t)max_edge.first;
-                    node_id_t d = (node_id_t)(max_edge.first >> 32);
+                    std::pair<Edge, int8_t> max_edge = link_cut_tree.path_query(a, b);
+                    node_id_t c = max_edge.first.src;
+                    node_id_t d = max_edge.first.dst;
+                    // node_id_t c = (node_id_t)max_edge.first;
+                    // node_id_t d = (node_id_t)(max_edge.first >> 32);
                     uint32_t first_appeared_tier = max_edge.second;
                     // if the first appeared tier is equal to tier+1, then we should check if this
                     // was a link we had just discovered. If so, we neither cut it, not include this link.

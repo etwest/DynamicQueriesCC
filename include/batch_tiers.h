@@ -8,7 +8,8 @@
 #include <folly/concurrency/ConcurrentHashMap.h>
 
 #include "euler_tour_tree.h"
-#include "link_cut_tree.h"
+// #include "link_cut_tree.h"
+#include "lct_v2.h"
 #include "union_find_local.h"
 #include "sketchless_euler_tour_tree.h"
 // #include "parlay_hash/unordered_set.h"
@@ -25,7 +26,7 @@ class BatchTiers {
         // size_t maximum_batch_size = 1024;
         size_t granularity = 1 << 11;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
-        LinkCutTree<> link_cut_tree;
+        LinkCutTreeMaxAgg<int8_t> link_cut_tree;
         SketchlessEulerTourTree<> query_ett;
         
         std::vector<GraphUpdate> transaction_log;
@@ -84,12 +85,16 @@ class BatchTiers {
             for (auto &tree: ett) {
                 tree.initialize_node(u);
             }
+            query_ett.initialize_node(u);
+            link_cut_tree.initialize_node(u);
         }
 
         void uninitialize_node(node_id_t u) {
             for (auto &tree: ett) {
                 tree.uninitialize_node(u);
             }
+            query_ett.uninitialize_node(u);
+            link_cut_tree.uninitialize_node(u);
         }
         
         void initialize_all_nodes() {
@@ -123,6 +128,9 @@ class BatchTiers {
         }
         
         void update(const GraphUpdate &update) {
+            // if (!is_initialized(update.edge.src) || !is_initialized(update.edge.dst)) {
+            //     std::cout << "ruh oh" << std::endl;
+            // }
             assert(this->is_initialized(update.edge.src));
             assert(this->is_initialized(update.edge.dst));
             // add to buffer:
