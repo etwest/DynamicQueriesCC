@@ -243,9 +243,25 @@ SkipListNode<SketchClass>* EulerTourNode<SketchClass>::update_sketch_atomic(cons
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-void EulerTourNode<SketchClass>::update_sketch_noagg_atomic(const ColumnEntryDelta &delta) {
+SkipListNode<SketchClass>* EulerTourNode<SketchClass>::update_sketch_noagg_atomic(const ColumnEntryDelta &delta) {
   assert(allowed_caller);
   this->allowed_caller->update_agg_entry_delta(delta);
+  return this->allowed_caller;
+}
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* EulerTourNode<SketchClass>::update_sketch_atomic_to_level(const ColumnEntryDelta &delta, uint32_t level) {
+  assert(allowed_caller);
+  // return this->allowed_caller->update_agg_atomic_to_level(level);
+
+  SkipListNode<SketchClass>* curr = this->allowed_caller;
+  SkipListNode<SketchClass>* prev = nullptr;
+  while (curr != nullptr && level > 0) {
+    curr->update_agg_entry_delta(delta);
+    prev = curr;
+    curr = curr->get_parent();
+    level--;
+  }
+  return prev;
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)

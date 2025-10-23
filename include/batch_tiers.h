@@ -167,6 +167,9 @@ class BatchTiers {
         
         // same thing but seperates by tiers. this avoids the needs for atomics.
         void _process_sketch_aggs_tier_sequential(const parlay::sequence<GraphUpdate> &updates);
+        
+        // same thing but use our CAS tricks
+        void _process_sketch_aggs_with_cas(const parlay::sequence<GraphUpdate> &updates);
 
         uint32_t _search_for_isolated_components(const parlay::sequence<GraphUpdate> &updates);
         

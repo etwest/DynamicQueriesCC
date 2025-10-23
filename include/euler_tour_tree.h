@@ -48,8 +48,10 @@ public:
   SkipListNode<SketchClass>* update_sketch_atomic(const ColumnEntryDeltas &deltas);
   
   // update just this node's sketch
-  void update_sketch_noagg_atomic(const ColumnEntryDelta &delta);
+  // plus return the allowed caller
+  SkipListNode<SketchClass>* update_sketch_noagg_atomic(const ColumnEntryDelta &delta);
   // void update_sketch_noagg_atomic(const SketchClass &sketch);
+  SkipListNode<SketchClass>* update_sketch_atomic_to_level(const ColumnEntryDelta &delta, uint32_t level);
   
   //recompute the parent aggregates
   void recompute_aggregates_parallel();
@@ -151,7 +153,8 @@ public:
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch_atomic(node_id_t u, const ColumnEntryDeltas &deltas);
   
-  void update_sketch_noagg_atomic(const ColumnEntryDelta &delta);
+  // returns the allowed caller
+  // SkipListNode<SketchClass>* update_sketch_noagg_atomic(const ColumnEntryDelta &delta);
   // void update_sketch_noagg_atomic(const SketchClass &sketch);
   
   //recompute the parent aggregates
@@ -175,3 +178,4 @@ public:
     return roots.size();
   }
 };
+  

@@ -311,6 +311,68 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_only(const parlay::sequence<G
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void BatchTiers<SketchClass>::_process_sketch_aggs_with_cas(const parlay::sequence<GraphUpdate> &updates) {
+    size_t num_updates = updates.size();
+    size_t num_tiers = ett.size();
+    assert(num_updates <= maximum_batch_size);
+    auto src_sorted_update_idxs = parlay::tabulate(num_updates, [&](size_t i) {
+        return i;
+    });
+    parlay::sort_inplace(src_sorted_update_idxs, [&](size_t i, size_t j) {
+        return updates[i].edge.src < updates[j].edge.src;
+    });
+    auto dst_sorted_update_idxs = parlay::tabulate(num_updates, [&](size_t i) {
+        return i;
+    });
+    parlay::sort_inplace(dst_sorted_update_idxs, [&](size_t i, size_t j) {
+        return updates[i].edge.dst < updates[j].edge.dst;
+    });
+    parlay::sequence<SkipListNode<SketchClass>*> temp_roots;
+    // in src order:
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, num_updates * num_tiers, granularity),
+        [&](const tbb::blocked_range<size_t>& r) {
+            for (size_t i = r.begin(); i != r.end(); ++i) {
+                size_t tier = i / num_updates;
+                size_t update_idx = src_sorted_update_idxs[i % num_updates];
+                GraphUpdate update = updates[update_idx];
+
+                const ColumnEntryDelta delta = ett[tier].generate_entry_delta(update.edge.src, concat_pairing_fn(update.edge.src, update.edge.dst));
+                SkipListNode<SketchClass>* src_parent = ett[tier].ett_node(
+                                                                     update.edge.src)
+                                                            .update_sketch_atomic_to_level(delta, 3);  // 3 levels up
+                SkipListNode<SketchClass>* root = src_parent->find_root_with_cas();
+                if (root != nullptr) {
+                    temp_roots.push_back(root);
+                }
+            }
+        });
+    // in dst order:
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, num_updates * num_tiers, granularity),
+        [&](const tbb::blocked_range<size_t>& r) {
+            for (size_t i = r.begin(); i != r.end(); ++i) {
+                size_t tier = i / num_updates;
+                size_t update_idx = dst_sorted_update_idxs[i % num_updates];
+                GraphUpdate update = updates[update_idx];
+
+                const ColumnEntryDelta delta = ett[tier].generate_entry_delta(update.edge.dst, concat_pairing_fn(update.edge.src, update.edge.dst));
+                SkipListNode<SketchClass>* dst_parent = ett[tier].ett_node(
+                                                                     update.edge.dst)
+                                                            .update_sketch_atomic_to_level(delta, 3);  // 3 levels up
+                SkipListNode<SketchClass>* root = dst_parent->find_root_with_cas();
+                if (root != nullptr) {
+                    temp_roots.push_back(root);
+                }
+            }
+        });
+    // recompute aggs on all roots
+    parlay::parallel_for(0, temp_roots.size(), [&](size_t i) {
+        temp_roots[i]->recompute_aggs_topdown(3); // go 3 levels down
+    });
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay::sequence<GraphUpdate> &updates) {
     size_t num_updates = updates.size();
     size_t num_tiers = ett.size();
