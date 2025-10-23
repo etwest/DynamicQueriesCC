@@ -123,11 +123,6 @@ public:
       }
   }
 };
-
-// A function template constrained by the Integral concept
-// template <typename T>
-// concept Integral = std::is_integral_v<T>; // Using the C++17 helper variable template
-
  
 template <typename WeightT>
 NodeMaxLCT<WeightT>::NodeMaxLCT(node_id_t node_id) : par(nullptr), c{nullptr, nullptr}, w{sentinel(), sentinel()},
@@ -383,54 +378,3 @@ size_t LinkCutTreeMaxAgg<WeightT, Container>::space(){
 
 
 template class LinkCutTreeMaxAgg<int8_t>;
-// template class LinkCutTreeMaxAgg<int16_t>;
-
-
-
-// template <typename Container, typename WeightT>
-// concept LCTNodeContainerConcept = requires(Container c, node_id_t n, LinkCutNode<WeightT>* ptr) {
-//   { c[n] } -> std::same_as<&LinkCutNode<WeightT>>;
-//   { c.size() } -> std::same_as<size_t>;
-//   { c.get_node_ptr(n) } -> std::same_as<LinkCutNode<WeightT>*>;
-//   { c.get_vertex_id(ptr) } -> std::same_as<node_id_t>;
-//   { c.initialize(n) } -> std::same_as<void>;
-//   { c.uninitialize(n) } -> std::same_as<void>;
-//   // require a constructor where you pass the total possible number of nodes
-//   requires std::constructable_from<Container, size_t>;
-// };
-// // LCTNodeContainerConcept can be fulfilled really easily by an array
-// // but we're gonna have some trouble with the pointers
-// // so here's a janky fix:
-
-// class HashMapLCTContainer {
-//     absl::flat_hash_map<node_id_t, LinkCutNode<size_t>*> node_map;
-//     // TODO - this may have to be turned into a size_t 
-//     absl::flat_hash_map<LinkCutNode<size_t>*, node_id_t> reverse_map;
-//  public:
-//     HashMapLCTContainer(size_t /*num_nodes*/) {};
-//     LinkCutNode<size_t>& operator[] (node_id_t n) {
-//         return *node_map[n];
-//     }
-//     LinkCutNode<size_t>* get_node_ptr(node_id_t n) {
-//         return node_map[n];
-//     }
-
-//     node_id_t get_vertex_id(LinkCutNode<size_t>* ptr) {
-//         return reverse_map[ptr];
-//     }
-
-//     void initialize(node_id_t n) {
-//         node_map[n] = new LinkCutNode<size_t>();
-//         reverse_map[node_map[n]] = n;
-//     }
-
-//     void uninitialize(node_id_t n) {
-//         delete node_map[n];
-//         reverse_map.erase(node_map[n]);
-//         node_map.erase(n);
-//     }
-
-//     size_t size() const {
-//         return node_map.size();
-//     }
-// };
