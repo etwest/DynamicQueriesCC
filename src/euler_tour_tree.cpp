@@ -256,7 +256,7 @@ SkipListNode<SketchClass>* EulerTourNode<SketchClass>::update_sketch_atomic_to_l
   SkipListNode<SketchClass>* curr = this->allowed_caller;
   SkipListNode<SketchClass>* prev = nullptr;
   while (curr != nullptr && level > 0) {
-    curr->update_agg_entry_delta(delta);
+    curr->update_agg_atomic_entry_delta(delta);
     prev = curr;
     curr = curr->get_parent();
     level--;

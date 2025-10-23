@@ -130,7 +130,8 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     }
     // 1) Step 1: Process all sketch aggs in true batch parallel.
     // _process_sketch_aggs_only(updates);
-    _process_sketch_aggs_tier_sequential(updates);
+    // _process_sketch_aggs_tier_sequential(updates);
+    _process_sketch_aggs_with_cas(updates);
     
     // 2) Step 2: Check for isolated components.
     uint32_t first_isolated_tier = _search_for_isolated_components(updates);
@@ -342,9 +343,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_with_cas(const parlay::sequen
                                                                      update.edge.src)
                                                             .update_sketch_atomic_to_level(delta, 3);  // 3 levels up
                 SkipListNode<SketchClass>* root = src_parent->find_root_with_cas();
-                if (root != nullptr) {
-                    temp_roots.push_back(root);
-                }
+                root_node(tier, update_idx, true) = root;
             }
         });
     // in dst order:
@@ -361,15 +360,46 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_with_cas(const parlay::sequen
                                                                      update.edge.dst)
                                                             .update_sketch_atomic_to_level(delta, 3);  // 3 levels up
                 SkipListNode<SketchClass>* root = dst_parent->find_root_with_cas();
-                if (root != nullptr) {
-                    temp_roots.push_back(root);
+                root_node(tier, update_idx, false) = root;
+            }
+        });
+    // TODO - this is gonna be unperformant, but I'd say worth it for simplicity in testing
+    // update root_node matrix
+    // in src order:
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, num_updates * num_tiers, granularity),
+        [&](const tbb::blocked_range<size_t>& r) {
+            for (size_t i = r.begin(); i != r.end(); ++i) {
+                size_t tier = i / num_updates;
+                size_t update_idx = src_sorted_update_idxs[i % num_updates];
+                GraphUpdate update = updates[update_idx];
+                if (root_node(tier, update_idx, true) != nullptr) {
+                    root_node(tier, update_idx, true)->recompute_aggs_topdown(0);
+                }
+                else {
+                    SkipListNode<SketchClass>* root = ett[tier].get_root(update.edge.src);
+                    root_node(tier, update_idx, true) = root;
                 }
             }
         });
-    // recompute aggs on all roots
-    parlay::parallel_for(0, temp_roots.size(), [&](size_t i) {
-        temp_roots[i]->recompute_aggs_topdown(3); // go 3 levels down
-    });
+    // in dst order:
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, num_updates * num_tiers, granularity),
+        [&](const tbb::blocked_range<size_t>& r) {
+            for (size_t i = r.begin(); i != r.end(); ++i) {
+                size_t tier = i / num_updates;
+                size_t update_idx = dst_sorted_update_idxs[i % num_updates];
+                GraphUpdate update = updates[update_idx];
+                SkipListNode<SketchClass>* root = ett[tier].get_root(update.edge.dst);
+                if (root_node(tier, update_idx, false) != nullptr) {
+                    root_node(tier, update_idx, false)->recompute_aggs_topdown(0);
+                }
+                else {
+                    SkipListNode<SketchClass>* root = ett[tier].get_root(update.edge.dst);
+                    root_node(tier, update_idx, false) = root;
+                }
+            }
+        });
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)

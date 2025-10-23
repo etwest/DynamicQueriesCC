@@ -118,13 +118,14 @@ public:
   
   // recompute your aggregate from your children.
   void recompute_aggs_topdown(int fork_levels) {
+    assert(this != nullptr);
     if (!this->sketch_agg.is_initialized())
       return;
     // do not recompute for bottom level nodes
     if (this->down == nullptr) 
       return;
     SkipListNode<SketchClass>* current = this->down;
-    this->sketch_agg.zero_contents();
+    this->sketch_agg.clear();
     if (fork_levels > 0) {
       tbb::task_group tg;
       do {
@@ -138,7 +139,8 @@ public:
       tg.wait();
       current = this->down;
       do {
-        this->sketch_agg.merge(current->sketch_agg);
+        if (current->sketch_agg.is_initialized())
+          this->sketch_agg.merge(current->sketch_agg);
         current = current->right;
       } while (current != nullptr && current != this->down && current->up == nullptr);
     }
@@ -147,7 +149,8 @@ public:
             if (current->needs_update) {
                 current->recompute_aggs_topdown(fork_levels - 1);
             }
-            this->sketch_agg.merge(current->sketch_agg);
+            if (current->sketch_agg.is_initialized())
+              this->sketch_agg.merge(current->sketch_agg);
             current = current->right;
         } while (current != nullptr && current != this->down && current->up == nullptr);
     }
