@@ -65,8 +65,7 @@ add_compile_definitions(GLOG_USE_GLOG_EXPORT)
 FetchContent_Declare(
   dycon
   GIT_REPOSITORY  https://github.com/GraphStreamingProject/DynamicConnectivity
-  # GIT_TAG         9b7586c20578741e65772d51842bdc7dd3db12f4
-  GIT_TAG         main
+  GIT_TAG         b71b118b23ff67b451248414f01e34b14522e57d
 )
 
 

@@ -374,7 +374,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_with_cas(const parlay::sequen
                 size_t update_idx = src_sorted_update_idxs[i % num_updates];
                 GraphUpdate update = updates[update_idx];
                 if (root_node(tier, update_idx, true) != nullptr) {
-                    root_node(tier, update_idx, true)->recompute_aggs_topdown(3);
+                    root_node(tier, update_idx, true)->recompute_aggs_topdown(2);
                 }
                 else {
                     SkipListNode<SketchClass>* root = ett[tier].get_root(update.edge.src);
@@ -392,7 +392,7 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_with_cas(const parlay::sequen
                 GraphUpdate update = updates[update_idx];
                 SkipListNode<SketchClass>* root = ett[tier].get_root(update.edge.dst);
                 if (root_node(tier, update_idx, false) != nullptr) {
-                    root_node(tier, update_idx, false)->recompute_aggs_topdown(3);
+                    root_node(tier, update_idx, false)->recompute_aggs_topdown(2);
                 }
                 else {
                     SkipListNode<SketchClass>* root = ett[tier].get_root(update.edge.dst);
