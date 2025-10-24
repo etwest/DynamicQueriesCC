@@ -5,7 +5,8 @@
 #include <parlay/sequence.h>
 #include <parlay/primitives.h>
 // #include <folly/AtomicHashArray.h>
-#include <folly/concurrency/ConcurrentHashMap.h>
+// #include <folly/concurrency/ConcurrentHashMap.h>
+#include "parlay_hash/unordered_map.h"
 
 #include "euler_tour_tree.h"
 // #include "link_cut_tree.h"
@@ -59,7 +60,9 @@ class BatchTiers {
         // parlay::sequence<SkipListNode<SketchClass>*> _current_isolated_components;
         
         // key: a root node ptr (to identify same component at current tier)
-        folly::ConcurrentHashMap<size_t, node_id_t> _already_checked_components;
+        // folly::ConcurrentHashMap<size_t, node_id_t> _already_checked_components;
+        parlay::parlay_unordered_map_direct<size_t, node_id_t> _already_checked_components;
+        
         
         // links to "broadcast" to all higher tiers
         parlay::sequence<Edge> _pending_links;

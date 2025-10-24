@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.15)
 project(DynamicQueriesCC)
 include (FetchContent)
 
+set(Boost_USE_STATIC_LIBS ON)
+find_package(Boost REQUIRED COMPONENTS regex context)
 # Force IPO is enabled
 cmake_policy(SET CMP0069 NEW) 
 set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
@@ -49,11 +51,8 @@ FetchContent_Declare(
 
   GIT_REPOSITORY      https://github.com/GraphStreamingProject/GraphZeppelin
   # GIT_TAG             2c633f5814f7edc79632cceb629280f6221b0281 #ksparse_recovery
-  #GIT_TAG             4fff2c813c61c027ef3d555c38b9934bea6d1073
-  # GIT_TAG             4ad8eeeb3f3162ef2730c5a9aaa1233914ccf347
-  # GIT_TAG             a390949b19d062e2119b86e7081377431b51c53d
   # GIT_TAG             892b5b71b139100c309c79bb6ab94a5596fc606d
-  GIT_TAG            993c52752a43a7c28757fa52192652736c53cca6
+  GIT_TAG            3a1b24c7ecbde9b5418ec174e8fcf1479ed88e4e
 )
 add_compile_definitions(GLOG_USE_GLOG_EXPORT)
 

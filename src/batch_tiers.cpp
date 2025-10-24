@@ -30,7 +30,7 @@
 // thread_local parlay::sequence<ColumnEntryDelta> BatchTiers<SketchClass>::_deltas_buffer = parlay::sequence<ColumnEntryDelta>();
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) {
+BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) , _already_checked_components(num_nodes, true) {
 	// Algorithm parameters
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
     // TODO - we can be a bit more ambitious?
@@ -61,7 +61,7 @@ BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_no
 template <typename SketchClass>
     requires(SketchColumnConcept<SketchClass, vec_t>)
 BatchTiers<SketchClass>::BatchTiers(
-    node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) {
+    node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed), _already_checked_components(num_nodes, true) {
     // TODO - use the batch_size parameter?
     _component_reps_dsu = union_find_local<int32_t>(maximum_batch_size * 2);
 
@@ -619,7 +619,9 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
             // return;
             continue;
         }
-        _already_checked_components.insert_or_assign((size_t)component_root, tier);
+        // _already_checked_components.insert_or_assign((size_t)component_root, tier);
+        // _already_checked_components[(size_t)component_root] = tier;
+        _already_checked_components.Insert((size_t)component_root, tier);
         SketchClass &ett_agg = component_root->sketch_agg;
         // TODO - do we want to sample before? idts. but we can at least
         // do the empty check with a special new primitive
