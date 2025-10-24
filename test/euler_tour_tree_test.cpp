@@ -221,6 +221,7 @@ TEST(EulerTourTreeSuite, get_aggregate) {
 
   int nodecount = 1000;
   EulerTourTree<DefaultSketchColumn> ett(nodecount, 0, seed);
+  ett.initialize_all_nodes();
 
   // Add value to each sketch, update the manual aggregate
   for (int i = 0; i < nodecount; i++)
