@@ -134,13 +134,19 @@ public:
             current->recompute_aggs_topdown(fork_levels-1);
           });
         }
+        else {
+          // if it didn't need to be updated, just prefetch
+          if (current->sketch_agg.is_initialized())
+            this->sketch_agg.prefetch();
+        }
         current = current->right;
       } while (current != nullptr && current != this->down && current->up == nullptr);
       tg.wait();
       current = this->down;
       do {
-        if (current->sketch_agg.is_initialized())
-          this->sketch_agg.merge(current->sketch_agg);
+        if (current->sketch_agg.is_initialized()) {
+            this->sketch_agg.merge(current->sketch_agg);
+        }
         current = current->right;
       } while (current != nullptr && current != this->down && current->up == nullptr);
     }
@@ -149,8 +155,18 @@ public:
             if (current->needs_update) {
                 current->recompute_aggs_topdown(fork_levels - 1);
             }
-            if (current->sketch_agg.is_initialized())
-              this->sketch_agg.merge(current->sketch_agg);
+            else {
+                // // if it didn't need to be updated, just prefetch
+                if (current->sketch_agg.is_initialized())
+                  this->sketch_agg.prefetch();
+            }
+        } while (current != nullptr && current != this->down && current->up == nullptr);
+        // actually go do all the merges now
+        current = this->down;
+        do {
+            if (current->sketch_agg.is_initialized()) {
+                this->sketch_agg.merge(current->sketch_agg);
+            }
             current = current->right;
         } while (current != nullptr && current != this->down && current->up == nullptr);
     }

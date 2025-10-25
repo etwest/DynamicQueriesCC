@@ -52,7 +52,7 @@ FetchContent_Declare(
   GIT_REPOSITORY      https://github.com/GraphStreamingProject/GraphZeppelin
   # GIT_TAG             2c633f5814f7edc79632cceb629280f6221b0281 #ksparse_recovery
   # GIT_TAG             892b5b71b139100c309c79bb6ab94a5596fc606d
-  GIT_TAG            3a1b24c7ecbde9b5418ec174e8fcf1479ed88e4e
+  GIT_TAG            2f42942ca3e6344c65d3807ed54f334ecccb24c0
 )
 add_compile_definitions(GLOG_USE_GLOG_EXPORT)
 
