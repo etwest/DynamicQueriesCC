@@ -261,6 +261,13 @@ SkipListNode<SketchClass>* EulerTourNode<SketchClass>::update_sketch_atomic_to_l
     curr = curr->get_parent();
     level--;
   }
+  if (prev) {
+      std::atomic_ref<int8_t> atomic_needs_update(prev->needs_update);
+      atomic_needs_update.store(
+          AggUpdateState::PARENT_IS_STALE,
+          std::memory_order_relaxed
+      );
+  }
   return prev;
 }
 
