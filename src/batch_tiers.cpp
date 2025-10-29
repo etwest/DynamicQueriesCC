@@ -337,7 +337,6 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_with_cas(const parlay::sequen
                 size_t tier = i / num_updates;
                 size_t update_idx = src_sorted_update_idxs[i % num_updates];
                 GraphUpdate update = updates[update_idx];
-
                 const ColumnEntryDelta delta = ett[tier].generate_entry_delta(update.edge.src, concat_pairing_fn(update.edge.src, update.edge.dst));
                 SkipListNode<SketchClass>* src_parent = ett[tier].ett_node(
                                                                      update.edge.src)

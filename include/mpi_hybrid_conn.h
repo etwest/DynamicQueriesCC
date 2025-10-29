@@ -204,6 +204,11 @@ class HybridConnectivityManager {
                     }
                 }
             }
+
+            // remove duplicates
+            std::sort(_neighbors_buffer.begin(), _neighbors_buffer.end());
+            auto last = std::unique(_neighbors_buffer.begin(), _neighbors_buffer.end());
+            _neighbors_buffer.resize(std::distance(_neighbors_buffer.begin(), last));
             // reason for separate loops: see if improvements can be had from figuring out
             // a bulk insertion strategy
             

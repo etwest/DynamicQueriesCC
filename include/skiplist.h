@@ -204,7 +204,7 @@ public:
         current = current->right;
       } while (current != nullptr && current != this->down && current->up == nullptr);
       tg.wait();
-      _do_full_prefetch();
+      // _do_full_prefetch();
       _do_full_reagg();
     }
     else {
@@ -213,7 +213,7 @@ public:
                 current->recompute_aggs_topdown(fork_levels - 1);
             }
         } while (current != nullptr && current != this->down && current->up == nullptr);
-        _do_full_prefetch();
+        // _do_full_prefetch();
         _do_full_reagg();
     }
     this->needs_update = false;

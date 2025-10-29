@@ -33,6 +33,12 @@ else()
   message("${CMAKE_CXX_COMPILER_ID} not recognized, no flags added")
 endif()
 
+
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
+# add_compile_options(-fsanitize=undefined)
+# add_link_options(-fsanitize=undefined)
+
 ######
 # Get MPI for distributed communication
 ######
@@ -64,7 +70,7 @@ add_compile_definitions(GLOG_USE_GLOG_EXPORT)
 FetchContent_Declare(
   dycon
   GIT_REPOSITORY  https://github.com/GraphStreamingProject/DynamicConnectivity
-  GIT_TAG         b71b118b23ff67b451248414f01e34b14522e57d
+  GIT_TAG         733d99e4a6985ef656df716ffe23719a1f29786b
 )
 
 
@@ -74,10 +80,6 @@ add_subdirectory(${dycon_SOURCE_DIR} ${dycon_BINARY_DIR} EXCLUDE_FROM_ALL)
 
 FetchContent_MakeAvailable(GraphZeppelinVerifyCC)
 
-# add_compile_options(-fsanitize=address)
-# add_link_options(-fsanitize=address)
-#add_compile_options(-fsanitize=undefined)
-#add_link_options(-fsanitize=undefined)
 
 find_package(TBB REQUIRED)
 
