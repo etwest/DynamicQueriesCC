@@ -206,9 +206,9 @@ class HybridConnectivityManager {
             }
 
             // remove duplicates
-            std::sort(_neighbors_buffer.begin(), _neighbors_buffer.end());
-            auto last = std::unique(_neighbors_buffer.begin(), _neighbors_buffer.end());
-            _neighbors_buffer.resize(std::distance(_neighbors_buffer.begin(), last));
+            // std::sort(_neighbors_buffer.begin(), _neighbors_buffer.end());
+            // auto last = std::unique(_neighbors_buffer.begin(), _neighbors_buffer.end());
+            // _neighbors_buffer.resize(std::distance(_neighbors_buffer.begin(), last));
             // reason for separate loops: see if improvements can be had from figuring out
             // a bulk insertion strategy
             
@@ -319,6 +319,14 @@ class HybridConnectivityManager {
         void update(GraphUpdate update) {
             // external garauntee: well-formed stream. a remove is only called if the edge exists
             // would be nice to get rid of assumption
+            if (update.edge.src == update.edge.dst) {
+                // no self-loops
+                std::cout << "WARNING: self-loop detected on vertex " << update.edge.src << std::endl;
+                return;
+            }
+            if (update.edge.src > update.edge.dst) {
+                std::swap(update.edge.src, update.edge.dst);
+            }
             if (update.type == INSERT) {
                 num_edges[update.edge.src]++;
                 num_edges[update.edge.dst]++;
