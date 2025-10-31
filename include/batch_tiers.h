@@ -162,6 +162,14 @@ class BatchTiers {
 
         // query for the connected components of the graph
         std::vector<std::set<node_id_t>> get_cc();
+        
+        // return the number of tiers
+        size_t num_tiers() const {
+            return ett.size();
+        }
+        // find the index of the highest everywhere-maximal tier.
+        
+        
     private:
         SkipListNode<SketchClass>*& root_node(size_t tier, size_t update_idx, bool src_or_dst) {
             return _root_nodes[tier][update_idx * 2 + (src_or_dst ? 0 : 1)];

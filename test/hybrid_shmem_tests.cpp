@@ -98,6 +98,10 @@ TEST(HybridGraphTiersSuite, gibbs_mixed_speed_test) {
             std::cout << "Sketched nodes: " << hybrid_driver.sketched_node_count() << " out of " << stream.nodes() << std::endl;
             std::cout << "-  Space usage of CF: " << hybrid_driver.get_space_usage_cf()/(1024*1024) << " MB" << std::endl;
             std::cout << "-  Space usage of Driver: " << hybrid_driver.get_space_usage_driver()/(1024*1024) << " MB" << std::endl;
+            std::cout << "-  Total edges: " << hybrid_driver.total_edges() << std::endl;
+            std::cout << "-  Sketched edges: " << hybrid_driver.num_sketched_edges() << std::endl;
+            double percent_sketched = 100.0 * ((double)hybrid_driver.num_sketched_edges()) / ((double)hybrid_driver.total_edges());
+            std::cout << "-  Percent sketched edges: " << percent_sketched << "%" << std::endl;
         }
     }
     if (doing_updates) {

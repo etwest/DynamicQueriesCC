@@ -30,7 +30,8 @@ class HybridConnectivityManager {
         }
     private:
         // TODO - this aint a great way
-        size_t MOVE_TO_SKETCH = 2000;
+        size_t MOVE_TO_SKETCH = 400;
+        size_t DENSE_THRESHOLD = 1200;
         // size_t MOVE_TO_SKETCH = 1000000;
         
         size_t seed;
@@ -53,6 +54,9 @@ class HybridConnectivityManager {
         // we WONT rely on the CF to track edges.
         std::vector<uint32_t> num_edges;
         std::vector<uint32_t> num_cf_edges;
+
+        size_t total_num_edges;
+        size_t total_sketched_edges;
         
         // buffer for when we need to collect all neighbors
         std::vector<node_id_t> _neighbors_buffer;
@@ -84,6 +88,25 @@ class HybridConnectivityManager {
             // }
             return num_cf_edges[vertex];
             // return count;
+        }
+        
+        inline void insert_to_sketch(node_id_t u, node_id_t v) {
+            node_id_t src = std::min(u, v);
+            node_id_t dst = std::max(u, v);
+            sketching_algo.update(GraphUpdate{Edge{u, v}, INSERT});
+            auto edge_id = concat_pairing_fn(u, v);
+            recovery_sketches[u]->update(edge_id);
+            recovery_sketches[v]->update(edge_id);
+            total_sketched_edges++;
+        }
+        inline void delete_from_sketch(node_id_t u, node_id_t v) {
+            node_id_t src = std::min(u, v);
+            node_id_t dst = std::max(u, v);
+            sketching_algo.update(GraphUpdate{Edge{u, v}, DELETE});
+            auto edge_id = concat_pairing_fn(u, v);
+            recovery_sketches[u]->update(edge_id);
+            recovery_sketches[v]->update(edge_id);
+            total_sketched_edges--;
         }
         
         bool is_forest_edge_from_sketch(Edge edge) {
@@ -226,12 +249,7 @@ class HybridConnectivityManager {
             // AND the recovery sketches
             for (node_id_t neighbor: _neighbors_buffer) {
                 if (neighbor != vertex_to_flush) {
-                    node_id_t src = std::min(vertex_to_flush, neighbor);
-                    node_id_t dst = std::max(vertex_to_flush, neighbor);
-                    sketching_algo.update(GraphUpdate{Edge{src, dst}, INSERT});
-                    // TODO - ensure this is initialized
-                    recovery_sketches[src]->update(concat_pairing_fn(src, dst));
-                    recovery_sketches[dst]->update(concat_pairing_fn(src, dst));
+                    insert_to_sketch(vertex_to_flush, neighbor);
                 }
             }
             // apply the transaction log
@@ -330,17 +348,18 @@ class HybridConnectivityManager {
             if (update.type == INSERT) {
                 num_edges[update.edge.src]++;
                 num_edges[update.edge.dst]++;
+                total_num_edges++;
 
                 insert_to_cf(update.edge.src, update.edge.dst);
                 
                 // check to see if we densified the vertices enough to initialize their sketches
-                unlikely_if (!is_vertex_sketched(update.edge.src) && count_explicit_neighbors(update.edge.src) >= MOVE_TO_SKETCH) {
+                unlikely_if (!is_vertex_sketched(update.edge.src) && count_explicit_neighbors(update.edge.src) >= DENSE_THRESHOLD) {
                     // these functions should be no-ops on dense edges
                     // std::cout << "neighbor count for " << update.edge.src << " is " << count_explicit_neighbors(update.edge.src) << std::endl;
                     initialize_vertex_sketch(update.edge.src);
 
                 }
-                unlikely_if (!is_vertex_sketched(update.edge.dst) && count_explicit_neighbors(update.edge.dst) >= MOVE_TO_SKETCH) {
+                unlikely_if (!is_vertex_sketched(update.edge.dst) && count_explicit_neighbors(update.edge.dst) >= DENSE_THRESHOLD) {
                     // std::cout << "neighbor count for " << update.edge.dst << " is " << count_explicit_neighbors(update.edge.dst) << std::endl;
                     initialize_vertex_sketch(update.edge.dst);
                 }
@@ -369,6 +388,7 @@ class HybridConnectivityManager {
             else if (update.type == DELETE) {
                 num_edges[update.edge.src]--;
                 num_edges[update.edge.dst]--;
+                total_num_edges--;
 
                 // TODO - eventually do more precise casework
                 // if edge exists in the CF (1):
@@ -385,9 +405,8 @@ class HybridConnectivityManager {
                     if (edges_from_sketch.find(edge_id) != edges_from_sketch.end()) {
                         // std::cout << "Connectivity edge from sketching algo: " <<  update.edge.src << ", "<< update.edge.dst << std::endl;
                         // case a)
-                        sketching_algo.update(update);
-                        recovery_sketches[update.edge.src]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
-                        recovery_sketches[update.edge.dst]->update(concat_pairing_fn(update.edge.src, update.edge.dst));
+                        // deleting from sketching algo
+                        delete_from_sketch(update.edge.src, update.edge.dst);
                         flush_transaction_log();
                         check_and_perform_recovery(update.edge.src);
                         check_and_perform_recovery(update.edge.dst);
@@ -395,7 +414,7 @@ class HybridConnectivityManager {
                         // do we have to: ??? figure out
                     }
                     else {
-                        //case b)
+                        //case b) edge does not come from sketching algo
                         remove_from_cf(update.edge.src, update.edge.dst);
 
                         // TODO - same logic is needed as above to DECREMENT pending dense edges
@@ -419,24 +438,23 @@ class HybridConnectivityManager {
                     // 1) we know the edge does not disconnect two components
 
                     // non_tree_deletion_buffer.push_back(concat_pairing_fn(update.edge.src, update.edge.dst));
-                    // if (non_tree_deletion_buffer.size() >= 100) {
-                    //     // std::cout << "Flushing non-tree deletion buffer of size: " << non_tree_deletion_buffer.size() << std::endl;
-                    //     for (edge_id_t edge_id: non_tree_deletion_buffer) {
-                    //         Edge edge = inv_concat_pairing_fn(edge_id);
-                    //         sketching_algo.update(GraphUpdate{edge, DELETE});
-                    //         recovery_sketches[edge.src]->update(concat_pairing_fn(edge.src, edge.dst));
-                    //         recovery_sketches[edge.dst]->update(concat_pairing_fn(edge.src, edge.dst));
-                    //         check_and_perform_recovery(edge.src);
-                    //         check_and_perform_recovery(edge.dst);
-                    //     }
-                    //     non_tree_deletion_buffer.clear();
-                    //     flush_transaction_log();
-                    // }
-                    sketching_algo.update(update);
+                    if (non_tree_deletion_buffer.size() >= 100) {
+                        // std::cout << "Flushing non-tree deletion buffer of size: " << non_tree_deletion_buffer.size() << std::endl;
+                        for (edge_id_t edge_id: non_tree_deletion_buffer) {
+                            Edge edge = inv_concat_pairing_fn(edge_id);
+                            delete_from_sketch(edge.src, edge.dst);
+                            check_and_perform_recovery(edge.src);
+                            check_and_perform_recovery(edge.dst);
+                        }
+                        non_tree_deletion_buffer.clear();
+                        flush_transaction_log();
+                    }
+                    // sketching_algo.update(update);
+                    // delete_from_sketch(update.edge.src, update.edge.dst);
                     // TODO - verify that we don't need to flush transaction log
-                    flush_transaction_log();
-                    check_and_perform_recovery(update.edge.src);
-                    check_and_perform_recovery(update.edge.dst);
+                    // flush_transaction_log();
+                    // check_and_perform_recovery(update.edge.src);
+                    // check_and_perform_recovery(update.edge.dst);
                 }
                 // TODO - eventually implement a check to see if we need to remove
                 // one of the vertices from the sketch algo and dump the edges out.
@@ -473,6 +491,12 @@ class HybridConnectivityManager {
 
         size_t num_sketched_vertices() const {
             return _is_vertex_sketched.size();
+        }
+        size_t total_edges() const {
+            return total_num_edges;
+        }
+        size_t num_sketched_edges() const {
+            return total_sketched_edges;
         }
         
         size_t get_space_usage_cf() {
