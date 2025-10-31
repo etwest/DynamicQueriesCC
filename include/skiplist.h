@@ -277,6 +277,19 @@ public:
     }
     this->needs_update = AggUpdateState::NORMAL;
   }
+  size_t compute_space_usage() {
+    size_t total = sizeof(SkipListNode<SketchClass>);
+    if (this->sketch_agg.is_initialized())
+      total += sketch_agg.space_usage_bytes();
+    if (this->down != nullptr) {
+      SkipListNode<SketchClass>* current = this->down;
+      do {
+        total += current->compute_space_usage();
+        current = current->right;
+      } while (current != nullptr && current != this->down && current->up == nullptr);
+    }
+    return total;
+  }
 
   // we have to barrier on all of these finishing
   SkipListNode<SketchClass>* find_root_with_cas() {

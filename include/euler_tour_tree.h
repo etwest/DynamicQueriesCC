@@ -177,5 +177,20 @@ public:
     }
     return roots.size();
   }
+  const size_t get_total_space_usage() {
+    size_t total = 0;
+    if constexpr (std::is_same_v<Container, std::vector<EulerTourNode<SketchClass>>>) {
+        total += sizeof(EulerTourNode<SketchClass>) * ett_nodes.capacity();
+    } else {
+        size_t num_buckets = ett_nodes.bucket_count();
+        total += sizeof(std::pair<node_id_t, EulerTourNode<SketchClass>>*) * num_buckets;
+    }
+    std::unordered_set<SkipListNode<SketchClass>*> roots;
+    for (node_id_t i = 0; i < ett_nodes.size(); ++i) {
+      SkipListNode<SketchClass>* root = ett_node(i).get_root();
+      roots.insert(root);
+    }
+    return total;
+  }
 };
   

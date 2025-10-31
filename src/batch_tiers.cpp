@@ -196,7 +196,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             // we know that at this point, there are no isolations at higher tiers.
             // because all potential isolated components must be a union of the modified components
             // found at this tier. so we can just return
-            // std::cout << "All components maximized at tier " << tier << ", skipping further checks" << std::endl;
+            std::cout << "All components maximized at tier " << tier << ", skipping further checks" << std::endl;
             return;
         }
     }

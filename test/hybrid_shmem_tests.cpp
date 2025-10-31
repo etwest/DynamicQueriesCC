@@ -23,7 +23,9 @@ static uint32_t compute_num_tiers(node_id_t node_count) {
         return 5;
     }
     const double numerator = log2(static_cast<double>(node_count));
-    const double denominator = log2(3.0) - 1.0;
+    //const double denominator = log2(3.0) - 1.0;
+    // const double denominator=0.6;
+    const double denominator = 1.4;
     auto tiers = static_cast<uint32_t>(numerator / denominator);
     return std::max<uint32_t>(5, tiers);
 }

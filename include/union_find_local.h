@@ -18,6 +18,10 @@ struct union_find_local {
     // it's not like we're really using the atomics?
     // parlay::sequence<std::atomic<vertex>> parents;
     parlay::sequence<vertex> parents;
+    
+    size_t space_usage_bytes() const {
+        return sizeof(union_find_local) + (parents.capacity() * sizeof(vertex));
+    }
 
     bool is_root(vertex u) {
         return parents[u] < 0;

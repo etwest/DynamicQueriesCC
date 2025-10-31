@@ -157,6 +157,17 @@ class BatchTiers {
                 update_buffer.clear();
             }
         }
+        size_t space_usage_bytes() const {
+            size_t total = sizeof(BatchTiers<SketchClass>);
+            for (const auto &tree: ett) {
+                total += tree.space_usage_bytes();
+            }
+            // total += query_ett.space_usage_bytes();
+            // total += link_cut_tree.space_usage_bytes();
+            total += _component_reps_dsu.space_usage_bytes();
+            total += _already_checked_components.size() * (sizeof(size_t) + sizeof(node_id_t) + sizeof(void*)); // rough estimate
+            return total;
+        }
 
         bool is_connected(node_id_t a, node_id_t b);
 

@@ -11,6 +11,7 @@ concept DynamicSketchConcept = requires(T t) {
     { t.initialize_all_nodes() } -> std::same_as<void>;
     { t.get_transaction_log() } -> std::same_as<const std::vector<GraphUpdate>&>;
     { t.update( std::declval<GraphUpdate>() ) } -> std::same_as<void>;
+    { t.space_usage_bytes() } -> std::same_as<size_t>;
 };
 
 template <typename SketchAlgoClass = InputNode> requires(DynamicSketchConcept<SketchAlgoClass>)
@@ -30,7 +31,7 @@ class HybridConnectivityManager {
         }
     private:
         // TODO - this aint a great way
-        size_t MOVE_TO_SKETCH = 400;
+        size_t MOVE_TO_SKETCH = 40;
         size_t DENSE_THRESHOLD = 1200;
         // size_t MOVE_TO_SKETCH = 1000000;
         

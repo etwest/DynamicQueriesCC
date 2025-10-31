@@ -94,6 +94,9 @@ public:
   void flush_transaction_log() {
     transaction_log.clear();
   };
+  size_t space_usage_bytes() const {
+    return 0; // TODO - implement
+  }
   
   const std::vector<GraphUpdate>& get_transaction_log() const {
     return transaction_log;
