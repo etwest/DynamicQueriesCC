@@ -55,8 +55,8 @@ class HybridConnectivityManager {
         std::vector<uint32_t> num_edges;
         std::vector<uint32_t> num_cf_edges;
 
-        size_t total_num_edges;
-        size_t total_sketched_edges;
+        size_t total_num_edges = 0;
+        size_t total_sketched_edges = 0;
         
         // buffer for when we need to collect all neighbors
         std::vector<node_id_t> _neighbors_buffer;
