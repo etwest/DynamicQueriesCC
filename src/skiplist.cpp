@@ -89,7 +89,7 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::init_element(EulerTourNode
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_parent() {
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_parent() const {
 	// SkipListNode* curr = this;
 	// while (curr && !curr->up) {
 	// 	curr = curr->left;
@@ -99,18 +99,18 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_parent() {
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_root() {
-	SkipListNode* prev = nullptr;
-	SkipListNode* curr = this;
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_root() const {
+	const SkipListNode* prev = nullptr;
+	const SkipListNode* curr = this;
 	while (curr) {
 		prev = curr;
 		curr = prev->get_parent();
 	}
-	return prev;
+	return (SkipListNode*) prev;
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_first() {
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_first() const {
 	// Go to the root first and then down to the first element, because if we start at some lower level
 	// we may have to travel right a lot more on that level, takes log time instead of linear time
 	SkipListNode* prev = nullptr;
@@ -123,7 +123,7 @@ SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_first() {
 }
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_last() {
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_last() const {
 	// Go to the root first and then down to the last element, because if we start at some lower level
 	// we may have to travel left a lot more on that level, takes log time instead of linear time
 	SkipListNode* prev = nullptr;

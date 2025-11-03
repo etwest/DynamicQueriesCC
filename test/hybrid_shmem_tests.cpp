@@ -98,8 +98,82 @@ TEST(HybridGraphTiersSuite, gibbs_mixed_speed_test) {
         unlikely_if(i%1000000 == 0 || i == edgecount-1) {
             std::cout << "FINISHED OPERATION " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
             std::cout << "Sketched nodes: " << hybrid_driver.sketched_node_count() << " out of " << stream.nodes() << std::endl;
+            // std::cout << "-  Space usage of CF: " << hybrid_driver.get_space_usage_cf()/(1024*1024) << " MB" << std::endl;
+            // std::cout << "-  Space usage of Driver: " << hybrid_driver.get_space_usage_driver()/(1024*1024) << " MB" << std::endl;
+            // std::cout << "-  Space usage of Sketches: " << hybrid_driver.space_usage_conn_sketch()/(1024*1024) << " MB" << std::endl;
+            // std::cout << "-  Space usage of Recovery Sketches: " << hybrid_driver.space_usage_recovery_sketch()/(1024*1024) << " MB" << std::endl;
+            std::cout << "-  Total edges: " << hybrid_driver.total_edges() << std::endl;
+            std::cout << "-  Sketched edges: " << hybrid_driver.num_sketched_edges() << std::endl;
+            double percent_sketched = 100.0 * ((double)hybrid_driver.num_sketched_edges()) / ((double)hybrid_driver.total_edges());
+            std::cout << "-  Percent sketched edges: " << percent_sketched << "%" << std::endl;
+        }
+    }
+    if (doing_updates) {
+        total_update_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - update_timer).count();
+    } else {
+        total_query_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - query_timer).count();
+    }
+
+    std::cout << "Total update time(ms):   " << (total_update_time/1000) << std::endl;
+    std::cout << "Total query time(ms):    " << (total_query_time/1000) << std::endl;
+
+    std::ofstream file;
+    std::string out_file = "./../results/gibbs_speed_results/" + stream_file.substr(stream_file.find("/") + 1) + ".txt";
+    std::cout << "WRITING RESULTS TO " << out_file << std::endl;
+    file.open (out_file, std::ios_base::app);
+    file << " UPDATES/SECOND: " << ((long)(0.9*edgecount))/(1 + total_update_time/1000)*1000 << std::endl;
+    file << " QUERIES/SECOND: " << ((long)(0.1*edgecount))/(1 + total_query_time/1000)*1000 << std::endl;
+    file.close();
+}
+
+TEST(HybridGraphTiersSuite, hybrid_memory_test) {
+    BinaryGraphStream stream(stream_file, 100000);
+    long edgecount = stream.edges();
+    // height_factor = 1;//1./log2(log2(stream.nodes()));
+    height_factor = 1/log2(log2(stream.nodes()));
+    sketch_len = Sketch::calc_vector_length(stream.nodes());
+    sketch_err = DEFAULT_SKETCH_ERR;
+	std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    uint64_t seed = dist(rng);
+    // GraphTierSystem gt(stream.nodes(), seed);
+    // HybridConnectivityManager<GraphTierSystem> 
+    uint32_t num_tiers = log2(stream.nodes())/(log2(3)-1);
+    HybridConnectivityManager<GraphTierSystem> hybrid_driver(
+        stream.nodes(), num_tiers, update_batch_size, seed
+    );
+
+    long total_update_time = 0;
+    long total_query_time = 0;
+    auto update_timer = std::chrono::high_resolution_clock::now();
+    auto query_timer = update_timer;
+    bool doing_updates = true;
+    for (long i = 0; i < edgecount; i++) {
+        // Read an update from the stream and have the input node process it
+        GraphUpdate operation = stream.get_edge();
+        if (operation.type == 2) { // 2 is the symbol for queries
+            unlikely_if (doing_updates) {
+                total_update_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - update_timer).count();
+                doing_updates = false;
+                query_timer = std::chrono::high_resolution_clock::now();
+            }
+            hybrid_driver.connectivity_query(operation.edge.src, operation.edge.dst);
+        } else {
+            unlikely_if (!doing_updates) {
+                total_query_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - query_timer).count();
+                doing_updates = true;
+                update_timer = std::chrono::high_resolution_clock::now();
+            }
+            hybrid_driver.update(operation);
+        }
+        unlikely_if(i%1000000 == 0 || i == edgecount-1) {
+            std::cout << "FINISHED OPERATION " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
+            std::cout << "Sketched nodes: " << hybrid_driver.sketched_node_count() << " out of " << stream.nodes() << std::endl;
             std::cout << "-  Space usage of CF: " << hybrid_driver.get_space_usage_cf()/(1024*1024) << " MB" << std::endl;
             std::cout << "-  Space usage of Driver: " << hybrid_driver.get_space_usage_driver()/(1024*1024) << " MB" << std::endl;
+            std::cout << "-  Space usage of Sketches: " << hybrid_driver.space_usage_conn_sketch()/(1024*1024) << " MB" << std::endl;
+            std::cout << "-  Space usage of Recovery Sketches: " << hybrid_driver.space_usage_recovery_sketch()/(1024*1024) << " MB" << std::endl;
             std::cout << "-  Total edges: " << hybrid_driver.total_edges() << std::endl;
             std::cout << "-  Sketched edges: " << hybrid_driver.num_sketched_edges() << std::endl;
             double percent_sketched = 100.0 * ((double)hybrid_driver.num_sketched_edges()) / ((double)hybrid_driver.total_edges());

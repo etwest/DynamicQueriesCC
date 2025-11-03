@@ -137,7 +137,11 @@ class HybridConnectivityManager {
             }
             sketching_algo.initialize_node(vertex);
             _is_vertex_sketched.insert(vertex);
-            recovery_sketches[vertex] = new SparseRecovery(num_nodes, 128, 1.0, seed);
+            // TODO - realistically, we dont need THAT many recovery sketches
+            // i think 5 sample should be enough?
+            double cleanup_adjustment_factor = 5.0 / (log2(num_nodes));
+            // double cleanup_adjustment_factor = 1.0;
+            recovery_sketches[vertex] = new SparseRecovery(num_nodes, 128, cleanup_adjustment_factor, seed);
             
             // update your neighbors' dense edge counts
             for (auto &level_edges: cf_algo.leaves[vertex]->vertex->E) {
@@ -516,9 +520,19 @@ class HybridConnectivityManager {
             
             total += _is_vertex_sketched.bucket_count() * sizeof(node_id_t);
             total += edges_from_sketch.bucket_count() * sizeof(edge_id_t);
-            total += recovery_sketches.bucket_count() * sizeof(std::pair<node_id_t, SparseRecovery*>);
             
 
+            return total;
+        }
+        size_t space_usage_conn_sketch() {
+            return sketching_algo.space_usage_bytes();
+        }
+        size_t space_usage_recovery_sketch() {
+            size_t total = 0;
+            for (auto &pair: recovery_sketches) {
+                total += pair.second->space_usage_bytes();
+            }
+            total += recovery_sketches.bucket_count() * sizeof(std::pair<node_id_t, SparseRecovery*>);
             return total;
         }
 

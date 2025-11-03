@@ -157,15 +157,17 @@ class BatchTiers {
                 update_buffer.clear();
             }
         }
-        size_t space_usage_bytes() const {
+        size_t space_usage_bytes() {
             size_t total = sizeof(BatchTiers<SketchClass>);
-            for (const auto &tree: ett) {
+            for (auto &tree: ett) {
                 total += tree.space_usage_bytes();
             }
             // total += query_ett.space_usage_bytes();
             // total += link_cut_tree.space_usage_bytes();
             total += _component_reps_dsu.space_usage_bytes();
-            total += _already_checked_components.size() * (sizeof(size_t) + sizeof(node_id_t) + sizeof(void*)); // rough estimate
+            // total += _already_checked_components.max_size() * (sizeof(size_t) + sizeof(node_id_t) + sizeof(void*)); // rough estimate
+            // total += ((parlay::unordered_map_internal) _already_checked_components).size();
+            // TODO - measure the overhead of the actual batch_ttiers class`
             return total;
         }
 

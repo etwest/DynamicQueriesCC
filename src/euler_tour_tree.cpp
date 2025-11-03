@@ -278,7 +278,7 @@ void EulerTourNode<SketchClass>::recompute_aggregates_parallel() {
 
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-SkipListNode<SketchClass>* EulerTourNode<SketchClass>::get_root() {
+SkipListNode<SketchClass>* EulerTourNode<SketchClass>::get_root() const {
   return this->allowed_caller->get_root();
 }
 

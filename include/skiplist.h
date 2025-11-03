@@ -66,13 +66,13 @@ public:
   void uninit_list();
 
   // Returns the closest node on the next level up at or left of the current
-  SkipListNode<SketchClass>* get_parent();
+  SkipListNode<SketchClass>* get_parent() const;
   // Returns the top left root node of the skiplist
-  SkipListNode<SketchClass>* get_root();
+  SkipListNode<SketchClass>* get_root() const;
   // Returns the bottom left boundary node of the skiplist
-  SkipListNode<SketchClass>* get_first();
+  SkipListNode<SketchClass>* get_first() const;
   // Returns the bottom right node of the skiplist
-  SkipListNode<SketchClass>* get_last();
+  SkipListNode<SketchClass>* get_last() const;
 
   // Return the aggregate size at the root of the list
   uint32_t get_list_size();
