@@ -30,12 +30,11 @@
 // thread_local parlay::sequence<ColumnEntryDelta> BatchTiers<SketchClass>::_deltas_buffer = parlay::sequence<ColumnEntryDelta>();
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed) , _already_checked_components(num_nodes, true) {
+BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed) , _already_checked_components(2048, true), _unique_update_ids(2048, true), _component_reps_dsu(0) {
+    // TODO - use the batch_size parameter?
+    _component_reps_dsu = union_find_local<int32_t>(maximum_batch_size * 2);
 	// Algorithm parameters
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
-    // TODO - we can be a bit more ambitious?
-    _component_reps_dsu = union_find_local<int32_t>(this->maximum_batch_size * 2);
-
 	// Initialize all the ETTs
 	std::random_device dev;
     std::mt19937 rng(dev());
@@ -56,12 +55,20 @@ BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_no
 	}
     // and _updated_components
     _updated_components.resize(num_tiers);
+    // {
+    //     auto tmp = parlay::parlay_unordered_map_direct<size_t, node_id_t>(2 * maximum_batch_size, true);
+    //     std::swap(this->_already_checked_components, tmp);
+    // }
+    // {
+    //     auto tmp2 = parlay::parlay_unordered_map_direct<int32_t, std::monostate>(2 * maximum_batch_size, true);
+    //     std::swap(this->_unique_update_ids, tmp2);
+    // }
 }
 
 template <typename SketchClass>
     requires(SketchColumnConcept<SketchClass, vec_t>)
 BatchTiers<SketchClass>::BatchTiers(
-    node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), _component_reps_dsu(1), query_ett(num_nodes, 0, seed), _already_checked_components(num_nodes, true) {
+    node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed), _already_checked_components(num_nodes, true), _unique_update_ids(num_nodes, true), _component_reps_dsu(0) {
     // TODO - use the batch_size parameter?
     _component_reps_dsu = union_find_local<int32_t>(maximum_batch_size * 2);
 
@@ -100,6 +107,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     size_t num_tiers = ett.size();
     assert(num_updates <= maximum_batch_size);
     _already_checked_components.clear();
+    // std::cout << "Processing batch of size " << num_updates << " on " << num_tiers << " tiers." << std::endl;
     
     // treat all update endpoints as coming from independent components
     _component_reps_dsu.reset();
@@ -130,8 +138,8 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     }
     // 1) Step 1: Process all sketch aggs in true batch parallel.
     // _process_sketch_aggs_only(updates);
-    // _process_sketch_aggs_tier_sequential(updates);
-    _process_sketch_aggs_with_cas(updates);
+    _process_sketch_aggs_tier_sequential(updates);
+    // _process_sketch_aggs_with_cas(updates);
     
     // 2) Step 2: Check for isolated components.
     uint32_t first_isolated_tier = _search_for_isolated_components(updates);
@@ -409,15 +417,15 @@ void BatchTiers<SketchClass>::_process_sketch_aggs_tier_sequential(const parlay:
     auto src_sorted_update_idxs = parlay::tabulate(num_updates, [&](size_t i) {
         return i;
     });
-    parlay::sort_inplace(src_sorted_update_idxs, [&](size_t i, size_t j) {
-        return updates[i].edge.src < updates[j].edge.src;
-    });
+    // parlay::sort_inplace(src_sorted_update_idxs, [&](size_t i, size_t j) {
+    //     return updates[i].edge.src < updates[j].edge.src;
+    // });
     auto dst_sorted_update_idxs = parlay::tabulate(num_updates, [&](size_t i) {
         return i;
     });
-    parlay::sort_inplace(dst_sorted_update_idxs, [&](size_t i, size_t j) {
-        return updates[i].edge.dst < updates[j].edge.dst;
-    });
+    // parlay::sort_inplace(dst_sorted_update_idxs, [&](size_t i, size_t j) {
+    //     return updates[i].edge.dst < updates[j].edge.dst;
+    // });
 
     // bool conservative=false;
     // bool conservative=true;
@@ -577,11 +585,6 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
 
     // TODO - can be parallel
     // for (size_t update_idx = 0; update_idx < num_updates; update_idx++) {
-    //     // for (bool src_or_dst : {true, false}) {
-    //     //     SkipListNode<SketchClass>* root = root_node(tier, update_idx, src_or_dst);
-    //     //     SkipListNode<SketchClass>* actual_root = root->get_root();
-    //     //     _updated_components[tier].push_back(actual_root);
-    //     // }
     //     _updated_components[tier].push_back(updates[update_idx].edge.src);
     //     _updated_components[tier].push_back(updates[update_idx].edge.dst);
     // }
@@ -601,97 +604,104 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
     };
     // now, _updated_components contains all components that need to be
     // including ones that may have been inherited from doing links/cuts below.
-    for (size_t i = 0; i < _updated_components[tier].size(); i++) {
-        node_id_t vertex_in_component = _updated_components[tier][i];
-        // TODO - we can do some work to avoid checking the same component (maybe?)
-        // in case a component was previously merged already
-        SkipListNode<SketchClass> *component_root = ett[tier].get_root(vertex_in_component);
-        SkipListNode<SketchClass> *next_tier_root = ett[tier + 1].get_root(vertex_in_component);
-        
-        // TODO - this is no longer necessary. because we are using the DSU to keep the smallest
-        // possible set of _updated_components settings
-        // actually, we'll keep it for now anyway.
-        // this is because the current DSU filter is just being used as a simple filter.
-        // since we arent doing any changes to it past the first isolated tier.
-        if (_already_checked_components.find((size_t)(component_root)) != _already_checked_components.end()) {
-            // std::cout << "yerr" << std::endl;
-            // return;
-            continue;
-        }
-        // _already_checked_components.insert_or_assign((size_t)component_root, tier);
-        // _already_checked_components[(size_t)component_root] = tier;
-        _already_checked_components.Insert((size_t)component_root, tier);
-        SketchClass &ett_agg = component_root->sketch_agg;
-        // TODO - do we want to sample before? idts. but we can at least
-        // do the empty check with a special new primitive
-        SketchSample query_result = ett_agg.sample();
-        if (query_result.result != ZERO) {
-            if (components_maximized) {
-                // bool f = false;
-                // bool t = true;
-                __sync_bool_compare_and_swap((bool *)&components_maximized, true, false);
-            }
-        }
+    // for (size_t i = 0; i < _updated_components[tier].size(); i++) {
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, _updated_components[tier].size()),
+        [&](const tbb::blocked_range<size_t>& r) {
+            for (size_t i = r.begin(); i != r.end(); ++i) {
+                node_id_t vertex_in_component = _updated_components[tier][i];
+                // TODO - we can do some work to avoid checking the same component (maybe?)
+                // in case a component was previously merged already
+                SkipListNode<SketchClass>* component_root = ett[tier].get_root(vertex_in_component);
+                SkipListNode<SketchClass>* next_tier_root = ett[tier + 1].get_root(vertex_in_component);
 
-        if (component_root->size == next_tier_root->size) {
-            if (query_result.result == GOOD) {
-
-                // .. and see if a path exists between the endpoints in the LCT
-                edge_id_t edge = query_result.idx;
-                node_id_t a = (node_id_t)edge;
-                node_id_t b = (node_id_t)(edge >> 32);
-
-                // check if a path exists between the endpoints
-                // auto a_root = link_cut_tree.find_root(a);
-                // auto b_root = link_cut_tree.find_root(b);
-                // TODO - ETT
-
-                // if it does, then we either need to cut it, or ignore this update
-
-                // if (a_root == b_root) {
-                if (link_cut_tree.connected(a, b)) {
-                    // a path exists, so we need to cut the maximum weight edge
-                    // on the path
-                    // THIS REALLY CANT BE PARALLELIZED atm
-                    std::pair<Edge, int8_t> max_edge = link_cut_tree.path_query(a, b);
-                    node_id_t c = max_edge.first.src;
-                    node_id_t d = max_edge.first.dst;
-                    // node_id_t c = (node_id_t)max_edge.first;
-                    // node_id_t d = (node_id_t)(max_edge.first >> 32);
-                    uint32_t first_appeared_tier = max_edge.second;
-                    // if the first appeared tier is equal to tier+1, then we should check if this
-                    // was a link we had just discovered. If so, we neither cut it, not include this link.
-                    if (first_appeared_tier == tier + 1) {
-                        // YOU KNOW that these couldnt have been connected in the tier above
-                        // because otherwise the components coulld not have been the same size
-                        // (which is necessary for isolation condition)
-                        //
-                        // so: DO NOTHING
-                    } else {
-                        // likewise, if it's a higher tier, definitely perform the cut
-                        _pending_cuts.push_back({{c, d}, first_appeared_tier});
-                        link_cut_tree.cut(c, d);
-                        query_ett.cut(c, d);
-                        transaction_log.push_back({{c, d}, DELETE});
-
-                        // and push the link we just found
-                        _pending_links.push_back({a, b});
-                        link_cut_tree.link(a, b, tier + 1);
-                        query_ett.link(a, b);
-                        transaction_log.push_back({{a, b}, INSERT});
-                        // and update the dsu
+                // TODO - this is no longer necessary. because we are using the DSU to keep the smallest
+                // possible set of _updated_components settings
+                // actually, we'll keep it for now anyway.
+                // this is because the current DSU filter is just being used as a simple filter.
+                // since we arent doing any changes to it past the first isolated tier.
+                if (_already_checked_components.find((size_t)(component_root)) != _already_checked_components.end()) {
+                    // std::cout << "yerr" << std::endl;
+                    // return;
+                    continue;
+                }
+                // _already_checked_components.insert_or_assign((size_t)component_root, tier);
+                // _already_checked_components[(size_t)component_root] = tier;
+                _already_checked_components.Insert((size_t)component_root, tier);
+                SketchClass& ett_agg = component_root->sketch_agg;
+                // TODO - do we want to sample before? idts. but we can at least
+                // do the empty check with a special new primitive
+                SketchSample query_result = ett_agg.sample();
+                if (query_result.result != ZERO) {
+                    if (components_maximized) {
+                        // bool f = false;
+                        // bool t = true;
+                        __sync_bool_compare_and_swap((bool*)&components_maximized, true, false);
                     }
-                } else {
-                    // if there was no competing link between the endpoints in the LCT,
-                    // then we just link them.
-                    _pending_links.push_back({a, b});
-                    link_cut_tree.link(a, b, tier + 1);
-                    query_ett.link(a,b);
-                    transaction_log.push_back({{a, b}, INSERT});
+                }
+                {
+                if (component_root->size == next_tier_root->size) {
+                    if (query_result.result == GOOD) {
+                        std::lock_guard<std::mutex> guard(this->lct_and_query_ett_lock);
+                        // .. and see if a path exists between the endpoints in the LCT
+                        edge_id_t edge = query_result.idx;
+                        node_id_t a = (node_id_t)edge;
+                        node_id_t b = (node_id_t)(edge >> 32);
+
+                        // check if a path exists between the endpoints
+                        // auto a_root = link_cut_tree.find_root(a);
+                        // auto b_root = link_cut_tree.find_root(b);
+                        // TODO - ETT
+
+                        // if it does, then we either need to cut it, or ignore this update
+
+                        // if (a_root == b_root) {
+                        if (link_cut_tree.connected(a, b)) {
+                            // a path exists, so we need to cut the maximum weight edge
+                            // on the path
+                            // THIS REALLY CANT BE PARALLELIZED atm
+                            std::pair<Edge, int8_t> max_edge = link_cut_tree.path_query(a, b);
+                            node_id_t c = max_edge.first.src;
+                            node_id_t d = max_edge.first.dst;
+                            // node_id_t c = (node_id_t)max_edge.first;
+                            // node_id_t d = (node_id_t)(max_edge.first >> 32);
+                            uint32_t first_appeared_tier = max_edge.second;
+                            // if the first appeared tier is equal to tier+1, then we should check if this
+                            // was a link we had just discovered. If so, we neither cut it, not include this link.
+                            if (first_appeared_tier == tier + 1) {
+                                // YOU KNOW that these couldnt have been connected in the tier above
+                                // because otherwise the components coulld not have been the same size
+                                // (which is necessary for isolation condition)
+                                //
+                                // so: DO NOTHING
+                            } else {
+                                // likewise, if it's a higher tier, definitely perform the cut
+                                _pending_cuts.push_back({{c, d}, first_appeared_tier});
+                                link_cut_tree.cut(c, d);
+                                query_ett.cut(c, d);
+                                transaction_log.push_back({{c, d}, DELETE});
+
+                                // and push the link we just found
+                                _pending_links.push_back({a, b});
+                                link_cut_tree.link(a, b, tier + 1);
+                                query_ett.link(a, b);
+                                transaction_log.push_back({{a, b}, INSERT});
+                                // and update the dsu
+                            }
+                        } else {
+                            // if there was no competing link between the endpoints in the LCT,
+                            // then we just link them.
+                            _pending_links.push_back({a, b});
+                            link_cut_tree.link(a, b, tier + 1);
+                            query_ett.link(a, b);
+                            transaction_log.push_back({{a, b}, INSERT});
+                        }
+                    }
+                }
                 }
             }
-        }
-    }
+        
+        });
 
     // at this point, we know exactly what cuts and links we need to do at higher tiers.
     // for each tier, we'll perform the cuts and links, and then add any entries to _updated_components[tier] that

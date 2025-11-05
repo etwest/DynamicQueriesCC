@@ -30,6 +30,8 @@ class BatchTiers {
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
         LinkCutTreeMaxAgg<int8_t> link_cut_tree;
         SketchlessEulerTourTree<> query_ett;
+        std::mutex lct_and_query_ett_lock;
+        parlay::parlay_unordered_map_direct<int32_t, std::monostate> _unique_update_ids;
         
         std::vector<GraphUpdate> transaction_log;
 
@@ -164,7 +166,7 @@ class BatchTiers {
             }
             // total += query_ett.space_usage_bytes();
             // total += link_cut_tree.space_usage_bytes();
-            total += _component_reps_dsu.space_usage_bytes();
+            // total += _component_reps_dsu.space_usage_bytes();
             // total += _already_checked_components.max_size() * (sizeof(size_t) + sizeof(node_id_t) + sizeof(void*)); // rough estimate
             // total += ((parlay::unordered_map_internal) _already_checked_components).size();
             // TODO - measure the overhead of the actual batch_ttiers class`

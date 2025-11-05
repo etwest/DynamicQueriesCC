@@ -32,7 +32,7 @@ class HybridConnectivityManager {
     private:
         // TODO - this aint a great way
         size_t MOVE_TO_SKETCH = 40;
-        size_t DENSE_THRESHOLD = 1200;
+        size_t DENSE_THRESHOLD = 2000;
         // size_t MOVE_TO_SKETCH = 1000000;
         
         size_t seed;
@@ -96,8 +96,8 @@ class HybridConnectivityManager {
             node_id_t dst = std::max(u, v);
             sketching_algo.update(GraphUpdate{Edge{u, v}, INSERT});
             auto edge_id = concat_pairing_fn(u, v);
-            recovery_sketches[u]->update(edge_id);
-            recovery_sketches[v]->update(edge_id);
+            // recovery_sketches[u]->update(edge_id);
+            // recovery_sketches[v]->update(edge_id);
             total_sketched_edges++;
         }
         inline void delete_from_sketch(node_id_t u, node_id_t v) {
@@ -105,8 +105,8 @@ class HybridConnectivityManager {
             node_id_t dst = std::max(u, v);
             sketching_algo.update(GraphUpdate{Edge{u, v}, DELETE});
             auto edge_id = concat_pairing_fn(u, v);
-            recovery_sketches[u]->update(edge_id);
-            recovery_sketches[v]->update(edge_id);
+            // recovery_sketches[u]->update(edge_id);
+            // recovery_sketches[v]->update(edge_id);
             total_sketched_edges--;
         }
         
