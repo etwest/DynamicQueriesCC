@@ -46,6 +46,10 @@ public:
   SkipListNode<SketchClass>* update_sketch_atomic(vec_t update_idx);
   SkipListNode<SketchClass>* update_sketch_atomic(const ColumnEntryDelta &delta);
   SkipListNode<SketchClass>* update_sketch_atomic(const ColumnEntryDeltas &deltas);
+
+  SkipListNode<SketchClass>* get_allowed_caller() {
+      return this->allowed_caller;
+  }
   
   // update just this node's sketch
   // plus return the allowed caller

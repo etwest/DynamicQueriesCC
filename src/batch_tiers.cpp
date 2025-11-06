@@ -30,7 +30,7 @@
 // thread_local parlay::sequence<ColumnEntryDelta> BatchTiers<SketchClass>::_deltas_buffer = parlay::sequence<ColumnEntryDelta>();
 
 template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
-BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed) , _already_checked_components(2048, true), _unique_update_ids(2048, true), _component_reps_dsu(0) {
+BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed) , _already_checked_components(2048, true), _unique_update_ids(2048), _component_reps_dsu(0) {
     // TODO - use the batch_size parameter?
     _component_reps_dsu = union_find_local<int32_t>(maximum_batch_size * 2);
 	// Algorithm parameters
@@ -68,7 +68,7 @@ BatchTiers<SketchClass>::BatchTiers(node_id_t num_nodes, uint64_t seed) : num_no
 template <typename SketchClass>
     requires(SketchColumnConcept<SketchClass, vec_t>)
 BatchTiers<SketchClass>::BatchTiers(
-    node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed), _already_checked_components(num_nodes, true), _unique_update_ids(num_nodes, true), _component_reps_dsu(0) {
+    node_id_t num_nodes, uint32_t num_tiers, int batch_size, size_t seed) : num_nodes(num_nodes), seed(seed), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed), _already_checked_components(num_nodes, true), _unique_update_ids(2048), _component_reps_dsu(0) {
     // TODO - use the batch_size parameter?
     _component_reps_dsu = union_find_local<int32_t>(maximum_batch_size * 2);
 
@@ -138,38 +138,43 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
     }
     // 1) Step 1: Process all sketch aggs in true batch parallel.
     // _process_sketch_aggs_only(updates);
-    _process_sketch_aggs_tier_sequential(updates);
-    // _process_sketch_aggs_with_cas(updates);
+    // _process_sketch_aggs_tier_sequential(updates);
+    _process_sketch_aggs_with_cas(updates);
     
     // 2) Step 2: Check for isolated components.
     uint32_t first_isolated_tier = _search_for_isolated_components(updates);
+    // std::cout << "First isolated tier: " << first_isolated_tier << std::endl;
     if (first_isolated_tier == UINT32_MAX) {
         // no isolated components found, so we can return early
         return;
     }
     // the first isolated tier has had no link/cut modifications to it. so its roots array is a valid
     // check 
-    // TODO - dont dynamically allocate this hash table
-    // so we can use it to track components by their root node ptrs!
-    // note that pairs have a lex sort defined!
-    parlay::sequence<std::pair<size_t, int32_t>> component_roots = parlay::tabulate(num_updates * 2, [&](size_t i) {
-            bool src_or_dst = static_cast<bool>(i % 2);
-            size_t root_id = (size_t)static_cast<void *>(root_node(first_isolated_tier, i / 2, src_or_dst));
-            return std::make_pair(root_id, static_cast<int32_t>(i));            
-    });
-    parlay::sort_inplace(component_roots);
-    parlay::parallel_for(0, component_roots.size()-1, [&](size_t i) {
-        // if the root is the same as the next one, we can union them
-        if (component_roots[i].first == component_roots[i+1].first) {
-            _component_reps_dsu.link(component_roots[i].second, component_roots[i+1].second);
-        }
-    });
-    // for (size_t i =0; i < component_roots.size()-1; i++) {
-    //     if (component_roots[i].first == component_roots[i+1].first) {
-    //         // same root, so we can union them
-    //         _component_reps_dsu.union_sets(component_roots[i].second, component_roots[i+1].second);
-    //     }
-    // }
+
+    _unique_update_ids.clear();
+    _unique_update_ids.resize(num_updates * 2);
+    std::atomic<size_t> num_unique_components = 0;
+    // construct _unique_update_ids such that it contains just ONE idx for every unique
+    // component at the first isolated tier
+    parlay::parlay_unordered_map_direct<SkipListNode<SketchClass>*, int32_t> component_to_unique_id(2048, true);
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, num_updates),
+        [&](const tbb::blocked_range<size_t>& r) {
+            for (size_t update_idx = r.begin(); update_idx != r.end(); ++update_idx) {
+                for (bool src_or_dst : {true, false}) {
+                    node_id_t vertex = src_or_dst ? updates[update_idx].edge.src : updates[update_idx].edge.dst;
+                    SkipListNode<SketchClass>* root = root_node(first_isolated_tier, update_idx, src_or_dst);
+                    // assign a unique id to this component if it doesnt have one already
+                    //
+                    std::optional<int32_t> existing_id = component_to_unique_id.Insert(root, vertex);
+                    if (!existing_id.has_value()) {
+                        size_t idx = num_unique_components.fetch_add(1);
+                        _unique_update_ids[idx] = vertex;
+                    }
+                }
+            }
+        });
+    _unique_update_ids.resize(num_unique_components.load());
 
     // 3) proceed tier-serially: 
     // * at the first isolated tier, collect all components that are isolated.
@@ -204,7 +209,7 @@ void BatchTiers<SketchClass>::update_batch(const parlay::sequence<GraphUpdate> &
             // we know that at this point, there are no isolations at higher tiers.
             // because all potential isolated components must be a union of the modified components
             // found at this tier. so we can just return
-            std::cout << "All components maximized at tier " << tier << ", skipping further checks" << std::endl;
+            // std::cout << "All components maximized at tier " << tier << ", skipping further checks" << std::endl;
             return;
         }
     }
@@ -582,29 +587,31 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
 
     // needs to be atomically updated.
     bool components_maximized = true;
-
-    // TODO - can be parallel
-    // for (size_t update_idx = 0; update_idx < num_updates; update_idx++) {
-    //     _updated_components[tier].push_back(updates[update_idx].edge.src);
-    //     _updated_components[tier].push_back(updates[update_idx].edge.dst);
-    // }
+    for (size_t i= 0 ; i < _unique_update_ids.size(); i++) {
+        node_id_t vertex = _unique_update_ids[i];
+        _updated_components[tier].push_back(vertex);
+    }
     // for each update, we only need to grab ROOTS
     // for (size_t i=0; i < num_updates * 2; i++) {
-    for (size_t i = 0; i < num_updates * 2; i++) {
-        // only if you are STILL a root.
-        // AND your sketch is non-empty
-        likely_if (!_component_reps_dsu.is_root(i)) {
-            // return;
-            continue;
-        }
-        bool src_or_dst = static_cast<bool>(i % 2);
-        size_t update_idx = i / 2;
-        _updated_components[tier].push_back(
-            src_or_dst ? updates[update_idx].edge.src : updates[update_idx].edge.dst);
-    };
+    // for (size_t i = 0; i < num_updates * 2; i++) {
+        // // only if you are STILL a root.
+        // // AND your sketch is non-empty
+        // likely_if (!_component_reps_dsu.is_root(i)) {
+        //     // return;
+        //     continue;
+        // }
+        // bool src_or_dst = static_cast<bool>(i % 2);
+        // size_t update_idx = i / 2;
+        // _updated_components[tier].push_back(
+        //     src_or_dst ? updates[update_idx].edge.src : updates[update_idx].edge.dst);
+    // };
     // now, _updated_components contains all components that need to be
     // including ones that may have been inherited from doing links/cuts below.
     // for (size_t i = 0; i < _updated_components[tier].size(); i++) {
+    parlay::sequence<SkipListNode<SketchClass>*> temp_roots;
+    std::atomic<size_t> num_temp_roots = 0;
+    temp_roots.resize(_updated_components[tier].size());
+
     tbb::parallel_for(
         tbb::blocked_range<size_t>(0, _updated_components[tier].size()),
         [&](const tbb::blocked_range<size_t>& r) {
@@ -612,7 +619,14 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
                 node_id_t vertex_in_component = _updated_components[tier][i];
                 // TODO - we can do some work to avoid checking the same component (maybe?)
                 // in case a component was previously merged already
-                SkipListNode<SketchClass>* component_root = ett[tier].get_root(vertex_in_component);
+                // SkipListNode<SketchClass>* component_root = ett[tier].get_root(vertex_in_component);
+                SkipListNode<SketchClass>* component_root = ett[tier].ett_node(vertex_in_component).get_allowed_caller()->find_root_with_cas();
+                if (component_root == nullptr) {
+                    continue;
+                }
+                size_t idx = num_temp_roots.fetch_add(1);
+                temp_roots[idx] = component_root;
+                // component_root->clear_cas_flags();
                 SkipListNode<SketchClass>* next_tier_root = ett[tier + 1].get_root(vertex_in_component);
 
                 // TODO - this is no longer necessary. because we are using the DSU to keep the smallest
@@ -640,67 +654,74 @@ bool BatchTiers<SketchClass>::_fix_isolations_at_tier(const parlay::sequence<Gra
                     }
                 }
                 {
-                if (component_root->size == next_tier_root->size) {
-                    if (query_result.result == GOOD) {
-                        std::lock_guard<std::mutex> guard(this->lct_and_query_ett_lock);
-                        // .. and see if a path exists between the endpoints in the LCT
-                        edge_id_t edge = query_result.idx;
-                        node_id_t a = (node_id_t)edge;
-                        node_id_t b = (node_id_t)(edge >> 32);
+                    if (component_root->size == next_tier_root->size) {
+                        if (query_result.result == GOOD) {
+                            std::lock_guard<std::mutex> guard(this->lct_and_query_ett_lock);
+                            // .. and see if a path exists between the endpoints in the LCT
+                            edge_id_t edge = query_result.idx;
+                            node_id_t a = (node_id_t)edge;
+                            node_id_t b = (node_id_t)(edge >> 32);
 
-                        // check if a path exists between the endpoints
-                        // auto a_root = link_cut_tree.find_root(a);
-                        // auto b_root = link_cut_tree.find_root(b);
-                        // TODO - ETT
+                            // check if a path exists between the endpoints
+                            // auto a_root = link_cut_tree.find_root(a);
+                            // auto b_root = link_cut_tree.find_root(b);
+                            // TODO - ETT
 
-                        // if it does, then we either need to cut it, or ignore this update
+                            // if it does, then we either need to cut it, or ignore this update
 
-                        // if (a_root == b_root) {
-                        if (link_cut_tree.connected(a, b)) {
-                            // a path exists, so we need to cut the maximum weight edge
-                            // on the path
-                            // THIS REALLY CANT BE PARALLELIZED atm
-                            std::pair<Edge, int8_t> max_edge = link_cut_tree.path_query(a, b);
-                            node_id_t c = max_edge.first.src;
-                            node_id_t d = max_edge.first.dst;
-                            // node_id_t c = (node_id_t)max_edge.first;
-                            // node_id_t d = (node_id_t)(max_edge.first >> 32);
-                            uint32_t first_appeared_tier = max_edge.second;
-                            // if the first appeared tier is equal to tier+1, then we should check if this
-                            // was a link we had just discovered. If so, we neither cut it, not include this link.
-                            if (first_appeared_tier == tier + 1) {
-                                // YOU KNOW that these couldnt have been connected in the tier above
-                                // because otherwise the components coulld not have been the same size
-                                // (which is necessary for isolation condition)
-                                //
-                                // so: DO NOTHING
+                            // if (a_root == b_root) {
+                            if (link_cut_tree.connected(a, b)) {
+                                // a path exists, so we need to cut the maximum weight edge
+                                // on the path
+                                // THIS REALLY CANT BE PARALLELIZED atm
+                                std::pair<Edge, int8_t> max_edge = link_cut_tree.path_query(a, b);
+                                node_id_t c = max_edge.first.src;
+                                node_id_t d = max_edge.first.dst;
+                                // node_id_t c = (node_id_t)max_edge.first;
+                                // node_id_t d = (node_id_t)(max_edge.first >> 32);
+                                uint32_t first_appeared_tier = max_edge.second;
+                                // if the first appeared tier is equal to tier+1, then we should check if this
+                                // was a link we had just discovered. If so, we neither cut it, not include this link.
+                                if (first_appeared_tier == tier + 1) {
+                                    // YOU KNOW that these couldnt have been connected in the tier above
+                                    // because otherwise the components coulld not have been the same size
+                                    // (which is necessary for isolation condition)
+                                    //
+                                    // so: DO NOTHING
+                                } else {
+                                    // likewise, if it's a higher tier, definitely perform the cut
+                                    _pending_cuts.push_back({{c, d}, first_appeared_tier});
+                                    link_cut_tree.cut(c, d);
+                                    query_ett.cut(c, d);
+                                    transaction_log.push_back({{c, d}, DELETE});
+
+                                    // and push the link we just found
+                                    _pending_links.push_back({a, b});
+                                    link_cut_tree.link(a, b, tier + 1);
+                                    query_ett.link(a, b);
+                                    transaction_log.push_back({{a, b}, INSERT});
+                                    // and update the dsu
+                                }
                             } else {
-                                // likewise, if it's a higher tier, definitely perform the cut
-                                _pending_cuts.push_back({{c, d}, first_appeared_tier});
-                                link_cut_tree.cut(c, d);
-                                query_ett.cut(c, d);
-                                transaction_log.push_back({{c, d}, DELETE});
-
-                                // and push the link we just found
+                                // if there was no competing link between the endpoints in the LCT,
+                                // then we just link them.
                                 _pending_links.push_back({a, b});
                                 link_cut_tree.link(a, b, tier + 1);
                                 query_ett.link(a, b);
                                 transaction_log.push_back({{a, b}, INSERT});
-                                // and update the dsu
                             }
-                        } else {
-                            // if there was no competing link between the endpoints in the LCT,
-                            // then we just link them.
-                            _pending_links.push_back({a, b});
-                            link_cut_tree.link(a, b, tier + 1);
-                            query_ett.link(a, b);
-                            transaction_log.push_back({{a, b}, INSERT});
                         }
                     }
                 }
-                }
             }
-        
+        });
+    // clear cas flags:
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, num_temp_roots),
+        [&](const tbb::blocked_range<size_t>& r) {
+            for (size_t i = r.begin(); i != r.end(); ++i) {
+                temp_roots[i]->clear_cas_flags();
+            }
         });
 
     // at this point, we know exactly what cuts and links we need to do at higher tiers.

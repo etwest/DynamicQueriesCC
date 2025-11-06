@@ -316,6 +316,18 @@ public:
     // TODO - dont make this hard-coded
     return current;
   }
+  
+  void clear_cas_flags() {
+    assert(this != nullptr);
+    this->needs_update = AggUpdateState::NORMAL;  
+    SkipListNode<SketchClass>* current = this->down;
+    do {
+      if (current->needs_update == AggUpdateState::NEEDS_UPDATE) {
+          current->clear_cas_flags();
+      }
+      current = current->right;
+    } while (current != nullptr && current != this->down && current->up == nullptr);
+  }
 
   std::set<EulerTourNode<SketchClass>*> get_component();
 

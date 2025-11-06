@@ -24,14 +24,15 @@ class BatchTiers {
         // size_t maximum_batch_size = 100;
         // size_t maximum_batch_size = 1 << 20;
         size_t maximum_batch_size = 1 << 20;
-        // size_t maximum_batch_size = 1 << 15;
+        // size_t maximum_batch_size = 200;
+        // size_t maximum_batch_size = 1 << 14;
         // size_t maximum_batch_size = 1024;
         size_t granularity = 1 << 11;  // suggested number of tier-updates per thread 
         std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
         LinkCutTreeMaxAgg<int8_t> link_cut_tree;
         SketchlessEulerTourTree<> query_ett;
         std::mutex lct_and_query_ett_lock;
-        parlay::parlay_unordered_map_direct<int32_t, std::monostate> _unique_update_ids;
+        parlay::sequence<int32_t> _unique_update_ids;
         
         std::vector<GraphUpdate> transaction_log;
 
