@@ -275,6 +275,94 @@ TEST(GraphTiersSuite, hybrid_query_speed_test) {
     }
 }
 
+TEST(GraphTierSuite, hybrid_memory_test) {
+    int world_rank_buf;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);
+    uint32_t world_rank = world_rank_buf;
+    int world_size_buf;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size_buf);
+    uint32_t world_size = world_size_buf;
+
+    BinaryGraphStream stream(stream_file, 100000);
+    uint32_t num_nodes = stream.nodes();
+    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+
+    // Parameters
+    int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
+    int threshold = (batch_size_arg==0) ? DEFAULT_HYBRID_THRESHOLD : hybrid_threshold_arg;
+    height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
+    sketchless_height_factor = height_factor;
+    sketch_len = Sketch::calc_vector_length(num_nodes);
+	sketch_err = DEFAULT_SKETCH_ERR;
+
+    std::cout << "BATCH SIZE: " << update_batch_size << " HEIGHT FACTOR " << height_factor << std::endl;
+
+    // Seeds
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
+    int seed = dist(rng);
+    bcast(&seed, sizeof(int), 0);
+    std::cout << "SEED: " << seed << std::endl;
+    rng.seed(seed);
+    for (int i = 0; i < world_rank; i++)
+        dist(rng);
+    int tier_seed = dist(rng);
+
+    if (world_size != num_tiers+1)
+        FAIL() << "MPI world size too small for graph with " << num_nodes << " vertices. Correct world size is: " << num_tiers+1;
+
+    if (world_rank == 0) {
+        int seed = time(NULL);
+        srand(seed);
+        std::cout << "InputNode seed: " << seed << std::endl;
+        // InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        HybridConnectivityManager<> hybrid_manager(
+            num_nodes, num_tiers, update_batch_size, seed
+        );
+        hybrid_manager.set_threshold(threshold);
+        long edgecount = stream.edges();
+        // long count = 100000000;
+        // edgecount = std::min(edgecount, count);
+        auto X = std::chrono::high_resolution_clock::now();
+        for (long i = 0; i < edgecount; i++) {
+            // Read an update from the stream and have the input node process it
+            GraphUpdate update = stream.get_edge();
+            hybrid_manager.update(update);
+            unlikely_if(i%1000000 == 0 || i == edgecount-1) {
+                std::cout << "FINISHED UPDATE " << i << " OUT OF " << edgecount << " IN " << stream_file << std::endl;
+                // std::cout << "Memory usage: " << hybrid_manager.cf_algo.getMemUsage() / 1000000 << std::endl;
+                std::cout << "Sketched nodes: " << hybrid_manager.num_sketched_vertices() << " out of " << num_nodes << std::endl;
+            if (i%20000000 == 0 || i == edgecount-1) {
+                std::cout << "Sketched nodes: " << hybrid_manager.sketched_node_count() << " out of " << stream.nodes() << std::endl;
+                std::cout << "-  Space usage of CF: " << hybrid_manager.get_space_usage_cf()/(1024*1024) << " MB" << std::endl;
+                std::cout << "-  Space usage of Driver: " << hybrid_manager.get_space_usage_driver()/(1024*1024) << " MB" << std::endl;
+                std::cout << "-  Space usage of Sketches: " << hybrid_manager.space_usage_conn_sketch()/(1024*1024) << " MB" << std::endl;
+                std::cout << "-  Space usage of Recovery Sketches: " << hybrid_manager.space_usage_recovery_sketch()/(1024*1024) << " MB" << std::endl;
+                std::cout << "-  Total edges: " << hybrid_manager.total_edges() << std::endl;
+                std::cout << "-  Sketched edges: " << hybrid_manager.num_sketched_edges() << std::endl;
+                double percent_sketched = 100.0 * ((double)hybrid_manager.num_sketched_edges()) / ((double)hybrid_manager.total_edges());
+                std::cout << "-  Percent sketched edges: " << percent_sketched << "%" << std::endl;
+            }
+            }
+        }
+        // Communicate to all other nodes that the stream has ended
+        hybrid_manager.sketching_algo.end();
+        auto time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - X).count();
+        std::cout << "Total time(ms): " << (time/1000) << std::endl;
+
+        std::ofstream file;
+        file.open ("./../results/mpi_update_results.txt", std::ios_base::app);
+        file << stream_file << " UPDATES/SECOND: " << edgecount/(time/1000)*1000 << std::endl;
+        file.close();
+
+    } else if (world_rank < num_tiers+1) {
+        int tier_num = world_rank-1;
+        TierNode tier_node(num_nodes, tier_num, num_tiers, update_batch_size, tier_seed);
+        tier_node.main();
+    }
+}
+
 TEST(GraphTiersSuite, hybrid_mini_correctness_test) {
     int world_rank_buf;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank_buf);

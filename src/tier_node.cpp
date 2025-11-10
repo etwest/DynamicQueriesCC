@@ -49,6 +49,9 @@ void TierNode::main() {
         for (uint32_t i = 0; i < num_updates; i++) {
             // Perform the sketch updating or root finding
             GraphUpdate update = update_buffer[i+1].update;
+            // TODO - do this in a different way?
+            initialize_node(update.edge.src);
+            initialize_node(update.edge.dst);
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             split_revert_buffer[i] = false;
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {

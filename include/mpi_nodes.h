@@ -6,8 +6,8 @@
 #include "types.h"
 #include "euler_tour_tree.h"
 #include "sketchless_euler_tour_tree.h"
-#include "link_cut_tree.h"
-// #include "lct_v2.h"
+// #include "link_cut_tree.h"
+#include "lct_v2.h"
 #include "mpi_functions.h"
 #include "sketch/sketch_concept.h"
 #include "sketch/sketch_columns.h"
@@ -60,8 +60,8 @@ typedef struct {
 class InputNode {
   node_id_t num_nodes;
   uint32_t num_tiers;
-  LinkCutTree<> link_cut_tree;
-  // LinkCutTreeMaxAgg<int8_t> link_cut_tree;
+  // LinkCutTree<> link_cut_tree;
+  LinkCutTreeMaxAgg<int8_t> link_cut_tree;
   SketchlessEulerTourTree<> query_ett;
   UpdateMessage* update_buffer;
   
@@ -82,9 +82,18 @@ public:
   // TODO - in reality, the input node needs to communicate
   // wihh its tier nodes to initialize data structures.
   // in any hybrid tests, we're just gonna do this ahead of time.
-  void initialize_node(node_id_t u) {}; // no-op
-  void uninitialize_node(node_id_t u) {}; // no-op
-  void initialize_all_nodes() {}; // no-op
+  void initialize_node(node_id_t u) {
+    query_ett.initialize_node(u);
+    link_cut_tree.initialize_node(u);
+  }; // no-op
+  void uninitialize_node(node_id_t u) {
+    query_ett.uninitialize_node(u);
+    link_cut_tree.uninitialize_node(u);
+  }; // no-op
+  void initialize_all_nodes() {
+    query_ett.initialize_all_nodes(num_nodes);
+    link_cut_tree.initialize_all_nodes(num_nodes);
+  }; // no-op
   void update(GraphUpdate update);
   void process_all_updates();
   bool connectivity_query(node_id_t a, node_id_t b);
@@ -123,6 +132,9 @@ class TierNode {
   };
   void initialize_all_nodes(node_id_t max_num_nodes) {
       ett.initialize_all_nodes(max_num_nodes);
+  };
+  bool is_initialized(node_id_t u) {
+      return ett.is_initialized(u);
   };
   void update_tier(GraphUpdate update);
   void ett_update_tier(EttUpdateMessage message);

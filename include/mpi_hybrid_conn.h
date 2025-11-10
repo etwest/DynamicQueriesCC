@@ -32,7 +32,7 @@ class HybridConnectivityManager {
     private:
         // TODO - this aint a great way
         size_t MOVE_TO_SKETCH = 40;
-        size_t DENSE_THRESHOLD = 2000;
+        size_t DENSE_THRESHOLD = 1200;
         // size_t MOVE_TO_SKETCH = 1000000;
         
         size_t seed;
@@ -96,8 +96,8 @@ class HybridConnectivityManager {
             node_id_t dst = std::max(u, v);
             sketching_algo.update(GraphUpdate{Edge{u, v}, INSERT});
             auto edge_id = concat_pairing_fn(u, v);
-            // recovery_sketches[u]->update(edge_id);
-            // recovery_sketches[v]->update(edge_id);
+            recovery_sketches[u]->update(edge_id);
+            recovery_sketches[v]->update(edge_id);
             total_sketched_edges++;
         }
         inline void delete_from_sketch(node_id_t u, node_id_t v) {
@@ -105,8 +105,8 @@ class HybridConnectivityManager {
             node_id_t dst = std::max(u, v);
             sketching_algo.update(GraphUpdate{Edge{u, v}, DELETE});
             auto edge_id = concat_pairing_fn(u, v);
-            // recovery_sketches[u]->update(edge_id);
-            // recovery_sketches[v]->update(edge_id);
+            recovery_sketches[u]->update(edge_id);
+            recovery_sketches[v]->update(edge_id);
             total_sketched_edges--;
         }
         
@@ -242,10 +242,11 @@ class HybridConnectivityManager {
             
             // 2) increment their pending_dense_edge counts (but don't flush them yourself)
             // (since this vertex is about to densify)
-            for (node_id_t neighbor: _neighbors_buffer) {
-                num_pending_dense_edges[neighbor]++;
-            }
+            // for (node_id_t neighbor: _neighbors_buffer) {
+            //     num_pending_dense_edges[neighbor]++;
+            // }
             // remove edges from the cluster forest
+            // NO longer doing step 2 since we initialized elsewhere
             for (node_id_t neighbor: _neighbors_buffer) {
                 remove_from_cf(vertex_to_flush, neighbor);
             }
@@ -257,6 +258,8 @@ class HybridConnectivityManager {
                     insert_to_sketch(vertex_to_flush, neighbor);
                 }
             }
+            // clear pending_num_dense_edges for this vertex
+            num_pending_dense_edges[vertex_to_flush] = 0;
             // apply the transaction log
             // flush_transaction_log();
             // TODO - just do this in reads for now.
@@ -354,40 +357,55 @@ class HybridConnectivityManager {
                 num_edges[update.edge.src]++;
                 num_edges[update.edge.dst]++;
                 total_num_edges++;
+                
+                // if both endpoints are sketched AND the endpoints are connected in the cf
+                // we can shortcut and just insert into the sketching algo
+                if (is_vertex_sketched(update.edge.src) && is_vertex_sketched(update.edge.dst)) {
+                    if (cf_algo.is_connected(update.edge.src, update.edge.dst)) {
+                        // std::cout << "Inserting edge from sketching algo: " <<  update.edge.src << ", "<< update.edge.dst << std::endl;
+                        insert_to_sketch(update.edge.src, update.edge.dst);
+                        return;
+                    }
+                }
 
                 insert_to_cf(update.edge.src, update.edge.dst);
                 
+                // update num_pending_dense_edges to reflect the edge
+                // being inserted
+                if (is_vertex_sketched(update.edge.src)) {
+                    num_pending_dense_edges[update.edge.dst]++;
+                }
+                if (is_vertex_sketched(update.edge.dst)) {
+                    num_pending_dense_edges[update.edge.src]++;
+                }
+                // i.e. the state of this should be correct BEFORE we
+                // potentially initialize the sketches below
+
                 // check to see if we densified the vertices enough to initialize their sketches
-                unlikely_if (!is_vertex_sketched(update.edge.src) && count_explicit_neighbors(update.edge.src) >= DENSE_THRESHOLD) {
+                unlikely_if (!is_vertex_sketched(update.edge.src) && num_edges[update.edge.src] >= DENSE_THRESHOLD) {
                     // these functions should be no-ops on dense edges
                     // std::cout << "neighbor count for " << update.edge.src << " is " << count_explicit_neighbors(update.edge.src) << std::endl;
                     initialize_vertex_sketch(update.edge.src);
+                    flush_edges_to_sketch(update.edge.src);
 
                 }
-                unlikely_if (!is_vertex_sketched(update.edge.dst) && count_explicit_neighbors(update.edge.dst) >= DENSE_THRESHOLD) {
+                unlikely_if (!is_vertex_sketched(update.edge.dst) && num_edges[update.edge.dst] >= DENSE_THRESHOLD) {
                     // std::cout << "neighbor count for " << update.edge.dst << " is " << count_explicit_neighbors(update.edge.dst) << std::endl;
                     initialize_vertex_sketch(update.edge.dst);
+                    flush_edges_to_sketch(update.edge.dst);
                 }
                 
                 // logic for updating pending dense edge counts + potentially flushing out
                 // dense edges to the sketching structure
-                for (std::pair<node_id_t, node_id_t> e: {
-                    std::make_pair(update.edge.src, update.edge.dst),
-                    std::make_pair(update.edge.dst, update.edge.src)
-                }) {
-                    auto v1 = e.first;
-                    auto v2 = e.second;
-                    if (is_vertex_sketched(v2)) {
-                        // std::cout << "Num pending dense edges for vertex " << v1 << " is " << num_pending_dense_edges[v1] << std::endl;
-                        if (++num_pending_dense_edges[v1] >= MOVE_TO_SKETCH) {
-                            // TODO - ensure this is a no-op if already initialized
-                            initialize_vertex_sketch(v1);
-                            // flush the edges to the sketching algo
-                            num_pending_dense_edges[v1] = 0;
-                            // std::cout << "Flushing edges to sketch for vertex " << v1 << std::endl;
-                            flush_edges_to_sketch(v1);
-                        }
+                if (is_vertex_sketched(update.edge.dst)) {
+                    if (num_pending_dense_edges[update.edge.dst] >= MOVE_TO_SKETCH) {
+                        flush_edges_to_sketch(update.edge.dst);
                     }
+                }
+                if (is_vertex_sketched(update.edge.src)) {
+                    if (num_pending_dense_edges[update.edge.src] >= MOVE_TO_SKETCH) {
+                        flush_edges_to_sketch(update.edge.src);
+                    }   
                 }
             }
             else if (update.type == DELETE) {
@@ -412,6 +430,8 @@ class HybridConnectivityManager {
                         // case a)
                         // deleting from sketching algo
                         delete_from_sketch(update.edge.src, update.edge.dst);
+                        // TODO - can we be lazier about this?
+                        sketching_algo.process_all_updates();                    
                         flush_transaction_log();
                         check_and_perform_recovery(update.edge.src);
                         check_and_perform_recovery(update.edge.dst);

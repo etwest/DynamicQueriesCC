@@ -57,6 +57,7 @@ TEST(GraphTierSuite, mpi_mixed_speed_test) {
         srand(seed);
         std::cout << "InputNode seed: " << seed << std::endl;
         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        input_node.initialize_all_nodes();
         long edgecount = stream.edges();
         // long count = 100000000;
         // edgecount = std::min(edgecount, count);
@@ -154,6 +155,7 @@ TEST(GraphTierSuite, mpi_update_speed_test) {
         srand(seed);
         std::cout << "InputNode seed: " << seed << std::endl;
         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        input_node.initialize_all_nodes();
         long edgecount = stream.edges();
         // long count = 100000000;
         // edgecount = std::min(edgecount, count);
@@ -225,6 +227,7 @@ TEST(GraphTiersSuite, mpi_query_speed_test) {
         srand(seed);
         std::cout << "InputNode seed: " << seed << std::endl;
         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        input_node.initialize_all_nodes();
 
         long total_time = 0;
         for (int batch = 0; batch < 10; batch++) {
@@ -296,6 +299,7 @@ TEST(GraphTiersSuite, mpi_mini_correctness_test) {
         srand(seed);
         std::cout << "InputNode seed: " << seed << std::endl;
         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        input_node.initialize_all_nodes();
         GraphVerifier gv(num_nodes);
         // Link all of the nodes into 1 connected component
         for (node_id_t i = 0; i < num_nodes-1; i++) {
@@ -369,6 +373,7 @@ TEST(GraphTiersSuite, mpi_mini_replacement_test) {
         srand(seed);
         std::cout << "InputNode seed: " << seed << std::endl;
         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        input_node.initialize_all_nodes();
         GraphVerifier gv(num_nodes);
         // Link all of the nodes into 1 connected component
         for (node_id_t i = 0; i < num_nodes-1; i++) {
@@ -450,6 +455,7 @@ TEST(GraphTiersSuite, mpi_mini_batch_test) {
         srand(seed);
         std::cout << "InputNode seed: " << seed << std::endl;
         InputNode input_node(num_nodes, num_tiers, update_batch_size, seed);
+        input_node.initialize_all_nodes();
         GraphVerifier gv(num_nodes);
         // Link all of the nodes into 1 connected component
         for (node_id_t i = 0; i < num_nodes-1; i++) {

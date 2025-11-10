@@ -56,8 +56,9 @@ void InputNode::process_updates() {
     for (uint32_t i = 0; i < num_updates; i++) {
         GraphUpdate update = update_buffer[i+1].update;
         split_revert_buffer[i] = MAX_INT;
-        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
-            split_revert_buffer[i] = link_cut_tree.get_edge_weight(update.edge.src, update.edge.dst);
+        unlikely_if (update.type == DELETE && query_ett.has_edge(update.edge.src, update.edge.dst)) {
+            std::pair<Edge, int8_t> max_edge = link_cut_tree.path_query(update.edge.src, update.edge.dst);
+            split_revert_buffer[i] = max_edge.second;
             // probably where most structural (spanning forest) deletes happen?
             // potentially - revisit
             link_cut_tree.cut(update.edge.src, update.edge.dst);
@@ -100,7 +101,7 @@ void InputNode::process_updates() {
     for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
         START(dt_operation_timer1);
-        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
+        unlikely_if (update.type == DELETE && query_ett.has_edge(update.edge.src, update.edge.dst)) {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
             query_ett.cut(update.edge.src, update.edge.dst);
             // transaction_log.add(update.edge, DELETE);
@@ -135,10 +136,11 @@ void InputNode::process_updates() {
                 this_update_isolated = true;
                 // Process a LCT query message first
                 LctResponseMessage response_message;
-                response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
+                // response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
+                response_message.connected = query_ett.is_connected(update_message.endpoint1, update_message.endpoint2);
                 if (response_message.connected) {
-                    std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(update_message.endpoint1, update_message.endpoint2);
-                    response_message.cycle_edge = max.first;
+                    std::pair<Edge, int8_t> max = link_cut_tree.path_query(update_message.endpoint1, update_message.endpoint2);
+                    response_message.cycle_edge = VERTICES_TO_EDGE(max.first.src, max.first.dst);
                     response_message.weight = max.second;
                 }
                 MPI_Send(&response_message, sizeof(LctResponseMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD);

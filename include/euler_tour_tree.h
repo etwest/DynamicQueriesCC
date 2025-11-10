@@ -83,8 +83,8 @@ using VectorContainer = std::vector<EulerTourNode<DefaultSketchColumn>>;
 using HashmapContainer = absl::flat_hash_map<node_id_t, EulerTourNode<DefaultSketchColumn>*>;
 
 template <typename SketchClass = DefaultSketchColumn, 
-typename Container = std::vector<EulerTourNode<SketchClass>>>
-// typename Container = absl::flat_hash_map<node_id_t, EulerTourNode<SketchClass>*>>
+// typename Container = std::vector<EulerTourNode<SketchClass>>>
+typename Container = absl::flat_hash_map<node_id_t, EulerTourNode<SketchClass>*>>
 requires(SketchColumnConcept<SketchClass, vec_t>)
 class EulerTourTree {
   SketchClass temp_sketch;
@@ -114,7 +114,9 @@ public:
     // no-op with vector implementation
     if constexpr (!std::is_same_v<Container, std::vector<EulerTourNode<SketchClass>>>) {
         // assert(ett_nodes.find(u) == ett_nodes.end());
-        ett_nodes[u] = new EulerTourNode<SketchClass>(this->seed, u, this->tier_num);
+        // TODO - this is kinda gross - fix later
+        if (ett_nodes.find(u) == ett_nodes.end())
+          ett_nodes[u] = new EulerTourNode<SketchClass>(this->seed, u, this->tier_num);
     }
   };
   void uninitialize_node(node_id_t u) {
@@ -176,6 +178,9 @@ public:
   uint32_t num_components() {
     std::set<void*> roots;
     for (node_id_t i = 0; i < ett_nodes.size(); ++i) {
+      if (!is_initialized(i)) {
+        continue;
+      }
       auto root = ett_node(i).get_root();
       roots.insert(root);
     }
