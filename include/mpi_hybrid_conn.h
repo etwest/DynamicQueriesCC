@@ -32,7 +32,7 @@ class HybridConnectivityManager {
     private:
         // TODO - this aint a great way
         size_t MOVE_TO_SKETCH = 40;
-        size_t DENSE_THRESHOLD = 1200;
+        size_t DENSE_THRESHOLD = 2000;
         // size_t MOVE_TO_SKETCH = 1000000;
         
         size_t seed;
