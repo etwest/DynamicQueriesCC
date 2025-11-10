@@ -26,7 +26,9 @@ TEST(GraphTierSuite, mpi_mixed_speed_test) {
 
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_nodes = stream.nodes();
-    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    // uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    uint32_t num_tiers = world_size - 1;
+    std::cout << "NUM TIERS: " << num_tiers << std::endl;
 
     // Parameters
     int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
@@ -124,8 +126,9 @@ TEST(GraphTierSuite, mpi_update_speed_test) {
 
     BinaryGraphStream stream(stream_file, 100000);
     uint32_t num_nodes = stream.nodes();
-    uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
-
+    // uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
+    uint32_t num_tiers = world_size - 1;
+    std::cout << "NUM TIERS: " << num_tiers << std::endl;
     // Parameters
     int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
     height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
