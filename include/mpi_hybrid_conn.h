@@ -24,7 +24,7 @@ class HybridConnectivityManager {
         
         void set_threshold(size_t threshold) {
             // TODO - do this in an aesthetically better way lol.
-            MOVE_TO_SKETCH = threshold;
+            DENSE_THRESHOLD = threshold;
         }
         node_id_t sketched_node_count() const {
             return this->recovery_sketches.size();
