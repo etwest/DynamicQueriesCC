@@ -39,6 +39,7 @@ void TierNode::main() {
             // std::cout << "\tSize message passing time (ms): " << size_message_passing_time/1000 << std::endl;
             // std::cout << "\tGreedy gather time (ms): " << greedy_batch_gather_time/1000 << std::endl;
             // std::cout << "Normal refresh time (ms): " << normal_refresh_time/1000 << std::endl;
+            std::cout << "\tSpace used (MB): " << ett.space_usage_bytes() / (1024.0 * 1024.0) << std::endl;
             return;
         }
         uint32_t num_updates = update_buffer[0].update.edge.src;

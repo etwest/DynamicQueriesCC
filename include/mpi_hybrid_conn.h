@@ -384,12 +384,14 @@ class HybridConnectivityManager {
                 // check to see if we densified the vertices enough to initialize their sketches
                 unlikely_if (!is_vertex_sketched(update.edge.src) && num_edges[update.edge.src] >= DENSE_THRESHOLD) {
                     // these functions should be no-ops on dense edges
+                    // std::cout << DENSE_THRESHOLD << "-dense threshold reached!" << std::endl;
                     // std::cout << "neighbor count for " << update.edge.src << " is " << count_explicit_neighbors(update.edge.src) << std::endl;
                     initialize_vertex_sketch(update.edge.src);
                     flush_edges_to_sketch(update.edge.src);
 
                 }
                 unlikely_if (!is_vertex_sketched(update.edge.dst) && num_edges[update.edge.dst] >= DENSE_THRESHOLD) {
+                    // std::cout << DENSE_THRESHOLD << "-dense threshold reached!" << std::endl;
                     // std::cout << "neighbor count for " << update.edge.dst << " is " << count_explicit_neighbors(update.edge.dst) << std::endl;
                     initialize_vertex_sketch(update.edge.dst);
                     flush_edges_to_sketch(update.edge.dst);

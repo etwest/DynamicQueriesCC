@@ -129,7 +129,7 @@ TEST(GraphTierSuite, hybrid_update_speed_test) {
 
     // Parameters
     int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
-    int threshold = (batch_size_arg==0) ? DEFAULT_HYBRID_THRESHOLD : hybrid_threshold_arg;
+    int threshold = (hybrid_threshold_arg==0) ? DEFAULT_HYBRID_THRESHOLD : hybrid_threshold_arg;
     height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
     sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
@@ -209,7 +209,7 @@ TEST(GraphTiersSuite, hybrid_query_speed_test) {
 
     // Parameters
     int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
-    int threshold = (batch_size_arg==0) ? DEFAULT_HYBRID_THRESHOLD : hybrid_threshold_arg;
+    int threshold = (hybrid_threshold_arg==0) ? DEFAULT_HYBRID_THRESHOLD : hybrid_threshold_arg;
     height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
 	sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
@@ -293,7 +293,7 @@ TEST(GraphTierSuite, hybrid_memory_test) {
 
     // Parameters
     int update_batch_size = (batch_size_arg==0) ? DEFAULT_BATCH_SIZE : batch_size_arg;
-    int threshold = (batch_size_arg==0) ? DEFAULT_HYBRID_THRESHOLD : hybrid_threshold_arg;
+    int threshold = (hybrid_threshold_arg==0) ? DEFAULT_HYBRID_THRESHOLD : hybrid_threshold_arg;
     height_factor = (height_factor_arg==0) ? 1./log2(log2(num_nodes)) : height_factor_arg;
     sketchless_height_factor = height_factor;
     sketch_len = Sketch::calc_vector_length(num_nodes);
