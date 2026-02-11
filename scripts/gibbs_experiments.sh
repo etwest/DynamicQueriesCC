@@ -3,21 +3,17 @@
 declare base_dir="$(dirname $(dirname $(realpath $0)))"
 
 cd ${base_dir}/build
-set -e
+#set -e
 #cmake -DSKETCH_BUFFER_SIZE=25 ..
 #make -j
 #set +e
 
 mkdir -p ./../results
-mkdir -p ./../results/mpi_speed_results
-mkdir -p ./../results/mpi_space_results
+mkdir -p ./../results/gibbs_speed_results
 
-# Tests including memory measurement
 run_test() {
 	cat	binary_streams/$1 > /dev/null
-	mpirun -np $2 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/$1 0 $3 --gtest_filter=*mpi_mixed_speed_test* &
-	./../scripts/mem_record.sh mpi_dynamicCC_tests 2 ./../results/mpi_space_results/$1_$3_mem.txt
-	wait
+	./dynamicCC_tests binary_streams/$1 --gtest_filter=*gibbs_mixed_speed_test*
 }
 
 declare -a streams=(
@@ -56,44 +52,4 @@ declare -a streams=(
 [27]="randomDIV_ff_query10_binary"
 )
 
-declare -a nps=(
-[0]=23
-[1]=26
-[2]=28
-[3]=30
-[4]=31
-#
-[5]=19
-[6]=26
-[7]=29
-#
-[8]=28
-[9]=31
-[10]=32
-[11]=29
-[12]=25
-[13]=29
-# Fixed Forest
-[14]=23
-[15]=26
-[16]=28
-[17]=30
-[18]=31
-#
-[19]=19
-[20]=26
-[21]=29
-#
-[22]=28
-[23]=31
-[24]=32
-[25]=29
-[26]=25
-[27]=29
-)
-
-for i in $(seq 0 27);
-do
-	run_test ${streams[$i]} ${nps[$i]} 0
-done
-
+run_test ${streams[$1]}

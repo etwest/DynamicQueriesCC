@@ -6,7 +6,10 @@
 
 #include <euler_tour_tree.h>
 
-bool EulerTourNode::isvalid() const {
+#include "sketch_interfacing.h"
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+bool EulerTourNode<SketchClass>::isvalid() const {
   bool invalid = false;
   // validate allowed_caller is null iff edges is empty
   EXPECT_EQ(allowed_caller == nullptr, this->edges.empty()) << (invalid = true, "");
@@ -45,7 +48,8 @@ bool EulerTourNode::isvalid() const {
   return true;
 }
 
-std::ostream& operator<<(std::ostream& os, const EulerTourNode& ett) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+std::ostream& operator<<(std::ostream& os, const EulerTourNode<SketchClass>& ett) {
   os << "EulerTourNode " << &ett << std::endl;
   for (const auto& [k, v] : ett.edges) {
     os << "to EulerTourNode " << k << " is " << &v << std::endl;
@@ -55,8 +59,9 @@ std::ostream& operator<<(std::ostream& os, const EulerTourNode& ett) {
   return os;
 }
 
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
 std::ostream& operator<<(std::ostream& os,
-    const std::vector<EulerTourNode>& nodes) {
+    const std::vector<EulerTourNode<SketchClass>>& nodes) {
   for (const auto& node : nodes) {
     os << node;
   }
@@ -74,6 +79,8 @@ TEST(EulerTourTreeSuite, stress_test) {
   srand(seed);
   std::cout << "Seeding stress test with " << seed << std::endl;
   EulerTourTree ett(nodecount, 0, seed);
+  // ensure that all nodes are iniitalized:
+  ett.initialize_all_nodes();
 
   for (int i = 0; i < n; i++) {
     int a = rand() % nodecount, b = rand() % nodecount;
@@ -84,11 +91,18 @@ TEST(EulerTourTreeSuite, stress_test) {
     }
     if (i % n/100 == 0)
     {
-      ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
-            [](auto& node){return node.isvalid();}))
-          << "Stress test validation failed, final state:"
-          << std::endl
-          << ett.ett_nodes;
+      // TODO - bring back these test cases
+      for (int j=0; j < nodecount; j++) {
+        ASSERT_TRUE(ett.ett_node(j).isvalid());
+        // << "Stress test validation failed at iteration " 
+        // << i << ", node " << j << ", final state:" 
+        // << std::endl << ett.ett_nodes;
+      }
+      // ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
+      //       [](auto& node){return node.isvalid();}))
+      //     << "Stress test validation failed, final state:"
+      //     << std::endl
+      //     << ett.ett_nodes;
     }
   }
 }
@@ -103,7 +117,8 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
   int seed = time(NULL);
   srand(seed);
   std::cout << "Seeding random links and cuts test with " << seed << std::endl;
-  EulerTourTree ett(nodecount, 0, seed);
+  EulerTourTree<DefaultSketchColumn> ett(nodecount, 0, seed);
+  ett.initialize_all_nodes();
   for (int i = 0; i < nodecount; i++)
     ett.update_sketch(i, (vec_t)i);
 
@@ -115,54 +130,66 @@ TEST(EulerTourTreeSuite, random_links_and_cuts) {
     } else {
       ett.cut(a,b);
     }
-    ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
-          [](auto& node){return node.isvalid();}))
-        << "Stress test validation failed, final state:"
-        << std::endl
-        << ett.ett_nodes;
+    for (int j=0; j < nodecount; j++) {
+      ASSERT_TRUE(ett.ett_node(j).isvalid()); 
+      // << "Random links and cuts validation failed at iteration " 
+      // << i << ", node " << j << ", final state:" 
+      // << std::endl << ett.ett_nodes;
+    }
+    // ASSERT_TRUE(std::all_of(ett.ett_nodes.begin(), ett.ett_nodes.end(),
+    //       [](auto& node){return node.isvalid();}))
+    //     << "Stress test validation failed, final state:"
+    //     << std::endl
+    //     << ett.ett_nodes;
   }
 
-  std::unordered_set<SkipListNode*> sentinels;
+  std::unordered_set<SkipListNode<DefaultSketchColumn>*> sentinels;
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode *sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
+    SkipListNode<DefaultSketchColumn> *sentinel = ett.ett_node(i).edges.begin()->second->get_last();
     sentinels.insert(sentinel);
   }
 
   // Walk up from an occurrence of each node to the root of its auxiliary tre
-  std::unordered_map<SkipListNode*, Sketch*> aggs;
-  std::unordered_map<SkipListNode*, uint32_t> sizes;
+  std::unordered_map<SkipListNode<DefaultSketchColumn>*, DefaultSketchColumn*> aggs;
+  std::unordered_map<SkipListNode<DefaultSketchColumn>*, uint32_t> sizes;
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode* sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
+    SkipListNode<DefaultSketchColumn>* sentinel = ett.ett_node(i).edges.begin()->second->get_last();
     if (aggs.find(sentinel) == aggs.end())
     {
-      Sketch* agg = new Sketch(sketch_len, seed, 1, sketch_err);
+      // DefaultSketchColumn* agg = new Sketch(sketch_len, seed, 1, sketch_err);
+      DefaultSketchColumn *agg = new DefaultSketchColumn(
+          DefaultSketchColumn::suggest_capacity(sketch_len), seed);
       aggs.insert({sentinel, agg});
-      SkipListNode* sentinel_root = sentinel->get_root();
+      SkipListNode<DefaultSketchColumn>* sentinel_root = sentinel->get_root();
+      
       sentinel_root->process_updates();
-      aggs[sentinel]->merge(*sentinel->get_list_aggregate());
+      aggs[sentinel]->merge(sentinel->get_list_aggregate());
       sizes[sentinel] = sentinel->get_list_size();
     }
   }
 
-  std::unordered_map<SkipListNode*, Sketch*> naive_aggs;
-  std::unordered_map<SkipListNode*, uint32_t> naive_sizes;
+  std::unordered_map<SkipListNode<DefaultSketchColumn>*, DefaultSketchColumn*> naive_aggs;
+  std::unordered_map<SkipListNode<DefaultSketchColumn>*, uint32_t> naive_sizes;
   // Naively compute aggregates for each connected component
   for (int i = 0; i < nodecount; i++)
   {
-    SkipListNode* sentinel = ett.ett_nodes[i].edges.begin()->second->get_last();
+    SkipListNode<DefaultSketchColumn>* sentinel = ett.ett_node(i).edges.begin()->second->get_last();
     sentinel->process_updates();
     if (naive_aggs.find(sentinel) != naive_aggs.end())
     {
-      naive_aggs[sentinel]->merge(*ett.ett_nodes[i].allowed_caller->sketch_agg);
+      naive_aggs[sentinel]->merge(ett.ett_node(i).allowed_caller->sketch_agg);
       naive_sizes[sentinel] += 1;
     }
     else
     {
-      Sketch* agg = new Sketch(sketch_len, seed, 1, sketch_err);
+      // Sketch* agg = new Sketch(sketch_len, seed, 1, sketch_err);
+      // DefaultSketchColumn *agg = new DefaultSketchColumn(4, 0);
+      DefaultSketchColumn *agg = new DefaultSketchColumn(
+          DefaultSketchColumn::suggest_capacity(sketch_len), seed);
       naive_aggs.insert({sentinel, agg});
-      naive_aggs[sentinel]->merge(*ett.ett_nodes[i].allowed_caller->sketch_agg);
+      naive_aggs[sentinel]->merge(ett.ett_node(i).allowed_caller->sketch_agg);
       naive_sizes[sentinel] = 1;
     }
   }
@@ -187,10 +214,14 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   std::cout << "Seeding get aggregate test with " << seed << std::endl;
 
   // Keep a manual aggregate of all the sketches
-  Sketch true_aggregate(sketch_len, seed, 1, sketch_err);
+  // DefaultSketchColumn true_aggregate(sketch_len, seed, 1, sketch_err);
+  // DefaultSketchColumn true_aggregate(4, 0);
+  DefaultSketchColumn true_aggregate(
+      DefaultSketchColumn::suggest_capacity(sketch_len), seed);
 
   int nodecount = 1000;
-  EulerTourTree ett(nodecount, 0, seed);
+  EulerTourTree<DefaultSketchColumn> ett(nodecount, 0, seed);
+  ett.initialize_all_nodes();
 
   // Add value to each sketch, update the manual aggregate
   for (int i = 0; i < nodecount; i++)
@@ -205,6 +236,6 @@ TEST(EulerTourTreeSuite, get_aggregate) {
   }
 
   // Check that the ETT aggregate is properly maintained and gotten
-  Sketch* aggregate = ett.get_aggregate(0);
-  ASSERT_TRUE(*aggregate == true_aggregate);
+  const DefaultSketchColumn &aggregate = ett.get_aggregate(0);
+  ASSERT_TRUE(aggregate == true_aggregate);
 }

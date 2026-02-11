@@ -10,14 +10,10 @@ set -e
 
 mkdir -p ./../results
 mkdir -p ./../results/mpi_speed_results
-mkdir -p ./../results/mpi_space_results
 
-# Tests including memory measurement
 run_test() {
 	cat	binary_streams/$1 > /dev/null
-	mpirun -np $2 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/$1 0 $3 --gtest_filter=*mpi_mixed_speed_test* &
-	./../scripts/mem_record.sh mpi_dynamicCC_tests 2 ./../results/mpi_space_results/$1_$3_mem.txt
-	wait
+	mpirun -np $2 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/$1 0 $3 --gtest_filter=*mpi_mixed_speed_test*
 }
 
 declare -a streams=(
@@ -92,8 +88,18 @@ declare -a nps=(
 [27]=29
 )
 
-for i in $(seq 0 27);
-do
-	run_test ${streams[$i]} ${nps[$i]} 0
-done
 
+run_test ${streams[$1]} ${nps[$1]} $2
+
+# Test run
+# mpirun -np 23 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/kron_13_query10_binary 0 0 --gtest_filter=*mpi_mixed_speed_test*
+
+
+exit
+# Tests including memory measurement
+run_mem_test() {
+	mpirun -np $1 --bind-to hwthread ./mpi_dynamicCC_tests binary_streams/$2 0 0 --gtest_filter=*mpi_mixed_speed_test* &
+	./../scripts/mem_record.sh mpi_dynamicCC_tests 2 ./../results/mpi_space_results/batch_size_sweep/$2_$3_mem.txt
+	wait
+}
+	

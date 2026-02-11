@@ -31,13 +31,15 @@ void TierNode::main() {
         // Receive a batch of updates and check if it is the end of stream
         bcast(update_buffer, sizeof(UpdateMessage)*(batch_size+1), 0);
         if (update_buffer[0].end) {
-            // std::cout << "============= TIER " << tier_num << " NODE =============" << std::endl;
+            std::cout << "============= TIER " << tier_num << " NODE =============" << std::endl 
+            << "Number of components: " << ett.num_components() << std::endl;
             // std::cout << "Greedy batch time (ms): " << greedy_batch_time/1000 << std::endl;
             // std::cout << "\tSketch update time (ms): " << sketch_update_time/1000 << std::endl;
             // std::cout << "\tSketch query time (ms): " << sketch_query_time/1000 << std::endl;
             // std::cout << "\tSize message passing time (ms): " << size_message_passing_time/1000 << std::endl;
             // std::cout << "\tGreedy gather time (ms): " << greedy_batch_gather_time/1000 << std::endl;
             // std::cout << "Normal refresh time (ms): " << normal_refresh_time/1000 << std::endl;
+            std::cout << "\tSpace used (MB): " << ett.space_usage_bytes() / (1024.0 * 1024.0) << std::endl;
             return;
         }
         uint32_t num_updates = update_buffer[0].update.edge.src;
@@ -48,6 +50,9 @@ void TierNode::main() {
         for (uint32_t i = 0; i < num_updates; i++) {
             // Perform the sketch updating or root finding
             GraphUpdate update = update_buffer[i+1].update;
+            // TODO - do this in a different way?
+            initialize_node(update.edge.src);
+            initialize_node(update.edge.dst);
             edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
             split_revert_buffer[i] = false;
             unlikely_if (update.type == DELETE && ett.has_edge(update.edge.src, update.edge.dst)) {
@@ -58,11 +63,11 @@ void TierNode::main() {
             auto roots = ett.update_sketches(update.edge.src, update.edge.dst, (vec_t)edge);
             ENDPOINT_CANARY("Updating Sketch With", update.edge.src, update.edge.dst);
             roots.first->process_updates();
-            roots.first->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i] = roots.first->sketch_agg->sample().result;
+            roots.first->sketch_agg.reset_sample_state();
+            query_result_buffer[2*i] = roots.first->sketch_agg.sample().result;
             roots.second->process_updates();
-            roots.second->sketch_agg->reset_sample_state();
-            query_result_buffer[2*i+1] = roots.second->sketch_agg->sample().result;
+            roots.second->sketch_agg.reset_sample_state();
+            query_result_buffer[2*i+1] = roots.second->sketch_agg.sample().result;
     
             // Prepare greedy batch size messages
             GreedyRefreshMessage this_sizes;
@@ -152,11 +157,11 @@ void TierNode::main() {
                         e2.v = refresh_message.endpoints.second.v;
                         for (RefreshEndpoint* e : {&e1, &e2}) {
                             e->prev_tier_size = ett.get_size(e->v);
-                            SkipListNode* root = ett.get_root(e->v);
+                            SkipListNode<DefaultSketchColumn>* root = ett.get_root(e->v);
                             root->process_updates();
-                            Sketch* ett_agg = root->sketch_agg;
-                            ett_agg->reset_sample_state();
-                            e->sketch_query_result = ett_agg->sample();
+                            DefaultSketchColumn &ett_agg = root->sketch_agg;
+                            ett_agg.reset_sample_state();
+                            e->sketch_query_result = ett_agg.sample();
                         }
                         RefreshMessage next_refresh_message;
                         next_refresh_message.endpoints = {e1, e2};
@@ -169,6 +174,8 @@ void TierNode::main() {
                 for (int endpoint : {0,1}) {
                     std::ignore = endpoint;
                     // Receive a broadcast to see if the endpoint at the current tier is isolated or not
+                    // OR to see if the component is maximized.
+                    // if the component is maximized, further broadcasts are not needed
                     EttUpdateMessage update_message;
                     bcast(&update_message, sizeof(EttUpdateMessage), rank);
                     if (update_message.type == NOT_ISOLATED) continue;

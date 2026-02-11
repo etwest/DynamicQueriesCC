@@ -10,16 +10,26 @@ long skiplist_seed = time(NULL);
 vec_t sketch_len;
 vec_t sketch_err;
 
-SkipListNode::SkipListNode(EulerTourNode* node, long seed, bool has_sketch) : node(node) {
-	if (has_sketch) sketch_agg = new Sketch(sketch_len, seed, 1, sketch_err);
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>::SkipListNode(EulerTourNode<SketchClass>* node, long seed, bool has_sketch) : node(node), sketch_agg(0, seed) {
+  // if (has_sketch) sketch_agg = new Sketch(sketch_len, seed, 1, sketch_err);
+  // TODO - FIGURE OUT HOW TO DO SEEDING PROPERLY
+  // if (has_sketch)
+  //   sketch_agg = new SketchClass(
+  //       SketchClass::suggest_capacity(sketch_len), seed);
+  if (has_sketch)
+    this->sketch_agg = SketchClass(SketchClass::suggest_capacity(sketch_len), seed);
+  return;
 }
 
-SkipListNode::~SkipListNode() {
-	if (sketch_agg) delete sketch_agg;
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>::~SkipListNode() {
+	// if (sketch_agg) delete sketch_agg;
 }
 
-void SkipListNode::uninit_element(bool delete_bdry) {
-	SkipListNode* list_curr = this;
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void SkipListNode<SketchClass>::uninit_element(bool delete_bdry) {
+	SkipListNode<SketchClass>* list_curr = this;
 	SkipListNode* list_prev;
 	SkipListNode* bdry_curr = this->left;
 	SkipListNode* bdry_prev;
@@ -37,7 +47,8 @@ void SkipListNode::uninit_element(bool delete_bdry) {
 	}
 }
 
-SkipListNode* SkipListNode::init_element(EulerTourNode* node, bool is_allowed_caller) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::init_element(EulerTourNode<SketchClass>* node, bool is_allowed_caller) {
 	long seed = node->get_seed();
 	// NOTE: WE SHOULD MAKE IT SO DIFFERENT SKIPLIST NODES FOR THE SAME ELEMENT CAN BE DIFFERENT HEIGHTS
 	uint64_t element_height = height_factor*__builtin_ctzll(XXH3_64bits_withSeed(&node->vertex, sizeof(node_id_t), skiplist_seed))+1;
@@ -77,7 +88,8 @@ SkipListNode* SkipListNode::init_element(EulerTourNode* node, bool is_allowed_ca
 	return root->get_last();
 }
 
-SkipListNode* SkipListNode::get_parent() {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_parent() const {
 	// SkipListNode* curr = this;
 	// while (curr && !curr->up) {
 	// 	curr = curr->left;
@@ -86,17 +98,19 @@ SkipListNode* SkipListNode::get_parent() {
 	return parent;
 }
 
-SkipListNode* SkipListNode::get_root() {
-	SkipListNode* prev = nullptr;
-	SkipListNode* curr = this;
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_root() const {
+	const SkipListNode* prev = nullptr;
+	const SkipListNode* curr = this;
 	while (curr) {
 		prev = curr;
 		curr = prev->get_parent();
 	}
-	return prev;
+	return (SkipListNode*) prev;
 }
 
-SkipListNode* SkipListNode::get_first() {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_first() const {
 	// Go to the root first and then down to the first element, because if we start at some lower level
 	// we may have to travel right a lot more on that level, takes log time instead of linear time
 	SkipListNode* prev = nullptr;
@@ -108,7 +122,8 @@ SkipListNode* SkipListNode::get_first() {
 	return prev;
 }
 
-SkipListNode* SkipListNode::get_last() {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::get_last() const {
 	// Go to the root first and then down to the last element, because if we start at some lower level
 	// we may have to travel left a lot more on that level, takes log time instead of linear time
 	SkipListNode* prev = nullptr;
@@ -120,32 +135,45 @@ SkipListNode* SkipListNode::get_last() {
 	return prev;
 }
 
-uint32_t SkipListNode::get_list_size() {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+uint32_t SkipListNode<SketchClass>::get_list_size() {
 	return this->get_root()->size;
 }
 
-Sketch* SkipListNode::get_list_aggregate() {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+const SketchClass& SkipListNode<SketchClass>::get_list_aggregate() {
 	return this->get_root()->sketch_agg;
 }
 
-void SkipListNode::update_agg(vec_t update_idx) {
-	if (!this->sketch_agg) // Only do something if this node has a sketch
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void SkipListNode<SketchClass>::update_agg(vec_t update_idx) {
+	if (!this->sketch_agg.is_initialized()) // Only do something if this node has a sketch
 		return;
 	this->update_buffer[this->buffer_size] = update_idx;
 	this->buffer_size++;
-	if (this->buffer_size == skiplist_buffer_cap)
+	if (this->buffer_size == SKETCH_BUFFER_SIZE)
 		this->process_updates();
 }
 
-void SkipListNode::process_updates() {
-	if (!this->sketch_agg) // Only do something if this node has a sketch
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void SkipListNode<SketchClass>::update_agg_atomic(vec_t update_idx) {
+	if (!this->sketch_agg.is_initialized()) // Only do something if this node has a sketch
+		return;
+	// TODO - do we need to do batchiing here too?
+	this->sketch_agg.atomic_update(update_idx);
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void SkipListNode<SketchClass>::process_updates() {
+	if (!this->sketch_agg.is_initialized()) // Only do something if this node has a sketch
 		return;
 	for (int i = 0; i < buffer_size; ++i)
-		this->sketch_agg->update(update_buffer[i]);
+		this->sketch_agg.update(update_buffer[i]);
 	this->buffer_size = 0;
 }
 
-SkipListNode* SkipListNode::update_path_agg(vec_t update_idx) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(vec_t update_idx) {
 	SkipListNode* curr = this;
 	SkipListNode* prev;
 	while (curr) {
@@ -156,22 +184,115 @@ SkipListNode* SkipListNode::update_path_agg(vec_t update_idx) {
 	return prev;
 }
 
-SkipListNode* SkipListNode::update_path_agg(Sketch* sketch) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg_atomic(vec_t update_idx) {
 	SkipListNode* curr = this;
 	SkipListNode* prev;
 	while (curr) {
-		if (!curr->sketch_agg)
-			curr->sketch_agg = sketch;
-		else
-			curr->sketch_agg->merge(*sketch);
+		curr->update_agg_atomic(update_idx);
+		prev = curr;
+		curr = prev->get_parent();
+	}
+	return prev;
+}
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(const ColumnEntryDelta &delta) {
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	while (curr) {
+		// __builtin_prefetch(curr->get_parent());
+		curr->update_agg_entry_delta(delta);
+		prev = curr;
+		curr = prev->get_parent();
+	}
+	return prev;
+}
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg_atomic(const ColumnEntryDelta &delta) {
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	while (curr) {
+		// __builtin_prefetch(curr->get_parent());
+		curr->update_agg_atomic_entry_delta(delta);
 		prev = curr;
 		curr = prev->get_parent();
 	}
 	return prev;
 }
 
-std::set<EulerTourNode*> SkipListNode::get_component() {
-	std::set<EulerTourNode*> nodes;
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(const ColumnEntryDeltas &deltas) {
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	while (curr) {
+		curr->update_agg_entry_deltas(deltas);
+		prev = curr;
+		curr = prev->get_parent();
+	}
+	return prev;
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg_atomic(const ColumnEntryDeltas &deltas) {
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	while (curr) {
+		curr->update_agg_atomic_entry_deltas(deltas);
+		prev = curr;
+		curr = prev->get_parent();
+	}
+	return prev;
+}
+
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(SketchClass &sketch) {
+	// returns the last node that was updated
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	if (!this->sketch_agg.is_initialized()) {
+		this->sketch_agg = std::move(sketch);
+		prev = curr;
+		curr = prev->get_parent();
+		while (curr)
+		{
+			curr->sketch_agg.merge(this->sketch_agg);
+			prev = curr;
+			curr = prev->get_parent();
+		}
+		// this->sketch_agg.zero_contents();
+	} else {
+	  while (curr) {
+		curr->sketch_agg.merge(sketch);
+		prev = curr;
+		curr = prev->get_parent();
+	  }
+	}
+	return prev;
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::update_path_agg(const SketchClass &sketch) {
+	// returns the last node that was updated
+	SkipListNode* curr = this;
+	SkipListNode* prev;
+	if (!this->sketch_agg.is_initialized()) {
+		assert(false);
+		// NOTE - SHOULD NOT USE IN THIS CASE
+		// TODO - make this code less confusing if possible.
+	} else {
+	  while (curr) {
+		curr->sketch_agg.merge(sketch);
+		prev = curr;
+		curr = prev->get_parent();
+	  }
+	}
+	return prev;
+}
+
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+std::set<EulerTourNode<SketchClass>*> SkipListNode<SketchClass>::get_component() {
+	std::set<EulerTourNode<SketchClass>*> nodes;
 	SkipListNode* curr = this->get_first()->right; //Skip over the boundary node
 	while (curr) {
 		nodes.insert(curr->node);
@@ -180,7 +301,8 @@ std::set<EulerTourNode*> SkipListNode::get_component() {
 	return nodes;
 }
 
-void SkipListNode::uninit_list() {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void SkipListNode<SketchClass>::uninit_list() {
 	SkipListNode* curr = this->get_first();
 	SkipListNode* prev;
 	while (curr) {
@@ -191,13 +313,14 @@ void SkipListNode::uninit_list() {
 	prev->uninit_element(false);
 }
 
-SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::join(SkipListNode<SketchClass>* left, SkipListNode<SketchClass>* right) {
 	assert(left || right);
 	if (!left) return right->get_root();
 	if (!right) return left->get_root();
 
-	long seed = left->sketch_agg ? left->sketch_agg->get_seed()
-	 : left->get_parent()->sketch_agg->get_seed();
+	long seed = left->sketch_agg.is_initialized() ? left->sketch_agg.get_seed()
+	 : left->get_parent()->sketch_agg.get_seed();
 
 	SkipListNode* l_curr = left->get_last();
 	SkipListNode* r_curr = right->get_first(); // this is the bottom boundary node
@@ -211,8 +334,8 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 		l_curr->right = r_curr->right; // skip over boundary node
 		if (r_curr->right) r_curr->right->left = l_curr; // skip over boundary node, but to the left
 		r_curr->process_updates();
-		if (l_curr->sketch_agg && r_curr->sketch_agg) // Only if that skiplist node has a sketch
-			l_curr->sketch_agg->merge(*r_curr->sketch_agg);
+		if (l_curr->sketch_agg.is_initialized() && r_curr->sketch_agg.is_initialized()) // Only if that skiplist node has a sketch
+			l_curr->sketch_agg.merge(r_curr->sketch_agg);
 		l_curr->size += r_curr->size-1;
 
 		if (r_prev) delete r_prev; // Delete old boundary nodes
@@ -224,7 +347,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 
 	// If left list was taller add the root agg in right to the rest in left
 	while (l_curr) {
-		l_curr->sketch_agg->merge(*r_prev->sketch_agg);
+		l_curr->sketch_agg.merge(r_prev->sketch_agg);
 		l_curr->size += r_prev->size-1;
 		l_prev = l_curr;
 		l_curr = l_prev->get_parent();
@@ -233,10 +356,12 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	// If right list was taller add new boundary nodes to left list
 	if (r_curr) {
 		// Cache the left root to initialize the new boundary nodes
-		Sketch* l_root_agg = new Sketch(sketch_len, seed, 1, sketch_err);
+		// Sketch* l_root_agg = new Sketch(sketch_len, seed, 1, sketch_err);
+		SketchClass l_root_agg = SketchClass(
+			SketchClass::suggest_capacity(sketch_len), seed);
 		l_prev->process_updates();
-		l_root_agg->merge(*l_prev->sketch_agg);
-		l_root_agg->merge(*r_prev->sketch_agg);
+		l_root_agg.merge(l_prev->sketch_agg);
+		l_root_agg.merge(r_prev->sketch_agg);
 		uint32_t l_root_size = l_prev->size - (r_prev->size-1);
 		while (r_curr) {
 			l_curr = new SkipListNode(nullptr, seed, true);
@@ -246,10 +371,10 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 			l_curr->right = r_curr->right;
 			if (r_curr->right) r_curr->right->left = l_curr;
 
-			l_curr->sketch_agg->merge(*l_root_agg);
+			l_curr->sketch_agg.merge(l_root_agg);
 			l_curr->size = l_root_size;
 			r_curr->process_updates();
-			l_curr->sketch_agg->merge(*r_curr->sketch_agg);
+			l_curr->sketch_agg.merge(r_curr->sketch_agg);
 			l_curr->size += r_curr->size-1;
 
 			if (r_prev) delete r_prev; // Delete old boundary nodes
@@ -257,7 +382,7 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 			r_prev = r_curr;
 			r_curr = r_prev->up;
 		}
-		delete l_root_agg;
+		// delete l_root_agg;
 	}
 	delete r_prev;
 	// Update parent pointers in right list
@@ -273,7 +398,8 @@ SkipListNode* SkipListNode::join(SkipListNode* left, SkipListNode* right) {
 	return l_prev;
 }
 
-SkipListNode* SkipListNode::split_left(SkipListNode* node) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::split_left(SkipListNode<SketchClass>* node) {
 	assert(node && node->left && !node->down);
 	// If just splitting off the boundary nodes do nothing instead
 	if (!node->left->left) {
@@ -292,19 +418,19 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 		r_curr->left = bdry;
 		bdry->right = r_curr;
 		l_curr->right = nullptr;
-		if (l_curr->sketch_agg && bdry->sketch_agg) // Only if its not the bottom sketchless node
-			l_curr->sketch_agg->merge(*bdry->sketch_agg); // XOR addition same as subtraction
+		if (l_curr->sketch_agg.is_initialized() && bdry->sketch_agg.is_initialized()) // Only if its not the bottom sketchless node
+			l_curr->sketch_agg.merge(bdry->sketch_agg); // XOR addition same as subtraction
 		l_curr->size -= bdry->size-1;
 		// Get next l_curr, r_curr, and bdry
 		l_curr = l_curr->get_parent();
 		new_bdry = new SkipListNode(nullptr, seed, true);
-		if (bdry->sketch_agg) // Only if its not the bottom sketchless node
-			new_bdry->sketch_agg->merge(*bdry->sketch_agg);
+		if (bdry->sketch_agg.is_initialized()) // Only if its not the bottom sketchless node
+			new_bdry->sketch_agg.merge(bdry->sketch_agg);
 		new_bdry->size = bdry->size;
 		while (r_curr && !r_curr->up) {
 			r_curr->process_updates();
-			if (r_curr->sketch_agg) // Only if that skiplist node has a sketch
-				new_bdry->sketch_agg->merge(*r_curr->sketch_agg);
+			if (r_curr->sketch_agg.is_initialized()) // Only if that skiplist node has a sketch
+				new_bdry->sketch_agg.merge(r_curr->sketch_agg);
 			new_bdry->size += r_curr->size;
 			r_curr->parent = new_bdry;
 			r_curr = r_curr->right;
@@ -318,7 +444,7 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	// Subtract the final right agg from the rest of the aggs on left path
 	SkipListNode* l_prev = nullptr;
 	while (l_curr) {
-		l_curr->sketch_agg->merge(*bdry->sketch_agg); // XOR addition same as subtraction
+		l_curr->sketch_agg.merge(bdry->sketch_agg); // XOR addition same as subtraction
 		l_curr->size -= bdry->size-1;
 		l_prev  = l_curr;
 		l_curr = l_curr->get_parent();
@@ -336,7 +462,8 @@ SkipListNode* SkipListNode::split_left(SkipListNode* node) {
 	return l_prev;
 }
 
-SkipListNode* SkipListNode::split_right(SkipListNode* node) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::split_right(SkipListNode<SketchClass>* node) {
 	assert(node);
 	SkipListNode* right = node->right;
 	if (!right) return nullptr;
@@ -344,6 +471,10 @@ SkipListNode* SkipListNode::split_right(SkipListNode* node) {
 	return right->get_root();
 }
 
-SkipListNode* SkipListNode::next() {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+SkipListNode<SketchClass>* SkipListNode<SketchClass>::next() {
 	return this->right;
 }
+
+
+template class SkipListNode<DefaultSketchColumn>;

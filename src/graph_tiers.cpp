@@ -21,7 +21,8 @@ long tiers_grown = 0;
 long normal_refreshes = 0;
 
 
-GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+GraphTiers<SketchClass>::GraphTiers(node_id_t num_nodes, uint64_t seed) : link_cut_tree(num_nodes) {
 	// Algorithm parameters
 	uint32_t num_tiers = log2(num_nodes)/(log2(3)-1);
 
@@ -29,7 +30,7 @@ GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
 	std::random_device dev;
     std::mt19937 rng(dev());
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,MAX_INT);
-    int seed = dist(rng);
+    // int seed = dist(rng);
     std::cout << "SEED: " << seed << std::endl;
     rng.seed(seed);
 	dist(rng); // To give 1:1 correspondence with MPI seeds
@@ -38,49 +39,60 @@ GraphTiers::GraphTiers(node_id_t num_nodes) : link_cut_tree(num_nodes) {
 		ett.emplace_back(num_nodes, i, tier_seed);
 	}
 
-	root_nodes.reserve(num_tiers*2);
+	root_nodes.resize(num_tiers*2);
 }
 
-GraphTiers::~GraphTiers() {}
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+GraphTiers<SketchClass>::~GraphTiers() {}
 
-void GraphTiers::update(GraphUpdate update) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void GraphTiers<SketchClass>::update(GraphUpdate update) {
 	edge_id_t edge = VERTICES_TO_EDGE(update.edge.src, update.edge.dst);
 	// Update the sketches of both endpoints of the edge in all tiers
 	if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
 		link_cut_tree.cut(update.edge.src, update.edge.dst);
 	}
 	START(su);
-	#pragma omp parallel for
+	std::atomic<bool> did_cut(false);
+	// #pragma omp parallel for
 	for (uint32_t i = 0; i < ett.size(); i++) {
 		if (update.type == DELETE && ett[i].has_edge(update.edge.src, update.edge.dst)) {
+			did_cut = true;
 			ett[i].cut(update.edge.src, update.edge.dst);
 			ENDPOINT_CANARY("Cutting Tier " << i << " ETT With", update.edge.src, update.edge.dst);
 		}
+		// maintain roots of u,v endpoints
 		root_nodes[2*i] = ett[i].update_sketch(update.edge.src, (vec_t)edge);
 		root_nodes[2*i+1] = ett[i].update_sketch(update.edge.dst, (vec_t)edge);
 		ENDPOINT_CANARY("Updating Sketch With", update.edge.src, update.edge.dst);
+		
 	}
 	STOP(sketch_time, su);
 	// Refresh the data structure
 	START(ref);
-	refresh(update);
+	this->refresh(update, did_cut);
 	STOP(refresh_time, ref);
 }
 
-void GraphTiers::refresh(GraphUpdate update) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+void GraphTiers<SketchClass>::refresh(GraphUpdate update, bool did_cut) {
 	// In parallel check if all tiers are not isolated
 	START(iso);
 	std::atomic<bool> isolated(false);
-	//#pragma omp parallel for
+	// #pragma omp parallel for
 	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
 		// Check if the tree containing first endpoint is isolated
 		uint32_t tier_size1 = root_nodes[2*tier]->size;
 		uint32_t next_size1 = root_nodes[2*(tier+1)]->size;
+		// NOTE - We know that we are a subset of the next tier's component
+		// by maintenance of variants. 
+		// thus, if the sizes are equal, we are not a proper subset
+		// but are a subset. This means we are violating 
 		if (tier_size1 == next_size1) {
 			root_nodes[2*tier]->process_updates();
-			Sketch* ett_agg1 = root_nodes[2*tier]->sketch_agg;
-			ett_agg1->reset_sample_state();
-			SketchSample query_result1 = ett_agg1->sample();
+			SketchClass &ett_agg1 = root_nodes[2*tier]->sketch_agg;
+			ett_agg1.reset_sample_state();
+			SketchSample<> query_result1 = ett_agg1.sample();
 			if (query_result1.result == GOOD) {
 				isolated = true;
 				continue;
@@ -91,9 +103,9 @@ void GraphTiers::refresh(GraphUpdate update) {
 		uint32_t next_size2 = root_nodes[2*(tier+1)+1]->size;
 		if (tier_size2 == next_size2) {
 			root_nodes[2*tier+1]->process_updates();
-			Sketch* ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
-			ett_agg2->reset_sample_state();
-			SketchSample query_result2 = ett_agg2->sample();
+			SketchClass &ett_agg2 = root_nodes[2*tier+1]->sketch_agg;
+			ett_agg2.reset_sample_state();
+			SketchSample query_result2 = ett_agg2.sample();
 			if (query_result2.result == GOOD) {
 				isolated = true;
 				continue;
@@ -101,11 +113,12 @@ void GraphTiers::refresh(GraphUpdate update) {
 		}
 	}
 	STOP(parallel_isolated_check, iso);
+	if (isolated || did_cut) normal_refreshes++;
 	if (!isolated)
 		return;
-	normal_refreshes++;
 	// For each tier for each endpoint of the edge
 	for (uint32_t tier = 0; tier < ett.size()-1; tier++) {
+		bool both_components_maximized = true;
 		for (node_id_t v : {update.edge.src, update.edge.dst}) {
 			// Check if the tree containing this endpoint is isolated
 			START(size);
@@ -117,14 +130,18 @@ void GraphTiers::refresh(GraphUpdate update) {
 				continue;
 
 			START(agg);
-			SkipListNode* root = ett[tier].get_root(v);
+			SkipListNode<SketchClass>* root = ett[tier].get_root(v);
 			root->process_updates();
-			Sketch* ett_agg = root->sketch_agg;
+			SketchClass &ett_agg = root->sketch_agg;
 			STOP(ett_get_agg, agg);
 			START(sq);
-			ett_agg->reset_sample_state();
-			SketchSample query_result = ett_agg->sample();
+			ett_agg.reset_sample_state();
+			SketchSample query_result = ett_agg.sample();
 			STOP(sketch_query, sq);
+			
+			if (query_result.result != ZERO) {
+				both_components_maximized = false;
+			}
 
 			// Check for new edge to eliminate isolation
 			if (query_result.result != GOOD)
@@ -150,7 +167,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 
 				// Remove the maximum tier edge on all paths where it exists
 				START(ett1);
-				#pragma omp parallel for
+				// #pragma omp parallel for
 				for (uint32_t i = max.second; i < ett.size(); i++) {
 					ett[i].cut(c,d);
 					ENDPOINT_CANARY("Cutting Tier " << i << " ETT With", c, d);
@@ -163,7 +180,7 @@ void GraphTiers::refresh(GraphUpdate update) {
 
 			// Join the ETTs for the endpoints of the edge on all tiers above the current
 			START(ett2);
-			#pragma omp parallel for
+			// #pragma omp parallel for
 			for (uint32_t i = tier+1; i < ett.size(); i++) {
 				ett[i].link(a,b);
 				ENDPOINT_CANARY("Linking Tier " << i << " ETT With", a, b);
@@ -173,16 +190,20 @@ void GraphTiers::refresh(GraphUpdate update) {
 			link_cut_tree.link(a,b, tier+1);
 			STOP(lct_time, lct4);
 		}
+		// if (both_components_maximized) {
+		// 	break;
+		// }
 	}
 }
 
-std::vector<std::set<node_id_t>> GraphTiers::get_cc() {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+std::vector<std::set<node_id_t>> GraphTiers<SketchClass>::get_cc() {
 	std::vector<std::set<node_id_t>> cc;
-	std::set<EulerTourNode*> visited;
+	std::set<EulerTourNode<SketchClass>*> visited;
 	int top = ett.size()-1;
 	for (uint32_t i = 0; i < ett[top].ett_nodes.size(); i++) {
-		if (visited.find(&ett[top].ett_nodes[i]) == visited.end()) {
-			std::set<EulerTourNode*> pointer_component = ett[top].ett_nodes[i].get_component();
+		if (visited.find(&ett[top].ett_node(i)) == visited.end()) {
+			std::set<EulerTourNode<SketchClass>*> pointer_component = ett[top].ett_node(i).get_component();
 			std::set<node_id_t> component;
 			for (auto pointer : pointer_component) {
 				component.insert(pointer->vertex);
@@ -194,6 +215,9 @@ std::vector<std::set<node_id_t>> GraphTiers::get_cc() {
 	return cc;
 }
 
-bool GraphTiers::is_connected(node_id_t a, node_id_t b) {
+template <typename SketchClass> requires(SketchColumnConcept<SketchClass, vec_t>)
+bool GraphTiers<SketchClass>::is_connected(node_id_t a, node_id_t b) {
 	return this->link_cut_tree.find_root(a) == this->link_cut_tree.find_root(b);
 }
+
+template class GraphTiers<DefaultSketchColumn>;

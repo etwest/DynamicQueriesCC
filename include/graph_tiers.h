@@ -6,6 +6,7 @@
 
 #include "euler_tour_tree.h"
 #include "link_cut_tree.h"
+// #include "lct_v2.h"
 
 
 // Global variables for performance testing
@@ -24,16 +25,18 @@ extern std::atomic<long> num_sketch_batches;
 
 // maintains the tiers of the algorithm
 // and the spanning forest of the entire graph
+template <typename SketchClass = DefaultSketchColumn> requires(SketchColumnConcept<SketchClass, vec_t>)
 class GraphTiers {
-  FRIEND_TEST(GraphTiersSuite, mini_correctness_test);
+  // FRIEND_TEST(GraphTiersSuite, mini_correctness_test);
 private:
-  std::vector<EulerTourTree> ett;  // one ETT for each tier
-  std::vector<SkipListNode*> root_nodes;
-  LinkCutTree link_cut_tree;
-  void refresh(GraphUpdate update);
+  std::vector<EulerTourTree<SketchClass>> ett;  // one ETT for each tier
+  std::vector<SkipListNode<SketchClass>*> root_nodes;
+  // LinkCutTreeMaxAgg<int8_t> link_cut_tree;
+  LinkCutTree<> link_cut_tree;
+  void refresh(GraphUpdate update, bool did_cut);
 
 public:
-  GraphTiers(node_id_t num_nodes);
+  GraphTiers(node_id_t num_nodes, uint64_t seed);
   ~GraphTiers();
 
   // apply an edge update

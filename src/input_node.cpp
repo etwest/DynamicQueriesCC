@@ -3,6 +3,7 @@
 
 long normal_refreshes = 0;
 long dt_operation_time = 0;
+long num_updates = 0;
 
 InputNode::InputNode(node_id_t num_nodes, uint32_t num_tiers, int batch_size, int seed) :
     num_nodes(num_nodes), num_tiers(num_tiers), link_cut_tree(num_nodes), query_ett(num_nodes, 0, seed) {
@@ -24,6 +25,7 @@ InputNode::~InputNode() {
 }
 
 void InputNode::update(GraphUpdate update) {
+    num_updates++;
     UpdateMessage update_message;
     update_message.update = update;
     update_buffer[buffer_size++] = update_message;
@@ -34,10 +36,16 @@ void InputNode::update(GraphUpdate update) {
 void InputNode::process_updates() {
     if (buffer_size == 1)
         return;
+    // BUFFER PRE-PROCESSING !
+    // for every update; if we know it's isolated (adds new connectivity) info,
+    // swap it to the front of the buffer
+
+
     uint32_t num_updates = buffer_size-1;
     // If less than 1/10 of the last updates are isolated use sliding window
     bool prev_strat = using_sliding_window;
-    using_sliding_window = false;//(isolation_count<history_size/10) ? true : false;
+    // using_sliding_window = false;//(isolation_count<history_size/10) ? true : false;
+    using_sliding_window = true;
     if (using_sliding_window != prev_strat)
         std::cout << "SWITCHED TO " << (using_sliding_window ? "SLIDING WINDOW" : "NORMAL STRAT") << std::endl;
     // Broadcast the batch of updates to all nodes
@@ -48,10 +56,15 @@ void InputNode::process_updates() {
     for (uint32_t i = 0; i < num_updates; i++) {
         GraphUpdate update = update_buffer[i+1].update;
         split_revert_buffer[i] = MAX_INT;
-        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
-            split_revert_buffer[i] = link_cut_tree.get_edge_weight(update.edge.src, update.edge.dst);
+        unlikely_if (update.type == DELETE && query_ett.has_edge(update.edge.src, update.edge.dst)) {
+            std::pair<Edge, int8_t> max_edge = link_cut_tree.path_query(update.edge.src, update.edge.dst);
+            split_revert_buffer[i] = max_edge.second;
+            // probably where most structural (spanning forest) deletes happen?
+            // potentially - revisit
             link_cut_tree.cut(update.edge.src, update.edge.dst);
             query_ett.cut(update.edge.src, update.edge.dst);
+            // transaction_log.add(update.edge, DELETE);
+            transaction_log.push_back(update);
         }
     }
     // Attempt to do the entire batch parallel with greedy refresh
@@ -70,6 +83,9 @@ void InputNode::process_updates() {
         unlikely_if (split_revert_buffer[update_idx-1] != MAX_INT) {
             link_cut_tree.link(update.edge.src, update.edge.dst, split_revert_buffer[update_idx-1]);
             query_ett.link(update.edge.src, update.edge.dst);
+            // transaction_log.add(update.edge, generate_entry_dINSERT);
+            // // TODO - not actually sure if update is an insert type
+            transaction_log.push_back(GraphUpdate{update.edge, INSERT});
         }
     }
     // Update the isolation history
@@ -85,9 +101,11 @@ void InputNode::process_updates() {
     for (int update_idx = minimum_isolated_update; update_idx < end_update_idx; update_idx++) {
         GraphUpdate update = update_buffer[update_idx].update;
         START(dt_operation_timer1);
-        unlikely_if (update.type == DELETE && link_cut_tree.has_edge(update.edge.src, update.edge.dst)) {
+        unlikely_if (update.type == DELETE && query_ett.has_edge(update.edge.src, update.edge.dst)) {
             link_cut_tree.cut(update.edge.src, update.edge.dst);
             query_ett.cut(update.edge.src, update.edge.dst);
+            // transaction_log.add(update.edge, DELETE);
+            transaction_log.push_back(update);
         }
         STOP(dt_operation_time, dt_operation_timer1);
         uint32_t start_tier = 0;
@@ -102,21 +120,27 @@ void InputNode::process_updates() {
         MPI_Send(&refresh_message, sizeof(RefreshMessage), MPI_BYTE, start_tier+1, 0, MPI_COMM_WORLD);
         for (uint32_t tier = start_tier; tier < num_tiers; tier++) {
             int rank = tier + 1;
+            // bool break_early = true;
             if (tier != 0)
             for (auto endpoint : {0,1}) {
                 std::ignore = endpoint;
                 // Receive a broadcast to see if the current tier/endpoint is isolated or not
                 EttUpdateMessage update_message;
                 bcast(&update_message, sizeof(UpdateMessage), rank);
-                if (update_message.type == NOT_ISOLATED)
+                if (update_message.type == NOT_ISOLATED) {
                     continue;
+                }
+                // else {
+                //     break_early = false;
+                // }
                 this_update_isolated = true;
                 // Process a LCT query message first
                 LctResponseMessage response_message;
-                response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
+                // response_message.connected = link_cut_tree.find_root(update_message.endpoint1) == link_cut_tree.find_root(update_message.endpoint2);
+                response_message.connected = query_ett.is_connected(update_message.endpoint1, update_message.endpoint2);
                 if (response_message.connected) {
-                    std::pair<edge_id_t, uint32_t> max = link_cut_tree.path_aggregate(update_message.endpoint1, update_message.endpoint2);
-                    response_message.cycle_edge = max.first;
+                    std::pair<Edge, int8_t> max = link_cut_tree.path_query(update_message.endpoint1, update_message.endpoint2);
+                    response_message.cycle_edge = VERTICES_TO_EDGE(max.first.src, max.first.dst);
                     response_message.weight = max.second;
                 }
                 MPI_Send(&response_message, sizeof(LctResponseMessage), MPI_BYTE, rank, 0, MPI_COMM_WORLD);
@@ -130,14 +154,21 @@ void InputNode::process_updates() {
                     if (update_message.type == LINK) {
                         link_cut_tree.link(update_message.endpoint1, update_message.endpoint2, update_message.start_tier);
                         query_ett.link(update_message.endpoint1, update_message.endpoint2);
+                        // transaction_log.add(update_message, INSERT);
+                        transaction_log.push_back(
+                            GraphUpdate{Edge{update_message.endpoint1, update_message.endpoint2}, INSERT});
                         break;
                     } else if (update_message.type == CUT) {
                         link_cut_tree.cut(update_message.endpoint1, update_message.endpoint2);
                         query_ett.cut(update_message.endpoint1, update_message.endpoint2);
+                        // transaction_log.add(update_message, DELETE);
+                        transaction_log.push_back(
+                            GraphUpdate{Edge{update_message.endpoint1, update_message.endpoint2}, DELETE});
                     }
                     STOP(dt_operation_time, dt_operation_timer2);
                 }
             }
+            // if (break_early) break;
         }
         isolation_count -= (int)isolation_history_queue.front();
         isolation_history_queue.pop();
@@ -180,4 +211,5 @@ void InputNode::end() {
      std::cout << "======================= INPUT NODE ======================" << std::endl;
      std::cout << "Dynamic tree operations time (ms): " << dt_operation_time/1000 << std::endl;
      std::cout << "Normal refreshes: " << normal_refreshes << std::endl;
+     std::cout << "Number of updates: " << num_updates << std::endl;
 }

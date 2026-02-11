@@ -6,6 +6,9 @@
 #include <sketchless_skiplist.h>
 #include "types.h"
 
+
+#include <absl/container/flat_hash_map.h>
+
 class SketchlessEulerTourNode {
 
   std::unordered_map<SketchlessEulerTourNode*, SketchlessSkipListNode*> edges;
@@ -39,12 +42,19 @@ public:
   friend std::ostream& operator<<(std::ostream& os, const SketchlessEulerTourNode& ett);
 };
 
-class SketchlessEulerTourTree {
-  long seed = 0;
-public:
-  std::vector<SketchlessEulerTourNode> ett_nodes;
 
-  SketchlessEulerTourTree(node_id_t num_nodes, uint32_t tier_num, int seed);
+template <
+// typename Container = std::vector<SketchlessEulerTourNode>>
+typename Container = absl::flat_hash_map<node_id_t, SketchlessEulerTourNode*>>
+class SketchlessEulerTourTree {
+  // TODO - packing order fixes
+  size_t seed = 0;
+  uint32_t tier_num = 0;
+public:
+  node_id_t max_num_nodes;
+  Container ett_nodes;
+
+  SketchlessEulerTourTree(node_id_t max_num_nodes, uint32_t tier_num, size_t seed);
   
   void link(node_id_t u, node_id_t v);
   void cut(node_id_t u, node_id_t v);
@@ -52,4 +62,51 @@ public:
   SketchlessSkipListNode* get_root(node_id_t u);
   bool is_connected(node_id_t u, node_id_t v);
   std::vector<std::set<node_id_t>> cc_query();
+  
+  SketchlessEulerTourNode& ett_node(node_id_t u) {
+    if constexpr (std::is_same_v<Container, std::vector<SketchlessEulerTourNode>>) {
+        assert(u < ett_nodes.size());
+        return ett_nodes[u];
+    } else {
+      // if (ett_nodes.find(u) == ett_nodes.end()) {
+      //     std::cout << "ruh oh" << std::endl;
+      // }
+        assert(ett_nodes.find(u) != ett_nodes.end());
+        return *ett_nodes[u];
+    }
+  }
+  
+  void initialize_node(node_id_t u) {
+    // no-op with vector implementation
+    if constexpr (!std::is_same_v<Container, std::vector<SketchlessEulerTourNode>>) {
+        ett_nodes[u] = new SketchlessEulerTourNode(this->seed, u, this->tier_num);
+    }
+  };
+  void uninitialize_node(node_id_t u) {
+    // no-op with vector implementation
+    if constexpr (!std::is_same_v<Container, std::vector<SketchlessEulerTourNode>>) {
+        assert(ett_nodes.find(u) != ett_nodes.end());
+        delete ett_nodes[u];
+    }
+  };
+  
+  void initialize_all_nodes() {
+    for (node_id_t i = 0; i < max_num_nodes; ++i) {
+        initialize_node(i);
+    }
+  };
+  void initialize_all_nodes(node_id_t until) {
+    assert(until <= max_num_nodes);
+    for (node_id_t i = 0; i < until; ++i) {
+        initialize_node(i);
+    }
+  }
+  bool is_initialized(node_id_t u) {
+    // no-op with vector implementation
+    if constexpr (std::is_same_v<Container, std::vector<SketchlessEulerTourNode>>) {
+        return true;
+    } else {
+        return ett_nodes.find(u) != ett_nodes.end();
+    }
+  };
 };

@@ -78,34 +78,35 @@ TEST(LinkCutTreeSuite, join_split_test) {
     // power of 2 node count
     int nodecount = 1024;
     LinkCutTree lct(nodecount);
+    lct.initialize_all_nodes();
     // Join every 2,4,8,16... nodes
     for (int i = 2; i <= nodecount; i*=2) {
         for (int j = 0; j < nodecount; j+=i) {
-            lct.nodes[j].splay();
-            lct.nodes[j+i/2].splay();
+            lct.node(j).splay();
+            lct.node(j+i/2).splay();
             //std::cout << "Join nodes: " << &nodes[j] << " and " << &nodes[j+i/2] << "\n";
-            LinkCutNode* p = lct.join(&lct.nodes[j], &lct.nodes[j+i/2]);
-            EXPECT_EQ(p->get_head(), &lct.nodes[j]);
-            EXPECT_EQ(p->get_tail(), &lct.nodes[j+i-1]);
+            LinkCutNode* p = lct.join(&lct.node(j), &lct.node(j+i/2));
+            EXPECT_EQ(p->get_head(), &lct.node(j));
+            EXPECT_EQ(p->get_tail(), &lct.node(j+i-1));
         }
         // Validate all nodes
         for (int i = 0; i < nodecount; i++) {
-            validate(&lct.nodes[i]);
+            validate(&lct.node(i));
         }
     }
     // Split Every ...16,8,4,2 nodes
     for (int i = nodecount; i > 1; i/=2) {
         for (int j = 0; j < nodecount; j+=i) {
             //std::cout << "Split on node: " << &nodes[j+i/2-1] << "\n";
-            std::pair<LinkCutNode*, LinkCutNode*> paths = lct.split(&lct.nodes[j+i/2-1]);
-            EXPECT_EQ(paths.first->get_head(), &lct.nodes[j]);
-            EXPECT_EQ(paths.first->get_tail(), &lct.nodes[j+i/2-1]);
-            EXPECT_EQ(paths.second->get_head(), &lct.nodes[j+i/2]);
-            EXPECT_EQ(paths.second->get_tail(), &lct.nodes[j+i-1]);
+            std::pair<LinkCutNode*, LinkCutNode*> paths = lct.split(&lct.node(j+i/2-1));
+            EXPECT_EQ(paths.first->get_head(), &lct.node(j));
+            EXPECT_EQ(paths.first->get_tail(), &lct.node(j+i/2-1));
+            EXPECT_EQ(paths.second->get_head(), &lct.node(j+i/2));
+            EXPECT_EQ(paths.second->get_tail(), &lct.node(j+i-1));
         }
         // Validate all nodes
         for (int i = 0; i < nodecount; i++) {
-            validate(&lct.nodes[i]);
+            validate(&lct.node(i));
         }
     }
 }
@@ -114,48 +115,57 @@ TEST(LinkCutTreeSuite, expose_simple_test) {
     int pathcount = 100;
     int nodesperpath = 100;
     LinkCutTree lct(nodesperpath*pathcount);
+    lct.initialize_all_nodes();
     // Link all the nodes in each path together
     for (int path = 0; path < pathcount; path++) {
         for (int node = 0; node < nodesperpath-1; node++) {
-            lct.nodes[path*nodesperpath+node].splay();
-            lct.join(&lct.nodes[path*nodesperpath+node], &lct.nodes[path*nodesperpath+node+1]);
+            lct.node(path*nodesperpath+node).splay();
+            lct.join(&lct.node(path*nodesperpath+node), &lct.node(path*nodesperpath+node+1));
         }
     }
     // Link all the paths together with dparent pointers half way up the previous path
     for (int path = 1; path < pathcount; path++) {
-        lct.nodes[path*nodesperpath].set_dparent(&lct.nodes[path*nodesperpath-nodesperpath/2]);
+        lct.node(path*nodesperpath).set_dparent(&lct.node(path*nodesperpath-nodesperpath/2));
     }
     // Call expose on the node half way up the bottom path
-    LinkCutNode* p = lct.expose(&lct.nodes[pathcount*nodesperpath-nodesperpath/2]);
+    LinkCutNode* p = lct.expose(&lct.node(pathcount*nodesperpath-nodesperpath/2));
 
     // Validate all nodes
     for (int i = 0; i < pathcount*nodesperpath; i++) {
-        validate(&lct.nodes[i]);
+        validate(&lct.node(i));
     }
     // Validate head and tail of returned path
-    EXPECT_EQ(p->get_head(), &lct.nodes[0]);
-    EXPECT_EQ(p->get_tail(), &lct.nodes[pathcount*nodesperpath-nodesperpath/2]) << "Exposed node not tail of path";
+    EXPECT_EQ(p->get_head(), &lct.node(0));
+    EXPECT_EQ(p->get_tail(), &lct.node(pathcount*nodesperpath-nodesperpath/2)) << "Exposed node not tail of path";
     // Validate all dparent pointers
     for (int path = 0; path < pathcount; path++) {
-        EXPECT_EQ(lct.nodes[(path+1)*nodesperpath-nodesperpath/2+1].get_dparent(), &lct.nodes[(path+1)*nodesperpath-nodesperpath/2]);
+        EXPECT_EQ(lct.node((path+1)*nodesperpath-nodesperpath/2+1).get_dparent(), &lct.node((path+1)*nodesperpath-nodesperpath/2));
     }
 }
 
 TEST(LinkCutTreeSuite, random_links_and_cuts) {
+    // TODO - restore the test cases.
     int nodecount = 1000;
     LinkCutTree lct(nodecount);
+    lct.initialize_all_nodes();
     int seed = time(NULL);
     // Link all nodes
     for (int i = 0; i < nodecount-1; i++) {
         lct.link(i,i+1, rand()%100);
-        ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
-          << "One or more invalid nodes found" << std::endl;
+        // ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
+        //   << "One or more invalid nodes found" << std::endl;
+        for (int j = 0; j < nodecount; j++) {
+           ASSERT_TRUE(validate(&lct.node(j)));
+        }
     }
     // Cut every node
     for (int i = 0; i < nodecount-1; i+=1) {
         lct.cut(i,i+1);
-        ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
-          << "One or more invalid nodes found" << std::endl;
+        // ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
+        //   << "One or more invalid nodes found" << std::endl;
+        for (int j = 0; j < nodecount; j++) {
+           ASSERT_TRUE(validate(&lct.node(j)));
+        }
     }
     // Do random links and cuts
     int n = 5000;
@@ -169,21 +179,24 @@ TEST(LinkCutTreeSuite, random_links_and_cuts) {
                 //std::cout << i << ": Linking " << a << " and " << b << " weight " << weight << std::endl;
                 lct.link(a, b, weight);
                 //print_paths(&lct.nodes);
-            } else if (lct.nodes[a].edges.find(&lct.nodes[b]-&lct.nodes[0]) != lct.nodes[a].edges.end()) {
+            } else if (lct.node(a).edges.find(&lct.node(b)-&lct.node(0)) != lct.node(a).edges.end()) {
                 //std::cout << i << ": Cutting " << a << " and " << b << std::endl;
                 lct.cut(a, b);
                 //print_paths(&lct.nodes);
             }
-            ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
-             << "One or more invalid nodes found" << std::endl;
+            // ASSERT_TRUE(std::all_of(lct.nodes.begin(), lct.nodes.end(), [](auto& node){return validate(&node);}))
+            //  << "One or more invalid nodes found" << std::endl;
+            for (int j = 0; j < nodecount; j++) {
+               ASSERT_TRUE(validate(&lct.node(j)));
+            }
         }
     }
     // Manually compute the aggregates for each aux tree
     std::map<LinkCutNode*, uint32_t> path_aggregates;
     for (int i = 0; i < nodecount; i++) {
-        uint32_t nodemax = std::max(lct.nodes[i].edges[lct.nodes[i].preferred_edges.first],
-                lct.nodes[i].edges[lct.nodes[i].preferred_edges.second]);
-        LinkCutNode* curr = &lct.nodes[i];
+        uint32_t nodemax = std::max(lct.node(i).edges[lct.node(i).preferred_edges.first],
+                lct.node(i).edges[lct.node(i).preferred_edges.second]);
+        LinkCutNode* curr = &lct.node(i);
         while (curr) {
             if (curr->get_parent() == nullptr) {
                 if (path_aggregates.find(curr) != path_aggregates.end()) {

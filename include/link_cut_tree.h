@@ -1,12 +1,15 @@
 #pragma once
 
 #include <gtest/gtest.h>
+#include <algorithm>
 #include "types.h"
 #include "util.h"
 
+#include <absl/container/flat_hash_map.h>
+
 #define MAX_UINT64 (std::numeric_limits<uint64_t>::max())
-class LinkCutTree;
-class SplayTree;
+// class LinkCutTree<>;
+// class SplayTree;
 
 class LinkCutNode {
   FRIEND_TEST(LinkCutTreeSuite, random_links_and_cuts);
@@ -36,6 +39,10 @@ class LinkCutNode {
   void rotate_up();
 
   public:
+    // delete copy constructor and assignment operator
+    // LinkCutNode(const LinkCutNode&) = delete;
+    // LinkCutNode& operator=(const LinkCutNode&) = delete;
+    
     LinkCutNode* splay();
 
     void link_left(LinkCutNode* left);
@@ -70,12 +77,16 @@ class LinkCutNode {
     bool get_reversed();
 };
 
+template <
+// typename Container = std::vector<LinkCutNode>>
+typename Container = absl::flat_hash_map<node_id_t, LinkCutNode*>>
 class LinkCutTree {
   FRIEND_TEST(LinkCutTreeSuite, join_split_test);
   FRIEND_TEST(LinkCutTreeSuite, expose_simple_test);
   FRIEND_TEST(LinkCutTreeSuite, random_links_and_cuts);
   
-  std::vector<LinkCutNode> nodes;
+  Container nodes;
+  node_id_t max_nodes;
 
   // Concatenate the paths with aux trees rooted at v and w and return the root of the combined aux tree
   LinkCutNode* join(LinkCutNode* v, LinkCutNode* w);
@@ -104,4 +115,60 @@ class LinkCutTree {
 
     // Query for the CC algorithm
     std::vector<std::set<node_id_t>> get_cc();
+    
+    LinkCutNode& node(node_id_t u) {
+        if constexpr (std::is_same_v<Container, std::vector<LinkCutNode>>) {
+            assert(u < nodes.size());
+            return nodes[u];
+        } else {
+            assert(nodes.find(u) != nodes.end());
+            return *nodes[u];
+        }
+    }
+    
+    LinkCutNode* get_node_ptr(node_id_t u) {
+        if constexpr (std::is_same_v<Container, std::vector<LinkCutNode>>) {
+            assert(u < nodes.size());
+            return &nodes[u];
+        } else {
+            assert(nodes.find(u) != nodes.end());
+            return nodes[u];
+        }
+    }
+    
+    void initialize_node(node_id_t u) {
+      // no-op with vector implementation
+      if constexpr (!std::is_same_v<Container, std::vector<LinkCutNode>>) {
+          nodes[u] = new LinkCutNode();
+      }
+    };
+    void uninitialize_node(node_id_t u) {
+      // no-op with vector implementation
+      if constexpr (!std::is_same_v<Container, std::vector<LinkCutNode>>) {
+          assert(nodes.find(u) != nodes.end());
+          delete nodes[u];
+      }
+    };
+
+    void initialize_all_nodes() {
+      for (node_id_t i = 0; i < max_nodes; ++i) {
+          initialize_node(i);
+      }
+    };
+
+    void initialize_all_nodes(node_id_t upto) {
+      for (node_id_t i = 0; i < upto; ++i) {
+          initialize_node(i);
+      }
+    };
+
+    bool is_initialized(node_id_t u) {
+      // no-op with vector implementation
+      if constexpr (std::is_same_v<Container, std::vector<LinkCutNode>>) {
+          return true;
+      } else {
+          return nodes.find(u) != nodes.end();
+      }
+    };
+    
 };
